@@ -27,6 +27,8 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'या',
   'elements.display.copyable_text.copy': 'प्रतिलिपि',
   'elements.display.copyable_text.copied': 'नकल की गई!',
+  'elements.display.copyable_text.show': 'दिखाएं',
+  'elements.display.copyable_text.hide': 'छिपाएं',
 
   /* Fields */
   'elements.fields.generic.placeholder': '{field} दर्ज करें',
@@ -45,6 +47,17 @@ const translations: I18nTranslations = {
   'elements.fields.organization.description.label': 'संगठन विवरण',
   'elements.fields.organization.select.label': 'संगठन चुनें',
   'elements.fields.organization.select.placeholder': 'एक संगठन चुनें',
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': 'लॉगिन फ़्लो चुनें',
+  'elements.fields.auth_flow_select.empty': 'कोई लॉगिन फ़्लो नहीं मिला।',
+  'elements.fields.select.load_more': 'और लोड करें',
+  'elements.fields.select.loading': 'लोड हो रहा है…',
+  'elements.fields.select.loading_more': 'और लोड हो रहा है…',
+  'elements.fields.user_select.aria_label': 'एक उपयोगकर्ता चुनें',
+  'elements.fields.user_select.empty': 'कोई उपयोगकर्ता नहीं मिला।',
+  'elements.fields.user_type_select.aria_label': 'उपयोगकर्ता प्रकार चुनें',
+  'elements.fields.user_type_select.empty': 'कोई उपयोगकर्ता प्रकार नहीं मिला।',
 
   /* Validation */
   'validations.required.field.error': 'यह फील्ड आवश्यक है',

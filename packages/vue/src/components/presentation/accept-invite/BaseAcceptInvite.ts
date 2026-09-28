@@ -224,7 +224,10 @@ const BaseAcceptInvite: Component = defineComponent({
       const validateComponents = (comps: any[]): void => {
         comps.forEach((comp: any) => {
           if (
-            (comp.type === 'PASSWORD_INPUT' || comp.type === 'TEXT_INPUT' || comp.type === 'EMAIL_INPUT') &&
+            (comp.type === 'PASSWORD_INPUT' ||
+              comp.type === 'TEXT_INPUT' ||
+              comp.type === 'EMAIL_INPUT' ||
+              comp.type === 'SELECT') &&
             comp.required &&
             comp.ref
           ) {
@@ -504,6 +507,7 @@ const BaseAcceptInvite: Component = defineComponent({
               resetForm,
               handleInputChange,
               {
+                additionalData: (currentFlow.value?.data?.additionalData as Record<string, any>) ?? {},
                 meta,
                 onInputBlur: handleInputBlur,
                 onSubmit: handleSubmit,

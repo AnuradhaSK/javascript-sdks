@@ -19,6 +19,12 @@ const icon = (paths: VNode[]): VNode => h('svg', {...defaultProps}, paths);
 
 export const CheckIcon = (): VNode => icon([h('polyline', {points: '20 6 9 17 4 12'})]);
 
+export const CopyIcon = (): VNode =>
+  icon([
+    h('rect', {height: '14', rx: '2', ry: '2', width: '14', x: '8', y: '8'}),
+    h('path', {d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'}),
+  ]);
+
 export const XIcon = (): VNode =>
   icon([h('line', {x1: '18', x2: '6', y1: '6', y2: '18'}), h('line', {x1: '6', x2: '18', y1: '6', y2: '18'})]);
 

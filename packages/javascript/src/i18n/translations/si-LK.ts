@@ -27,6 +27,8 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'හෝ',
   'elements.display.copyable_text.copy': 'පිටපත් කරන්න',
   'elements.display.copyable_text.copied': 'පිටපත් කළා!',
+  'elements.display.copyable_text.show': 'පෙන්වන්න',
+  'elements.display.copyable_text.hide': 'සඟවන්න',
 
   /* Fields */
   'elements.fields.generic.placeholder': 'ඔබේ {field} ඇතුලත් කරන්න',
@@ -45,6 +47,17 @@ const translations: I18nTranslations = {
   'elements.fields.organization.description.label': 'සංවිධානයේ විස්තරය',
   'elements.fields.organization.select.label': 'සංවිධානය තෝරන්න',
   'elements.fields.organization.select.placeholder': 'සංවිධානයක් සැළුම් කරන්න',
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': 'පිවිසුම් ප්‍රවාහයක් තෝරන්න',
+  'elements.fields.auth_flow_select.empty': 'පිවිසුම් ප්‍රවාහ හමු නොවීය.',
+  'elements.fields.select.load_more': 'තවත් පූරණය කරන්න',
+  'elements.fields.select.loading': 'පූරණය වේ…',
+  'elements.fields.select.loading_more': 'තවත් පූරණය වේ…',
+  'elements.fields.user_select.aria_label': 'පරිශීලකයෙකු තෝරන්න',
+  'elements.fields.user_select.empty': 'පරිශීලකයන් හමු නොවීය.',
+  'elements.fields.user_type_select.aria_label': 'පරිශීලක වර්ගයක් තෝරන්න',
+  'elements.fields.user_type_select.empty': 'පරිශීලක වර්ග හමු නොවීය.',
 
   /* Validation */
   'validations.required.field.error': 'මෙම ක්ෂේත්‍රය අවශ්‍යයි',

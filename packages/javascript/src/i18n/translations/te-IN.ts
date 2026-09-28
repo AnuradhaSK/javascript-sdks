@@ -27,6 +27,8 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'లేదా',
   'elements.display.copyable_text.copy': 'కాపీ చేయండి',
   'elements.display.copyable_text.copied': 'కాపీ చేయబడింది!',
+  'elements.display.copyable_text.show': 'చూపించు',
+  'elements.display.copyable_text.hide': 'దాచు',
 
   /* Fields */
   'elements.fields.generic.placeholder': 'మీ {field} ను నమోదు చేయండి',
@@ -45,6 +47,17 @@ const translations: I18nTranslations = {
   'elements.fields.organization.description.label': 'సంస్థ వివరణ',
   'elements.fields.organization.select.label': 'ఆర్గనైజేషన్‌ను ఎంచుకోండి',
   'elements.fields.organization.select.placeholder': 'సంస్థను ఎంచుకోండి',
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': 'లాగిన్ ప్రవాహాన్ని ఎంచుకోండి',
+  'elements.fields.auth_flow_select.empty': 'లాగిన్ ప్రవాహాలు కనుగొనబడలేదు.',
+  'elements.fields.select.load_more': 'మరిన్ని లోడ్ చేయండి',
+  'elements.fields.select.loading': 'లోడ్ అవుతోంది…',
+  'elements.fields.select.loading_more': 'మరిన్ని లోడ్ అవుతోంది…',
+  'elements.fields.user_select.aria_label': 'ఒక వినియోగదారుని ఎంచుకోండి',
+  'elements.fields.user_select.empty': 'వినియోగదారులు కనుగొనబడలేదు.',
+  'elements.fields.user_type_select.aria_label': 'వినియోగదారు రకాన్ని ఎంచుకోండి',
+  'elements.fields.user_type_select.empty': 'వినియోగదారు రకాలు కనుగొనబడలేదు.',
 
   /* Validation */
   'validations.required.field.error': 'ఈ ఫీల్డ్ అవసరం',

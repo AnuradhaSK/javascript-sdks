@@ -13,6 +13,7 @@ import {css} from '../../../styles/emotion';
  * @param hasError - Whether the component has an error
  * @param hasStartIcon - Whether the component has a start icon
  * @param hasEndIcon - Whether the component has an end icon
+ * @param hasEndAdornment - Whether the component has extra content before the end icon
  * @returns Object containing CSS class names for component styling
  */
 const useStyles = (
@@ -22,14 +23,19 @@ const useStyles = (
   hasError: boolean,
   hasStartIcon: boolean,
   hasEndIcon: boolean,
+  hasEndAdornment = false,
 ): Record<string, string> =>
   useMemo(() => {
     const inlineStartPadding: string = hasStartIcon
       ? `calc(${theme.vars.spacing.unit} * 5)`
       : `calc(${theme.vars.spacing.unit} * 1.5)`;
-    const inlineEndPadding: string = hasEndIcon
-      ? `calc(${theme.vars.spacing.unit} * 5)`
-      : `calc(${theme.vars.spacing.unit} * 1.5)`;
+    let inlineEndPadding = `calc(${theme.vars.spacing.unit} * 1.5)`;
+
+    if (hasEndIcon && hasEndAdornment) {
+      inlineEndPadding = `calc(${theme.vars.spacing.unit} * 8)`;
+    } else if (hasEndIcon || hasEndAdornment) {
+      inlineEndPadding = `calc(${theme.vars.spacing.unit} * 5)`;
+    }
 
     const inputContainer: string = css`
       position: relative;
@@ -126,10 +132,20 @@ const useStyles = (
 
     const endIcon: string = css`
       ${icon};
+      inset-inline-end: calc(${theme.vars.spacing.unit} * ${hasEndAdornment ? 4.5 : 1});
+    `;
+
+    const endAdornment: string = css`
+      position: absolute;
+      display: flex;
+      align-items: center;
+      top: 50%;
+      transform: translateY(-50%);
       inset-inline-end: ${theme.vars.spacing.unit};
     `;
 
     return {
+      endAdornment,
       endIcon,
       icon,
       input,
@@ -138,6 +154,6 @@ const useStyles = (
       inputError,
       startIcon,
     };
-  }, [theme, colorScheme, disabled, hasError, hasStartIcon, hasEndIcon]);
+  }, [theme, colorScheme, disabled, hasError, hasStartIcon, hasEndIcon, hasEndAdornment]);
 
 export default useStyles;

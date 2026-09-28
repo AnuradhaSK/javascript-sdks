@@ -17,6 +17,7 @@
  * ```
  */
 const NuxtAPIRoutes: {
+  AUTH_FLOWS: string;
   BACKCHANNEL_LOGOUT: string;
   CALLBACK: string;
   META: string;
@@ -28,7 +29,11 @@ const NuxtAPIRoutes: {
   USER: string;
   USER_CREDENTIALS: string;
   USER_PROFILE: string;
+  USER_TYPES: string;
+  USERS: string;
 } = {
+  /** Loads one page of authentication flows for an `AUTH_FLOW_SELECT` picker, using the signed-in session. */
+  AUTH_FLOWS: '/api/auth/auth-flows',
   /** Receives a back-channel logout token from ThunderID. Served only when enabled. */
   BACKCHANNEL_LOGOUT: '/api/auth/backchannel-logout',
   /** Resolves the OAuth callback and completes sign-in. */
@@ -51,6 +56,10 @@ const NuxtAPIRoutes: {
   USER_CREDENTIALS: '/api/auth/user/credentials',
   /** Fetches (GET) and updates (PATCH) the user profile. */
   USER_PROFILE: '/api/auth/user/profile',
+  /** Loads one page of user types for a `USER_TYPE_SELECT` picker, using the signed-in session. */
+  USER_TYPES: '/api/auth/user-types',
+  /** Loads one page of the user directory for a `USER_SELECT` picker, using the signed-in session. */
+  USERS: '/api/auth/users',
 } as const;
 
 export default NuxtAPIRoutes;

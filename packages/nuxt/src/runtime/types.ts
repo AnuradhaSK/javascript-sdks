@@ -6,6 +6,8 @@ import type {
   AuthClientConfig,
   FlowMetadataResponse,
   I18nPreferences,
+  SelectPageErrorResult,
+  SelectPage,
   TokenEndpointAuthMethod,
   User,
   UserProfile,
@@ -31,6 +33,21 @@ export interface ThunderIDNuxtConfig extends AuthClientConfig {
      * instance of the application runs. Defaults to the memory of this process.
      */
     store?: string;
+  };
+  /**
+   * Opt-in management pickers. `UserSelect`, `AuthFlowSelect` and `UserTypeSelect` load their options through a server
+   * route that lists the users, authentication flows or user types with the signed-in user's own session, so each
+   * route and its component are registered only for the picker that is turned on. Nothing is served by default.
+   *
+   * The management API still decides what the signed-in user may see.
+   */
+  resourcePickers?: {
+    /** Serves `GET /api/auth/auth-flows` and registers `AuthFlowSelect`. */
+    authFlows?: boolean;
+    /** Serves `GET /api/auth/user-types` and registers `UserTypeSelect`. */
+    userTypes?: boolean;
+    /** Serves `GET /api/auth/users` and registers `UserSelect`. */
+    users?: boolean;
   };
   /** Secret for signing session JWTs (use THUNDERID_SESSION_SECRET env var) */
   sessionSecret?: string;
@@ -119,3 +136,19 @@ export interface ThunderIDAuthState {
   isSignedIn: boolean;
   user: User | null;
 }
+
+/**
+ * Result of a select page route (`GET /api/auth/users`, `/api/auth/auth-flows`, `/api/auth/user-types`):
+ * one normalized page, or why it could not be loaded. Always carried in the body of a `200` response, since
+ * a `401` means the caller's own session is invalid, not that the directory call failed.
+ */
+export type ThunderIDSelectPageResult = {page: SelectPage; success: true} | ({success: false} & SelectPageErrorResult);
+
+/** Result of `GET /api/auth/users`. */
+export type ThunderIDGetUsersResult = ThunderIDSelectPageResult;
+
+/** Result of `GET /api/auth/auth-flows`. */
+export type ThunderIDGetAuthFlowsResult = ThunderIDSelectPageResult;
+
+/** Result of `GET /api/auth/user-types`. */
+export type ThunderIDGetUserTypesResult = ThunderIDSelectPageResult;

@@ -10,7 +10,8 @@ import Eye from '../Icons/Eye';
 import EyeOff from '../Icons/EyeOff';
 import TextField, {TextFieldProps} from '../TextField/TextField';
 
-export interface PasswordFieldProps extends Omit<TextFieldProps, 'type' | 'endIcon' | 'onEndIconClick' | 'onChange'> {
+export interface PasswordFieldProps
+  extends Omit<TextFieldProps, 'type' | 'endIcon' | 'endIconLabel' | 'onEndIconClick' | 'onChange'> {
   /**
    * The browser autofill hint. Defaults to `current-password`; set `new-password` on the
    * fields of a change-password or sign-up form so password managers offer to generate and
@@ -18,9 +19,17 @@ export interface PasswordFieldProps extends Omit<TextFieldProps, 'type' | 'endIc
    */
   autoComplete?: string;
   /**
+   * Accessible name of the toggle button while the password is visible
+   */
+  hideLabel?: string;
+  /**
    * Callback function when the field value changes
    */
   onChange: (value: string) => void;
+  /**
+   * Accessible name of the toggle button while the password is hidden
+   */
+  showLabel?: string;
 }
 
 /**
@@ -29,7 +38,9 @@ export interface PasswordFieldProps extends Omit<TextFieldProps, 'type' | 'endIc
  */
 const PasswordField: FC<PasswordFieldProps> = ({
   autoComplete = 'current-password',
+  hideLabel = 'Hide password',
   onChange,
+  showLabel = 'Show password',
   className,
   disabled,
   error,
@@ -56,6 +67,7 @@ const PasswordField: FC<PasswordFieldProps> = ({
       autoComplete={autoComplete}
       disabled={disabled}
       error={error}
+      endIconLabel={showPassword ? hideLabel : showLabel}
       endIcon={
         <IconComponent
           width={16}

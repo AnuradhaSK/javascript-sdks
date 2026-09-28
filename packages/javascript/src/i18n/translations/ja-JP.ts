@@ -27,6 +27,8 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'または',
   'elements.display.copyable_text.copy': 'コピー',
   'elements.display.copyable_text.copied': 'コピーしました！',
+  'elements.display.copyable_text.show': '表示',
+  'elements.display.copyable_text.hide': '非表示',
 
   /* Fields */
   'elements.fields.generic.placeholder': '{field}を入力してください',
@@ -45,6 +47,17 @@ const translations: I18nTranslations = {
   'elements.fields.organization.description.label': '組織の説明',
   'elements.fields.organization.select.label': '組織を選択',
   'elements.fields.organization.select.placeholder': '組織を選択してください',
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': 'ログインフローを選択',
+  'elements.fields.auth_flow_select.empty': '該当するログインフローが見つかりません。',
+  'elements.fields.select.load_more': 'さらに読み込む',
+  'elements.fields.select.loading': '読み込み中…',
+  'elements.fields.select.loading_more': 'さらに読み込み中…',
+  'elements.fields.user_select.aria_label': 'ユーザーを選択',
+  'elements.fields.user_select.empty': '該当するユーザーが見つかりません。',
+  'elements.fields.user_type_select.aria_label': 'ユーザータイプを選択',
+  'elements.fields.user_type_select.empty': '該当するユーザータイプが見つかりません。',
 
   /* Validation */
   'validations.required.field.error': 'この項目は必須です',

@@ -135,6 +135,15 @@ export enum EmbeddedFlowComponentType {
 
   /** QR code display component for wallet-based flows (e.g. OpenID4VP) */
   QrCode = 'QR_CODE',
+
+  /** Single-user picker with incremental, paginated directory loading */
+  UserSelect = 'USER_SELECT',
+
+  /** Authentication-flow picker with incremental, paginated loading; submits the flow ID */
+  AuthFlowSelect = 'AUTH_FLOW_SELECT',
+
+  /** User-type picker with incremental, paginated loading; submits the user type handle */
+  UserTypeSelect = 'USER_TYPE_SELECT',
 }
 
 /**
@@ -418,6 +427,11 @@ export interface EmbeddedFlowComponent {
    * References a key in additionalData whose value is resolved at render time.
    */
   source?: string;
+
+  /**
+   * Whether a value is hidden behind dots until the user asks to see it (e.g., a COPYABLE_TEXT showing a secret).
+   */
+  masked?: boolean;
 
   /**
    * Image source URL (for Image components).

@@ -22,15 +22,21 @@ describe('resolveResourceEndpoint', (): void => {
       endpoints: {
         flowExecute: 'https://rs.example.com/flow/execute',
         flowMeta: 'https://rs.example.com/flow/meta',
+        flows: 'https://rs.example.com/flows',
+        users: 'https://rs.example.com/users',
         usersMe: 'https://rs.example.com/users/me',
         usersMeMeta: 'https://rs.example.com/users/me/meta',
+        userTypes: 'https://rs.example.com/user-types',
       },
     };
 
     expect(resolveResourceEndpoint('flowExecute', config)).toBe('https://rs.example.com/flow/execute');
     expect(resolveResourceEndpoint('flowMeta', config)).toBe('https://rs.example.com/flow/meta');
+    expect(resolveResourceEndpoint('users', config)).toBe('https://rs.example.com/users');
     expect(resolveResourceEndpoint('usersMe', config)).toBe('https://rs.example.com/users/me');
     expect(resolveResourceEndpoint('usersMeMeta', config)).toBe('https://rs.example.com/users/me/meta');
+    expect(resolveResourceEndpoint('flows', config)).toBe('https://rs.example.com/flows');
+    expect(resolveResourceEndpoint('userTypes', config)).toBe('https://rs.example.com/user-types');
   });
 
   it('prefers an explicit per-call URL over the config override', (): void => {
@@ -53,6 +59,8 @@ describe('resolveResourceEndpoint', (): void => {
       'applications',
       'flowExecute',
       'flowMeta',
+      'flows',
+      'userTypes',
       'users',
       'usersMe',
       'usersMeCredentials',

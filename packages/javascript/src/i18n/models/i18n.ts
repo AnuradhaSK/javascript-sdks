@@ -27,6 +27,8 @@ export interface I18nTranslations {
   'elements.display.divider.or_separator': string;
   'elements.display.copyable_text.copy': string;
   'elements.display.copyable_text.copied': string;
+  'elements.display.copyable_text.hide': string;
+  'elements.display.copyable_text.show': string;
 
   /* Fields */
   'elements.fields.generic.placeholder': string;
@@ -45,6 +47,17 @@ export interface I18nTranslations {
   'elements.fields.organization.description.label': string;
   'elements.fields.organization.select.label': string;
   'elements.fields.organization.select.placeholder': string;
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': string;
+  'elements.fields.auth_flow_select.empty': string;
+  'elements.fields.select.load_more': string;
+  'elements.fields.select.loading': string;
+  'elements.fields.select.loading_more': string;
+  'elements.fields.user_select.aria_label': string;
+  'elements.fields.user_select.empty': string;
+  'elements.fields.user_type_select.aria_label': string;
+  'elements.fields.user_type_select.empty': string;
 
   /* Validation */
   'validations.required.field.error': string;

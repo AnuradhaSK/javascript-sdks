@@ -15,6 +15,9 @@ import {
   TokenExchangeRequestConfig,
   TokenResponse,
   User,
+  ManagedFlowListResponse,
+  ManagedUserListResponse,
+  ManagedUserTypeListResponse,
   UserProfile,
   executeEmbeddedSignInFlow,
   extractUserClaimsFromIdToken,
@@ -232,6 +235,48 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
       },
       payload,
     });
+  }
+
+  /**
+   * Retrieves one page of the user directory for the session identified by `userId`.
+   *
+   * Ensures the client is initialized first, like `updateUserCredentials`. Errors are not caught so the calling server action can map the real `ThunderIDAPIError`.
+   */
+  override async getUsers(
+    options: {filter?: string; limit?: number; offset?: number; signal?: AbortSignal} = {},
+    userId?: string,
+  ): Promise<ManagedUserListResponse> {
+    await this.ensureInitialized();
+
+    return super.getUsers(options, userId);
+  }
+
+  /**
+   * Retrieves one page of flows for the session identified by `userId`.
+   *
+   * Ensures the client is initialized first, like `getUsers`. Errors are not caught so the calling server action can map the real `ThunderIDAPIError`.
+   */
+  override async getFlows(
+    options: {flowType?: string; limit?: number; offset?: number; signal?: AbortSignal} = {},
+    userId?: string,
+  ): Promise<ManagedFlowListResponse> {
+    await this.ensureInitialized();
+
+    return super.getFlows(options, userId);
+  }
+
+  /**
+   * Retrieves one page of user types for the session identified by `userId`.
+   *
+   * Ensures the client is initialized first, like `getUsers`. Errors are not caught so the calling server action can map the real `ThunderIDAPIError`.
+   */
+  override async getUserTypes(
+    options: {limit?: number; offset?: number; signal?: AbortSignal} = {},
+    userId?: string,
+  ): Promise<ManagedUserTypeListResponse> {
+    await this.ensureInitialized();
+
+    return super.getUserTypes(options, userId);
   }
 
   override isLoading(): boolean {

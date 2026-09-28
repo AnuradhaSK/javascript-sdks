@@ -33,6 +33,7 @@ import ALERT_CSS from '../components/primitives/Alert/Alert.css';
 import BUTTON_CSS from '../components/primitives/Button/Button.css';
 import CARD_CSS from '../components/primitives/Card/Card.css';
 import CHECKBOX_CSS from '../components/primitives/Checkbox/Checkbox.css';
+import COPYABLE_TEXT_CSS from '../components/primitives/CopyableText/CopyableText.css';
 import DATE_PICKER_CSS from '../components/primitives/DatePicker/DatePicker.css';
 import DIVIDER_CSS from '../components/primitives/Divider/Divider.css';
 import KEY_VALUE_LIST_CSS from '../components/primitives/KeyValueList/KeyValueList.css';
@@ -69,6 +70,7 @@ const STYLES: string = [
   DIVIDER_CSS,
   KEY_VALUE_LIST_CSS,
   LOGO_CSS,
+  COPYABLE_TEXT_CSS,
   SPINNER_CSS,
   // Auth
   BASE_SIGN_IN_CSS,

@@ -15,8 +15,11 @@ const useStyles = (theme: Theme): Record<string, string> =>
         width: 100%;
       `,
       copyButton: css`
-        flex-shrink: 0;
-        white-space: nowrap;
+        color: ${theme.vars.colors.text.secondary};
+
+        &:hover:not(:disabled) {
+          color: ${theme.vars.colors.text.primary};
+        }
       `,
       label: css`
         color: ${theme.vars.colors.text.secondary};

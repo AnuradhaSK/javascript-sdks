@@ -1,7 +1,14 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {EmbeddedFlowType, FlowMetadataResponse, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {
+  EmbeddedFlowType,
+  FetchAuthFlows,
+  FetchUsers,
+  FetchUserTypes,
+  FlowMetadataResponse,
+  withVendorCSSClassPrefix,
+} from '@thunderid/browser';
 import {
   type Component,
   type PropType,
@@ -93,6 +100,21 @@ const BaseInviteUser: Component = defineComponent({
   name: 'BaseInviteUser',
   props: {
     className: {default: '', type: String},
+    /**
+     * Function to load one page of authentication flows.
+     * When provided, enables the flow picker for AUTH_FLOW_SELECT components.
+     */
+    fetchAuthFlows: {default: undefined, type: Function as PropType<FetchAuthFlows>},
+    /**
+     * Function to load one page of users.
+     * When provided, enables the user picker for USER_SELECT components.
+     */
+    fetchUsers: {default: undefined, type: Function as PropType<FetchUsers>},
+    /**
+     * Function to load one page of user types.
+     * When provided, enables the user type picker for USER_TYPE_SELECT components.
+     */
+    fetchUserTypes: {default: undefined, type: Function as PropType<FetchUserTypes>},
     isInitialized: {default: true, type: Boolean},
     onError: {default: undefined, type: Function as PropType<(error: Error) => void>},
     onFlowChange: {
@@ -182,7 +204,12 @@ const BaseInviteUser: Component = defineComponent({
       const validateComponents = (comps: any[]): void => {
         comps.forEach((comp: any) => {
           if (
-            (comp.type === 'TEXT_INPUT' || comp.type === 'EMAIL_INPUT' || comp.type === 'SELECT') &&
+            (comp.type === 'TEXT_INPUT' ||
+              comp.type === 'EMAIL_INPUT' ||
+              comp.type === 'SELECT' ||
+              comp.type === 'USER_SELECT' ||
+              comp.type === 'AUTH_FLOW_SELECT' ||
+              comp.type === 'USER_TYPE_SELECT') &&
             comp.required &&
             comp.ref
           ) {
@@ -494,8 +521,13 @@ const BaseInviteUser: Component = defineComponent({
               resetForm,
               handleInputChange,
               {
+                additionalData: currentFlow.value?.data?.additionalData,
+                fetchAuthFlows: props.fetchAuthFlows,
+                fetchUsers: props.fetchUsers,
+                fetchUserTypes: props.fetchUserTypes,
                 meta,
                 onInputBlur: handleInputBlur,
+                onPickerError: props.onError,
                 onSubmit: handleSubmit,
                 size: props.size,
                 t,
