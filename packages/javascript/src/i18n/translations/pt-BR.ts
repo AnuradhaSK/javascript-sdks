@@ -186,6 +186,7 @@ const translations: I18nTranslations = {
   'errors.signup.flow.failure': 'Ocorreu um erro durante o fluxo de cadastro. Tente novamente mais tarde.',
   'errors.signup.flow.initialization.failure':
     'Ocorreu um erro ao inicializar o fluxo de cadastro. Tente novamente mais tarde.',
+  'errors.signup.popup.failure': 'Não foi possível continuar o cadastro na janela pop-up. Tente novamente.',
   'errors.signup.components.not.available':
     'O formulário de cadastro não está disponível no momento. Tente novamente mais tarde.',
   'errors.signin.components.not.available':

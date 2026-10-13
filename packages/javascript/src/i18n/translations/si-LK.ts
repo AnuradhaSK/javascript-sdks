@@ -187,6 +187,7 @@ const translations: I18nTranslations = {
   'errors.signup.flow.failure': 'ගිණුම් තැනීමේ ක්‍රියාවලියේදී දෝෂයක් සිදු විය. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
   'errors.signup.flow.initialization.failure':
     'ගිණුම් තැනීමේ ක්‍රියාවලිය ආරම්භ කිරීමේදී දෝෂයක් සිදු විය. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
+  'errors.signup.popup.failure': 'උත්පතන කවුළුවේ ගිණුම් තැනීම දිගටම කරගෙන යා නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.',
   'errors.signup.components.not.available': 'ගිණුම් තැනීමේ පිටුව දැන් ලබා ගත නොහැකිය. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
   'errors.signin.components.not.available': 'ප්‍රවේශ වීමේ පිටුව දැන් ලබා ගත නොහැකිය. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
   'errors.signin.timeout': 'පියවර සම්පූර්ණ කිරීමට ලබා දී තිබූ කාලය ඉකුත් වී ඇත.',

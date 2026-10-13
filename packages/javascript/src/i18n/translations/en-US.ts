@@ -189,6 +189,7 @@ const translations: I18nTranslations = {
   'errors.signup.flow.failure': 'An error occurred during the sign-up flow. Please try again later.',
   'errors.signup.flow.initialization.failure':
     'An error occurred while initializing the sign-up flow. Please try again later.',
+  'errors.signup.popup.failure': 'Could not continue the sign-up in the pop-up window. Please try again.',
   'errors.signup.components.not.available': 'Sign-up form is not available at the moment. Please try again later.',
 };
 

@@ -187,6 +187,7 @@ const translations: I18nTranslations = {
   'errors.signup.flow.failure': 'సైన్ అప్ ప్రక్రియలో లోపం వచ్చింది. దయచేసి తరువాత మళ్లీ ప్రయత్నించండి.',
   'errors.signup.flow.initialization.failure':
     'సైన్ అప్ ప్రక్రియను ప్రారంభించేటప్పుడు లోపం వచ్చింది. దయచేసి తరువాత మళ్లీ ప్రయత్నించండి.',
+  'errors.signup.popup.failure': 'పాప్-అప్ విండోలో సైన్ అప్ కొనసాగించడం సాధ్యం కాలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.',
   'errors.signup.components.not.available':
     'సైన్ అప్ ఫారం ప్రస్తుతం అందుబాటులో లేదు. దయచేసి తరువాత మళ్లీ ప్రయత్నించండి.',
   'errors.signin.components.not.available':

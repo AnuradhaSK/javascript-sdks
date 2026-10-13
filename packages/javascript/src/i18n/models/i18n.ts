@@ -186,6 +186,7 @@ export interface I18nTranslations {
   'errors.signup.initialization': string;
   'errors.signup.flow.failure': string;
   'errors.signup.flow.initialization.failure': string;
+  'errors.signup.popup.failure': string;
   'errors.signup.components.not.available': string;
   'errors.signin.components.not.available': string;
   'errors.signin.timeout': string;

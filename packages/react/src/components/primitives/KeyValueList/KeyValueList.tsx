@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {KeyValuePair} from '@thunderid/browser';
-import {FC, Fragment, ReactElement, useState} from 'react';
+import {FC, Fragment, ReactElement, useId} from 'react';
 import useStyles from './KeyValueList.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
-
-// `useId` needs React 18; the package supports React >=16.8.
-let labelIdCounter = 0;
 
 export interface KeyValueListProps {
   /**
@@ -27,7 +24,7 @@ export interface KeyValueListProps {
 const KeyValueList: FC<KeyValueListProps> = ({label = undefined, pairs}: KeyValueListProps): ReactElement => {
   const {theme} = useTheme();
   const styles: Record<string, string> = useStyles(theme);
-  const [labelId] = useState<string>(() => `thunderid-key-value-list-label-${(labelIdCounter += 1)}`);
+  const labelId: string = useId();
 
   return (
     <div className={styles['container']}>

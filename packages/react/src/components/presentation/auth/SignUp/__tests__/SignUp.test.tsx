@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {render, waitFor, cleanup, act} from '@testing-library/react';
-import {afterEach, beforeEach, describe, expect, it, vi, Mock} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi, Mock, MockInstance} from 'vitest';
 import I18nProvider from '../../../../../contexts/I18n/I18nProvider';
 import ThemeProvider from '../../../../../contexts/Theme/ThemeProvider';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../../../contexts/ThunderID/ThunderIDContext';
@@ -155,5 +155,204 @@ describe('SignUp', () => {
       await captured.submit?.({id: 'continue'}, {}, true);
     });
     expect(mockSignUp).toHaveBeenCalledTimes(2);
+  });
+
+  describe('social sign-up popup', () => {
+    const callbackUrl = (code: string, state: string): string =>
+      `${window.location.origin}/callback?code=${code}&state=${state}`;
+
+    let popup: {close: Mock; closed: boolean; location: {href: string}};
+    // Where the popup was told to go. Its `href` keeps the current page until a test lands it, as a real
+    // navigation commits only after the new page responds.
+    let navigations: string[];
+    let land: (url: string) => void;
+    let open: MockInstance<typeof window.open>;
+    let addListener: MockInstance<typeof window.addEventListener>;
+
+    beforeEach(() => {
+      let href = 'about:blank';
+      navigations = [];
+      land = (url: string): void => {
+        href = url;
+      };
+      popup = {
+        close: vi.fn(() => {
+          popup.closed = true;
+        }),
+        closed: false,
+        location: {
+          get href(): string {
+            return href;
+          },
+          set href(url: string) {
+            navigations.push(url);
+          },
+        },
+      };
+      open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+      addListener = vi.spyOn(window, 'addEventListener');
+    });
+
+    afterEach(() => {
+      // Stops the poll of any popup a failed assertion left open.
+      popup.closed = true;
+      open.mockRestore();
+      addListener.mockRestore();
+    });
+
+    /**
+     * Delivers the callback the way a callback page posting to its opener does. A synthetic MessageEvent cannot
+     * carry the stand-in popup as its source, so the newest registered listener is called directly.
+     */
+    const postCallback = async (code: string, state: string): Promise<void> => {
+      const handlers: Parameters<typeof window.addEventListener>[] = addListener.mock.calls.filter(
+        ([type]) => type === 'message',
+      );
+      const handler = handlers[handlers.length - 1][1] as (event: unknown) => Promise<void>;
+      await act(async () => {
+        await handler({data: {code, state}, origin: window.location.origin, source: popup});
+      });
+    };
+
+    const startSocialSignUp = async (props: Record<string, unknown> = {}) => {
+      mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+      const captured = renderSignUp(props);
+      await waitFor(() => {
+        expect(mockSignUp).toHaveBeenCalledTimes(1);
+      });
+
+      mockSignUp.mockResolvedValueOnce({
+        data: {redirectURL: 'https://idp.example.com/authorize?state=s1'},
+        executionId: 'exec-1',
+        flowStatus: 'INCOMPLETE',
+        type: 'REDIRECTION',
+      });
+      await act(async () => {
+        await captured.submit?.({id: 'google'}, {}, true);
+      });
+      expect(open).toHaveBeenCalledWith(
+        'https://idp.example.com/authorize?state=s1',
+        'oauth_popup',
+        expect.any(String),
+      );
+    };
+
+    const chainedRedirect = {
+      data: {redirectURL: 'https://idp.example.com/authorize?state=s2'},
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'REDIRECTION',
+    };
+
+    it('follows a REDIRECTION that the polled callback leads into', async () => {
+      await startSocialSignUp();
+
+      // The callback answers with the account-linking re-authentication: a second redirect.
+      mockSignUp.mockResolvedValueOnce(chainedRedirect);
+      land(callbackUrl('c1', 's1'));
+
+      // No user activation is left to open a new popup, so the open one is navigated instead.
+      await waitFor(
+        () => {
+          expect(navigations).toEqual(['https://idp.example.com/authorize?state=s2']);
+        },
+        {timeout: 3000},
+      );
+      expect(mockSignUp).toHaveBeenLastCalledWith(expect.objectContaining({inputs: {code: 'c1', state: 's1'}}));
+      expect(open).toHaveBeenCalledTimes(1);
+      expect(popup.close).not.toHaveBeenCalled();
+
+      // The popup still shows the first callback until the new page responds; it must not be submitted again.
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1500);
+      });
+      expect(mockSignUp).toHaveBeenCalledTimes(3);
+    });
+
+    it('follows a REDIRECTION that the posted callback leads into', async () => {
+      await startSocialSignUp();
+
+      mockSignUp.mockResolvedValueOnce(chainedRedirect);
+      await postCallback('c1', 's1');
+
+      expect(mockSignUp).toHaveBeenLastCalledWith(expect.objectContaining({inputs: {code: 'c1', state: 's1'}}));
+      expect(navigations).toEqual(['https://idp.example.com/authorize?state=s2']);
+      expect(open).toHaveBeenCalledTimes(1);
+      expect(popup.close).not.toHaveBeenCalled();
+    });
+
+    it('submits a callback once when both the poll and the posted message deliver it', async () => {
+      await startSocialSignUp();
+
+      let resolveCallback: (value: unknown) => void = () => undefined;
+      mockSignUp.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveCallback = resolve;
+        }),
+      );
+      land(callbackUrl('c1', 's1'));
+      await waitFor(
+        () => {
+          expect(mockSignUp).toHaveBeenCalledTimes(3);
+        },
+        {timeout: 3000},
+      );
+
+      // The callback page posts to its opener while the polled submit is still in flight.
+      const pending: Promise<void> = postCallback('c1', 's1');
+      resolveCallback(chainedRedirect);
+      await pending;
+
+      await waitFor(() => {
+        expect(navigations).toEqual(['https://idp.example.com/authorize?state=s2']);
+      });
+      expect(mockSignUp).toHaveBeenCalledTimes(3);
+      expect(popup.close).not.toHaveBeenCalled();
+    });
+
+    it('ignores a late message from the previous callback page once the chained redirect starts', async () => {
+      await startSocialSignUp();
+
+      mockSignUp.mockResolvedValueOnce(chainedRedirect);
+      land(callbackUrl('c1', 's1'));
+      await waitFor(
+        () => {
+          expect(navigations).toEqual(['https://idp.example.com/authorize?state=s2']);
+        },
+        {timeout: 3000},
+      );
+
+      // The first callback page boots and posts after the poll already submitted its code.
+      await postCallback('c1', 's1');
+
+      expect(mockSignUp).toHaveBeenCalledTimes(3);
+      expect(popup.close).not.toHaveBeenCalled();
+    });
+
+    it('stops listening for the popup when unmounted', async () => {
+      const removeListener: MockInstance<typeof window.removeEventListener> = vi.spyOn(window, 'removeEventListener');
+      await startSocialSignUp();
+      const handler = addListener.mock.calls.filter(([type]) => type === 'message').pop()?.[1];
+
+      cleanup();
+
+      expect(removeListener).toHaveBeenCalledWith('message', handler);
+      removeListener.mockRestore();
+    });
+
+    it('closes the popup and reports an error when the chained REDIRECTION cannot be followed', async () => {
+      const onError = vi.fn();
+      await startSocialSignUp({onError});
+
+      // A REDIRECTION without a redirectURL has nowhere to send the popup.
+      mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE', type: 'REDIRECTION'});
+      await postCallback('c1', 's1');
+
+      expect(popup.close).toHaveBeenCalledTimes(1);
+      expect(navigations).toEqual([]);
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({message: 'Could not continue the sign-up in the pop-up window. Please try again.'}),
+      );
+    });
   });
 });

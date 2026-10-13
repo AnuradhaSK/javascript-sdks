@@ -16,6 +16,7 @@ import {
   type VNode,
   defineComponent,
   h,
+  onUnmounted,
   ref,
   watch,
 } from 'vue';
@@ -287,17 +288,30 @@ const BaseSignUp: Component = defineComponent({
 
     // ── Popup OAuth for social sign-up ──
 
-    const handleRedirectionIfNeeded = (response: any): boolean => {
+    // Tears down the active popup's listener and poll, so neither outlives the component.
+    let cleanupActivePopup: (() => void) | null = null;
+    onUnmounted(() => cleanupActivePopup?.());
+
+    const handleRedirectionIfNeeded = (response: any, existingPopup?: Window): boolean => {
       if (response?.type !== EmbeddedFlowResponseType.Redirection || !response?.data?.redirectURL) {
         return false;
       }
 
       const redirectUrl: string = response.data.redirectURL;
-      const popup: Window | null = window.open(
-        redirectUrl,
-        'oauth_popup',
-        'width=500,height=600,scrollbars=yes,resizable=yes',
-      );
+      // The reused popup can still deliver the previous round's callback (a late postMessage, or the old callback URL
+      // until the new navigation commits), so only a callback carrying this round's state is accepted.
+      const expectedState: string | null = new URL(redirectUrl).searchParams.get('state');
+      const isThisRound = (state: unknown): boolean => !expectedState || state === expectedState;
+      // A chained redirect arrives after an async round trip, with no user activation to open a new popup, so the
+      // popup from the previous redirect is navigated instead.
+      const reusablePopup: Window | null = existingPopup && !existingPopup.closed ? existingPopup : null;
+
+      if (reusablePopup) {
+        reusablePopup.location.href = redirectUrl;
+      }
+
+      const popup: Window | null =
+        reusablePopup ?? window.open(redirectUrl, 'oauth_popup', 'width=500,height=600,scrollbars=yes,resizable=yes');
 
       if (!popup) {
         logger.error('Failed to open popup window');
@@ -312,6 +326,7 @@ const BaseSignUp: Component = defineComponent({
         if (messageHandler) window.removeEventListener('message', messageHandler);
         if (popupMonitor) clearInterval(popupMonitor);
       };
+      cleanupActivePopup = cleanup;
 
       const processOAuthCode = async (code: string, state: string): Promise<void> => {
         const payload: any = {
@@ -323,11 +338,25 @@ const BaseSignUp: Component = defineComponent({
 
         try {
           const continueResponse: any = await props.onSubmit(payload);
+          cleanup();
           props.onFlowChange?.(continueResponse);
 
           if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
             props.onComplete?.(continueResponse);
           } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Incomplete) {
+            // The provider callback can lead straight into another redirect (e.g. the account-linking
+            // re-authentication), so follow it in the same popup.
+            if (continueResponse?.type === EmbeddedFlowResponseType.Redirection) {
+              if (!handleRedirectionIfNeeded(continueResponse, popup)) {
+                // Keep the current step rather than showing the redirect as a step of its own.
+                popup.close();
+                const popupError: Error = new Error(t('errors.signup.popup.failure'));
+                handleError(popupError);
+                props.onError?.(popupError);
+              }
+              return;
+            }
+
             currentFlow.value = continueResponse;
             setupFormFields(continueResponse);
 
@@ -337,7 +366,6 @@ const BaseSignUp: Component = defineComponent({
             }
           }
           popup.close();
-          cleanup();
         } catch (err) {
           handleError(err);
           props.onError?.(err as Error);
@@ -353,7 +381,9 @@ const BaseSignUp: Component = defineComponent({
           : window.location.origin;
         if (event.origin !== expectedOrigin && event.origin !== window.location.origin) return;
         const {code, state} = event.data;
-        if (code && state) {
+        // The poll may already have picked up this callback.
+        if (code && state && isThisRound(state) && !hasProcessedCallback) {
+          hasProcessedCallback = true;
           await processOAuthCode(code, state);
         }
       };
@@ -370,11 +400,13 @@ const BaseSignUp: Component = defineComponent({
           try {
             const popupUrl: string = popup.location.href;
             if (popupUrl && (popupUrl.includes('code=') || popupUrl.includes('error='))) {
-              hasProcessedCallback = true;
               const url: URL = new URL(popupUrl);
               const code: string | null = url.searchParams.get('code');
               const state: string | null = url.searchParams.get('state');
               const error: string | null = url.searchParams.get('error');
+
+              if (!isThisRound(state)) return;
+              hasProcessedCallback = true;
 
               if (error) {
                 logger.error('OAuth error');
