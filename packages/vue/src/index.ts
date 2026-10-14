@@ -190,7 +190,8 @@ export {
   EmbeddedFlowTextVariant,
   EmbeddedFlowEventType,
   parseKeyValuePairs,
-  type KeyValuePair,
+  // Aliased to match the React SDK, where `KeyValuePair` is already the public KeyValueInput type.
+  type KeyValuePair as EmbeddedFlowKeyValuePair,
   type EmbeddedFlowComponent,
   type EmbeddedFlowResponseData,
   type EmbeddedFlowExecuteRequestConfig,

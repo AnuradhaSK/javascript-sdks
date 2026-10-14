@@ -304,6 +304,10 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   // redirect is not instantaneous. Latch the completion so the still-visible submit actions cannot
   // fire again: the executionId is spent, and re-submitting would start a whole new sign-up flow.
   const isFlowCompletedRef = useRef(false);
+  // Tears down the active popup's listener and poll, so neither outlives the component.
+  const cleanupActivePopupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => cleanupActivePopupRef.current?.(), []);
 
   /**
    * Restore any challenge token persisted before an OAuth redirect.
@@ -395,7 +399,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
       return response;
     },
-    [t, children],
+    [t, meta],
   );
 
   /**
@@ -586,15 +590,29 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   /**
    * Check if the response contains a redirection URL and perform the redirect if necessary.
    * @param response - The sign-up response
+   * @param existingPopup - A popup still open from the previous redirect, navigated instead of opening a new one
    * @returns true if a redirect was performed, false otherwise
    */
-  const handleRedirectionIfNeeded = (response: EmbeddedSignUpFlowResponse): boolean => {
+  const handleRedirectionIfNeeded = (response: EmbeddedSignUpFlowResponse, existingPopup?: Window): boolean => {
     if (response?.type === EmbeddedSignUpFlowType.Redirection && (response?.data as any)?.redirectURL) {
       /**
        * Open a popup window to handle redirection prompts for social sign-up
        */
       const redirectUrl: any = (response.data as any).redirectURL;
-      const popup: any = window.open(redirectUrl, 'oauth_popup', 'width=500,height=600,scrollbars=yes,resizable=yes');
+      // The reused popup can still deliver the previous round's callback (a late postMessage, or the old callback URL
+      // until the new navigation commits), so only a callback carrying this round's state is accepted.
+      const expectedState: string | null = new URL(redirectUrl as string).searchParams.get('state');
+      const isThisRound = (state: unknown): boolean => !expectedState || state === expectedState;
+      // A chained redirect arrives after an async round trip, with no user activation to open a new popup, so the
+      // popup from the previous redirect is navigated instead.
+      const reusablePopup: Window | null = existingPopup && !existingPopup.closed ? existingPopup : null;
+
+      if (reusablePopup) {
+        reusablePopup.location.href = redirectUrl;
+      }
+
+      const popup: Window | null =
+        reusablePopup ?? window.open(redirectUrl, 'oauth_popup', 'width=500,height=600,scrollbars=yes,resizable=yes');
 
       if (!popup) {
         logger.error('Failed to open popup window');
@@ -614,6 +632,64 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
         }
         if (popupMonitor) {
           clearInterval(popupMonitor);
+        }
+      };
+      cleanupActivePopupRef.current = cleanup;
+
+      /**
+       * Continue the flow with the provider's callback, then close the popup, unless a chained REDIRECTION
+       * (e.g. the account-linking re-authentication) takes it over.
+       */
+      const continueWithCode = async (code: string, state: string): Promise<void> => {
+        const payload: EmbeddedSignUpFlowRequest = {
+          ...(currentFlow?.executionId && {executionId: currentFlow.executionId}),
+          inputs: {
+            code,
+            state,
+          },
+          ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
+        };
+
+        try {
+          const continueResponse: any = await onSubmit!(payload);
+          cleanup();
+          await setChallengeToken(continueResponse.challengeToken ?? null);
+          onFlowChange?.(continueResponse);
+
+          if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
+            handleError(continueResponse);
+            onError?.(continueResponse);
+          } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
+            handleFlowCompletion(continueResponse as EmbeddedSignUpFlowResponse);
+          } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Incomplete) {
+            const normalizedContinueResponse: any = normalizeFlowResponseLocal(continueResponse);
+
+            // The provider callback can lead straight into another redirect, so follow it in the same popup.
+            if (normalizedContinueResponse?.type === EmbeddedSignUpFlowType.Redirection) {
+              if (!handleRedirectionIfNeeded(normalizedContinueResponse, popup)) {
+                // Keep the current step rather than showing the redirect as a step of its own.
+                popup.close();
+                const popupError: Error = new Error(t('errors.signup.popup.failure'));
+                handleError(popupError);
+                onError?.(popupError);
+              }
+              return;
+            }
+
+            setCurrentFlow(normalizedContinueResponse);
+            setupFormFields(normalizedContinueResponse);
+
+            // Display error from INCOMPLETE response
+            if (normalizedContinueResponse?.error) {
+              handleError(normalizedContinueResponse);
+            }
+          }
+          popup.close();
+        } catch (err) {
+          handleError(err);
+          onError?.(err as Error);
+          popup.close();
+          cleanup();
         }
       };
 
@@ -638,47 +714,10 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
         const {code, state} = event.data;
 
-        if (code && state) {
+        // The poll may already have picked up this callback.
+        if (code && state && isThisRound(state) && !hasProcessedCallback) {
           hasProcessedCallback = true;
-
-          const payload: EmbeddedSignUpFlowRequest = {
-            ...(currentFlow?.executionId && {executionId: currentFlow.executionId}),
-            inputs: {
-              code,
-              state,
-            },
-            ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
-          };
-
-          try {
-            const continueResponse: any = await onSubmit!(payload);
-            await setChallengeToken(continueResponse.challengeToken ?? null);
-            onFlowChange?.(continueResponse);
-
-            if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
-              handleError(continueResponse);
-              onError?.(continueResponse);
-            } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
-              handleFlowCompletion(continueResponse as EmbeddedSignUpFlowResponse);
-            } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Incomplete) {
-              const normalizedContinueResponse: any = normalizeFlowResponseLocal(continueResponse);
-              setCurrentFlow(normalizedContinueResponse);
-              setupFormFields(normalizedContinueResponse);
-
-              // Display error from INCOMPLETE response
-              if (normalizedContinueResponse?.error) {
-                handleError(normalizedContinueResponse);
-              }
-            }
-
-            popup.close();
-            cleanup();
-          } catch (err) {
-            handleError(err);
-            onError?.(err as Error);
-            popup.close();
-            cleanup();
-          }
+          await continueWithCode(code, state);
         }
       };
 
@@ -705,13 +744,18 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
             // Check if we've been redirected to the callback URL
             if (popupUrl && (popupUrl.includes('code=') || popupUrl.includes('error='))) {
-              hasProcessedCallback = true; // Set flag to prevent multiple processing
-
               // Parse the URL for OAuth parameters
               const url: any = new URL(popupUrl);
               const code: any = url.searchParams.get('code');
               const state: any = url.searchParams.get('state');
               const error: any = url.searchParams.get('error');
+
+              // Still the previous round's callback page.
+              if (!isThisRound(state)) {
+                return;
+              }
+
+              hasProcessedCallback = true; // Set flag to prevent multiple processing
 
               if (error) {
                 logger.error('OAuth error:');
@@ -721,42 +765,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
               }
 
               if (code && state) {
-                const payload: EmbeddedSignUpFlowRequest = {
-                  ...(currentFlow?.executionId && {executionId: currentFlow.executionId}),
-                  inputs: {
-                    code,
-                    state,
-                  },
-                  ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
-                };
-
-                try {
-                  const continueResponse: any = await onSubmit!(payload);
-                  await setChallengeToken(continueResponse.challengeToken ?? null);
-                  onFlowChange?.(continueResponse);
-
-                  if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
-                    handleError(continueResponse);
-                    onError?.(continueResponse);
-                  } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
-                    handleFlowCompletion(continueResponse as EmbeddedSignUpFlowResponse);
-                  } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Incomplete) {
-                    const normalizedContinueResponse: any = normalizeFlowResponseLocal(continueResponse);
-                    setCurrentFlow(normalizedContinueResponse);
-                    setupFormFields(normalizedContinueResponse);
-
-                    // Display error from INCOMPLETE response
-                    if (normalizedContinueResponse?.error) {
-                      handleError(normalizedContinueResponse);
-                    }
-                  }
-
-                  popup.close();
-                } catch (err) {
-                  handleError(err);
-                  onError?.(err as Error);
-                  popup.close();
-                }
+                await continueWithCode(code, state);
               }
             }
           } catch (e) {
@@ -983,9 +992,11 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
           additionalData: currentFlow?.data?.additionalData,
           buttonClassName: buttonClasses,
           inputClassName: inputClasses,
+          meta,
           onInputBlur: handleInputBlur,
           onSubmit: handleSubmit,
           size,
+          t,
           variant,
           vendor,
         },
@@ -993,6 +1004,8 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     [
       currentFlow,
       customRenderers,
+      meta,
+      t,
       formValues,
       touchedFields,
       formErrors,

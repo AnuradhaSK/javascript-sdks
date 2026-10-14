@@ -185,6 +185,7 @@ const translations: I18nTranslations = {
   'errors.signup.flow.failure': 'サインアップフロー中にエラーが発生しました。後でもう一度お試しください。',
   'errors.signup.flow.initialization.failure':
     'サインアップフローの初期化中にエラーが発生しました。後でもう一度お試しください。',
+  'errors.signup.popup.failure': 'ポップアップウィンドウでサインアップを続行できませんでした。もう一度お試しください。',
   'errors.signup.components.not.available': 'サインアップフォームは現在利用できません。後でもう一度お試しください。',
   'errors.signin.components.not.available': 'サインインフォームは現在利用できません。後でもう一度お試しください。',
   'errors.signin.timeout': 'ステップを完了するために許可された時間が経過しました。',

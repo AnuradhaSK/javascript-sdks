@@ -191,6 +191,8 @@ const translations: I18nTranslations = {
   'errors.signup.flow.failure': "Une erreur est survenue lors du flux d'inscription. Veuillez réessayer plus tard.",
   'errors.signup.flow.initialization.failure':
     "Une erreur est survenue lors de l'initialisation du flux d'inscription. Veuillez réessayer plus tard.",
+  'errors.signup.popup.failure':
+    "Impossible de poursuivre l'inscription dans la fenêtre contextuelle. Veuillez réessayer.",
   'errors.signup.components.not.available':
     "Le formulaire d'inscription n'est pas disponible pour le moment. Veuillez réessayer plus tard.",
   'errors.signin.components.not.available':

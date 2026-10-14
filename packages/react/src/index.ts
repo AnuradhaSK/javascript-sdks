@@ -304,7 +304,8 @@ export {
   EmbeddedFlowTextVariant,
   EmbeddedFlowEventType,
   parseKeyValuePairs,
-  type KeyValuePair,
+  // Aliased: `KeyValuePair` is already the public KeyValueInput type.
+  type KeyValuePair as EmbeddedFlowKeyValuePair,
   type EmbeddedFlowComponent,
   type EmbeddedFlowResponseData,
   type EmbeddedFlowExecuteRequestConfig,

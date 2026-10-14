@@ -184,6 +184,7 @@ const translations: I18nTranslations = {
   'errors.signup.flow.failure': 'साइन-अप प्रक्रिया में त्रुटि। कृपया बाद में पुनः प्रयास करें।',
   'errors.signup.flow.initialization.failure':
     'साइन-अप प्रक्रिया प्रारंभ करते समय त्रुटि। कृपया बाद में पुनः प्रयास करें।',
+  'errors.signup.popup.failure': 'पॉप-अप विंडो में साइन-अप जारी नहीं रखा जा सका। कृपया पुनः प्रयास करें।',
   'errors.signup.components.not.available': 'साइन-अप फॉर्म फिलहाल उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।',
   'errors.signin.components.not.available': 'साइन-इन फॉर्म फिलहाल उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।',
   'errors.signin.timeout': 'स्टेप पूरा करने के लिए दिया गया समय खत्म हो गया है।',
