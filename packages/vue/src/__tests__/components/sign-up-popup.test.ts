@@ -202,6 +202,34 @@ describe('BaseSignUp social sign-up popup', () => {
     expect(popup.close).not.toHaveBeenCalled();
   });
 
+  it('exposes the step additionalData to the default slot', async () => {
+    const slot: Mock = vi.fn(() => []);
+    mount(BaseSignUp, {
+      global: {
+        provide: {
+          [FLOW_META_KEY as symbol]: {meta: ref(null)},
+          [I18N_KEY as symbol]: {currentLanguage: ref('en-US'), t: (key: string): string => key},
+        },
+      },
+      props: {
+        isInitialized: true,
+        onInitialize: (): Promise<unknown> =>
+          Promise.resolve({
+            data: {additionalData: {linkingPromptDetails: '[]'}, components: []},
+            executionId: 'exec-1',
+            flowStatus: 'INCOMPLETE',
+            type: 'VIEW',
+          }),
+        onSubmit,
+      },
+      slots: {default: slot},
+    });
+
+    await vi.waitFor(() => {
+      expect(slot).toHaveBeenLastCalledWith(expect.objectContaining({additionalData: {linkingPromptDetails: '[]'}}));
+    });
+  });
+
   it('stops listening for the popup when unmounted', async () => {
     const removeListener: MockInstance<typeof window.removeEventListener> = vi.spyOn(window, 'removeEventListener');
     const unmount: () => void = await startSocialSignUp();

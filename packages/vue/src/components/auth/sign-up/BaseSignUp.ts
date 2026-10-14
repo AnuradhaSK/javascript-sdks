@@ -49,6 +49,7 @@ interface PasskeyState {
  * Render props passed to the default scoped slot.
  */
 export interface BaseSignUpRenderProps {
+  additionalData: Record<string, unknown>;
   components: any[];
   error?: Error | null;
   fieldErrors: Record<string, string>;
@@ -625,6 +626,7 @@ const BaseSignUp: Component = defineComponent({
       // Scoped slot / render props
       if (slots['default']) {
         const renderProps: BaseSignUpRenderProps = {
+          additionalData: currentFlow.value?.data?.additionalData ?? {},
           components: currentFlow.value?.data?.components || [],
           error: apiError.value,
           fieldErrors: formErrors.value,
