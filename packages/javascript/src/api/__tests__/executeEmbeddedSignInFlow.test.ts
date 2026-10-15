@@ -449,4 +449,30 @@ describe('executeEmbeddedSignInFlow', (): void => {
 
     expect(fetch).toHaveBeenCalledWith('https://localhost:8090/flow/execute', expect.any(Object));
   });
+
+  describe('credentials', (): void => {
+    const captureRequestInit = (): RequestInit => {
+      const calls = (fetch as ReturnType<typeof vi.fn>).mock.calls;
+      return calls[calls.length - 1][1] as RequestInit;
+    };
+
+    it('includes credentials so the SSO session cookie is sent and stored', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        payload: {applicationId: 'app-1', flowType: 'AUTHENTICATION'},
+        url: URL,
+      });
+
+      expect(captureRequestInit().credentials).toBe('include');
+    });
+
+    it('lets the caller override credentials through requestConfig', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        credentials: 'omit',
+        payload: {executionId: 'exec-abc'},
+        url: URL,
+      });
+
+      expect(captureRequestInit().credentials).toBe('omit');
+    });
+  });
 });
