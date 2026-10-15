@@ -20,13 +20,11 @@ type RequestCookies = Awaited<ReturnType<typeof cookies>>;
  *
  * @param code - Authorization code from OAuth provider
  * @param state - State parameter from OAuth provider for CSRF protection
- * @param sessionState - Session state parameter from OAuth provider
  * @returns Promise that resolves with success status and optional error message
  */
 const handleOAuthCallbackAction = async (
   code: string,
   state: string,
-  sessionState?: string,
 ): Promise<{
   error?: string;
   redirectUrl?: string;
@@ -78,7 +76,6 @@ const handleOAuthCallbackAction = async (
     const signInResult: Record<string, unknown> = await thunderIDClient.signIn(
       {
         code,
-        session_state: sessionState,
         state,
       } as any,
       {},

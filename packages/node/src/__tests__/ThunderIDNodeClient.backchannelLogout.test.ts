@@ -298,7 +298,7 @@ describe('ThunderIDNodeClient back-channel logout', () => {
       },
     );
 
-    await client.signIn(() => undefined, 'local-1', 'code', undefined, 'state');
+    await client.signIn(() => undefined, 'local-1', 'code', 'state');
     const result = await client.handleBackchannelLogout(await sign({}));
 
     expect(result.sessionsEnded).toBe(1);

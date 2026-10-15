@@ -323,12 +323,6 @@ export interface OIDCDiscoveryEndpointsApiResponse {
   authorization_endpoint?: string;
 
   /**
-   * URL of an OP iframe that supports cross-origin communications for session state information with the RP
-   * Client, using the HTML5 postMessage API.
-   */
-  check_session_iframe?: string;
-
-  /**
    * URL at the OP to which an RP can perform a redirect to request that the End-User be logged out at the
    * OP.
    */

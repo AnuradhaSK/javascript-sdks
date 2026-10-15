@@ -74,7 +74,6 @@ describe('POST /api/auth/callback', () => {
       vi.mocked(readBody).mockResolvedValue({
         code: 'auth-code-abc',
         state: 'state-xyz',
-        sessionState: 'sess-state-abc',
       });
 
       const result = await (callbackHandler as any)(mockEvent);

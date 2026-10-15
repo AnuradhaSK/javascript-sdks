@@ -50,7 +50,6 @@ export type ThunderIDClientProviderProps = Partial<Omit<ThunderIDProviderProps, 
     handleOAuthCallback: (
       code: string,
       state: string,
-      sessionState?: string,
     ) => Promise<{error?: string; redirectUrl?: string; success: boolean}>;
     /**
      * Flow metadata fetched server-side ahead of time, seeding `FlowMetaProvider` so it can skip
@@ -137,7 +136,6 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       try {
         const code: string | null = searchParams.get('code');
         const state: string | null = searchParams.get('state');
-        const sessionState: string | null = searchParams.get('session_state');
         const error: string | null = searchParams.get('error');
 
         // Check for OAuth errors first
@@ -154,7 +152,6 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
           const result: {error?: string; redirectUrl?: string; success: boolean} = await handleOAuthCallback(
             code,
             state,
-            sessionState || undefined,
           );
 
           if (result.success) {

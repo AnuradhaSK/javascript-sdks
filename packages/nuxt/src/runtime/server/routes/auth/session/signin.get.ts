@@ -45,7 +45,6 @@ export default defineEventHandler(async (event: H3Event) => {
     },
     sessionId,
     undefined, // no authorization code (initial redirect)
-    undefined, // no session_state
     undefined, // no state
     {},
   );

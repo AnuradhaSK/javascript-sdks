@@ -2,14 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {OIDCRequestConstants} from '@thunderid/javascript';
-import {
-  ERROR,
-  ERROR_DESCRIPTION,
-  INITIALIZED_SILENT_SIGN_IN,
-  PROMPT_NONE_REQUEST_SENT,
-  SILENT_SIGN_IN_STATE,
-  STATE_QUERY,
-} from '../constants/SPAConstants';
+import {ERROR, ERROR_DESCRIPTION, SILENT_SIGN_IN_STATE, STATE_QUERY} from '../constants/SPAConstants';
 import {SignOutError} from '../models/SignOutError';
 
 /**
@@ -124,15 +117,6 @@ class SPAUtils {
   }
 
   /**
-   * Returns `true` if a silent sign-in was previously initialized in this session.
-   */
-  public static wasSilentSignInCalled(): boolean {
-    const raw = sessionStorage.getItem(INITIALIZED_SILENT_SIGN_IN);
-
-    return Boolean(raw ? JSON.parse(raw) : null);
-  }
-
-  /**
    * Checks whether the current URL indicates a successful sign-out redirect.
    * Clears the query string and session data if `true`.
    *
@@ -212,24 +196,6 @@ class SPAUtils {
       !!urlObject.searchParams.get(ERROR) &&
       urlObject.searchParams.get(STATE_QUERY) !== OIDCRequestConstants.Params.SIGN_OUT_SUCCESS
     );
-  }
-
-  /**
-   * Returns `true` if no prompt-none request has been sent yet this session.
-   */
-  public static canSendPromptNoneRequest(): boolean {
-    const raw = sessionStorage.getItem(PROMPT_NONE_REQUEST_SENT);
-
-    return !(raw ? JSON.parse(raw) : null);
-  }
-
-  /**
-   * Records whether a prompt-none request has been sent.
-   *
-   * @param canSend - `true` marks the request as sent.
-   */
-  public static setPromptNoneRequestSent(canSend: boolean): void {
-    sessionStorage.setItem(PROMPT_NONE_REQUEST_SENT, JSON.stringify(canSend));
   }
 
   /**

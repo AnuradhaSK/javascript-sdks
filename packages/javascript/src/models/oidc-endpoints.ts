@@ -7,7 +7,6 @@
  */
 export interface LegacyOIDCEndpoints {
   authorizationEndpoint: string;
-  checkSessionIframe: string;
   endSessionEndpoint: string;
   introspectionEndpoint?: string;
   jwksUri: string;

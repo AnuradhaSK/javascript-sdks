@@ -27,7 +27,6 @@ const OIDCDiscoveryConstants: {
     readonly ISSUER: string;
     readonly JWKS: string;
     readonly REVOCATION: string;
-    readonly SESSION_IFRAME: string;
     readonly TOKEN: string;
     readonly USERINFO: string;
   };
@@ -39,7 +38,6 @@ const OIDCDiscoveryConstants: {
         readonly ISSUER: string;
         readonly JWKS: string;
         readonly REVOCATION: string;
-        readonly SESSION_IFRAME: string;
         readonly TOKEN: string;
         readonly USERINFO: string;
       };
@@ -83,12 +81,6 @@ const OIDCDiscoveryConstants: {
      * Used to invalidate access or refresh tokens before they expire.
      */
     REVOCATION: '/oauth2/revoke',
-
-    /**
-     * Session check iframe endpoint for session management.
-     * Used to monitor the user's session state through a hidden iframe.
-     */
-    SESSION_IFRAME: '/oidc/checksession',
 
     /**
      * Token endpoint for obtaining access tokens.
@@ -153,12 +145,6 @@ const OIDCDiscoveryConstants: {
          * Used to store the URL where token revocation requests should be sent.
          */
         REVOCATION: 'revocation_endpoint',
-
-        /**
-         * Storage key for the session check iframe URL.
-         * Used to store the URL of the iframe used for session state monitoring.
-         */
-        SESSION_IFRAME: 'check_session_iframe',
 
         /**
          * Storage key for the token endpoint URL.

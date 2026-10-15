@@ -89,7 +89,6 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtConfig> {
         id_token: session.idToken ?? '',
         refresh_token: session.refreshToken ?? '',
         scope: session.scopes ?? '',
-        session_state: '',
         token_type: 'Bearer',
       },
       session.sessionId,
@@ -124,25 +123,18 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtConfig> {
     }
 
     if (typeof arg0 === 'object' && arg0 !== null && ('code' in arg0 || 'state' in arg0)) {
-      const payload: {code?: unknown; session_state?: unknown; state?: unknown} = arg0 as {
-        code?: unknown;
-        session_state?: unknown;
-        state?: unknown;
-      };
+      const payload: {code?: unknown; state?: unknown} = arg0 as {code?: unknown; state?: unknown};
       const code: string | undefined = typeof payload.code === 'string' ? payload.code : undefined;
-      const sessionState: string | undefined =
-        typeof payload.session_state === 'string' ? payload.session_state : undefined;
       const state: string | undefined = typeof payload.state === 'string' ? payload.state : undefined;
       const extraParams: Record<string, string | boolean> = {};
 
       if (code) extraParams.code = code;
-      if (sessionState) extraParams.session_state = sessionState;
       if (state) extraParams.state = state;
 
-      return super.signIn(args[3], args[2], code, sessionState, state, extraParams);
+      return super.signIn(args[3], args[2], code, state, extraParams);
     }
 
-    return super.signIn(args[0], args[1], args[2], args[3], args[4], args[5]);
+    return super.signIn(args[0], args[1], args[2], args[3], args[4]);
   }
 
   override async signUp(_options?: SignUpOptions): Promise<void> {

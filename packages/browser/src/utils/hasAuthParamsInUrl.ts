@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Utility to check if `code` and `session_state` are available in the URL as search params.
+ * Utility to check if `code` is available in the URL as a search param.
  *
  * @param params - The URL search params to check. Defaults to `window.location.search`.
- * @return `true` if the URL contains `code` and `session_state` search params, otherwise `false`.
+ * @return `true` if the URL contains a `code` search param, otherwise `false`.
  */
 const hasAuthParamsInUrl = (params: string = window.location.search): boolean => {
   const MATCHER = /[?&]code=[^&]+/;

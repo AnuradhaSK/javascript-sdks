@@ -7,7 +7,6 @@ import {
   IsomorphicCrypto,
   StorageManager,
   IdToken,
-  ExtendedAuthorizeRequestUrlParams,
   OIDCEndpoints,
   TokenResponse,
   Config,
@@ -20,23 +19,20 @@ import SPAHelper from './SPAHelper';
 import SPAUtils from './SPAUtils';
 import {
   ACCESS_TOKEN_INVALID,
-  CHECK_SESSION_SIGNED_IN,
-  CHECK_SESSION_SIGNED_OUT,
   CUSTOM_GRANT_CONFIG,
   ERROR,
   ERROR_DESCRIPTION,
-  PROMPT_NONE_IFRAME,
   REFRESH_ACCESS_TOKEN_ERR0R,
-  RP_IFRAME,
+  SILENT_SIGN_IN_SIGNED_IN,
+  SILENT_SIGN_IN_SIGNED_OUT,
+  SILENT_SIGN_IN_STATE,
+  STATE_QUERY,
 } from '../constants/SPAConstants';
 import {SPATokenExchangeConfig} from '../models/TokenExchangeConfig';
 
 interface AuthorizationInfo {
   code: string;
-  sessionState: string;
-  pkce?: string;
   state: string;
-  tokenRequestConfig?: {params: Record<string, unknown>};
 }
 
 interface Message<T> {
@@ -53,23 +49,9 @@ interface HttpRequestInterface {
   enableRetrievingSignOutURLFromSession?: (config: SPATokenExchangeConfig) => void;
 }
 
-interface SessionManagementHelperInterface {
-  initialize(
-    clientId: string,
-    checkSessionEndpoint: string,
-    getSessionState: () => Promise<string>,
-    interval: number,
-    sessionRefreshInterval: number,
-    redirectURL: string,
-    getSignInUrl: (params?: ExtendedAuthorizeRequestUrlParams) => Promise<string>,
-  ): void;
-  receivePromptNoneResponse(setSessionState?: (sessionState: string | null) => Promise<void>): Promise<boolean>;
-  reset(): void;
-}
-
 /**
  * Browser-level authentication helper that orchestrates HTTP requests with token attachment,
- * automatic token refresh, session management, and the silent sign-in flow.
+ * automatic token refresh, and the silent sign-in flow.
  *
  * @typeParam T - The browser client config extension type.
  */
@@ -147,33 +129,6 @@ class AuthenticationHelper<T> {
    */
   public disableHttpHandler(httpClient: HttpClient): void {
     httpClient?.disableHandler && httpClient.disableHandler();
-  }
-
-  /**
-   * Initializes OIDC Session Management via an RP iframe.
-   *
-   * @param config - The current auth config.
-   * @param oidcEndpoints - Resolved OIDC provider endpoints.
-   * @param getSessionState - Returns the current session state from storage.
-   * @param getAuthzURL - Builds an authorization URL with optional params.
-   * @param sessionManagementHelper - The session management helper instance.
-   */
-  public initializeSessionManger(
-    config: any,
-    oidcEndpoints: OIDCEndpoints,
-    getSessionState: () => Promise<string>,
-    getAuthzURL: (params?: ExtendedAuthorizeRequestUrlParams) => Promise<string>,
-    sessionManagementHelper: SessionManagementHelperInterface,
-  ): void {
-    sessionManagementHelper.initialize(
-      config.clientId,
-      oidcEndpoints.checkSessionIframe ?? '',
-      getSessionState,
-      config.checkSessionInterval ?? 3,
-      config.sessionRefreshInterval ?? 300,
-      config.afterSignInUrl,
-      getAuthzURL,
-    );
   }
 
   /**
@@ -466,11 +421,10 @@ class AuthenticationHelper<T> {
   }
 
   /**
-   * Executes the silent sign-in flow using a prompt-none request via an iFrame.
+   * Executes the silent sign-in flow by loading a `prompt=none` authorize request in a hidden iframe.
    *
    * @param constructSilentSignInUrl - Builds the prompt-none authorize URL.
    * @param requestAccessToken - Exchanges the returned code for tokens.
-   * @param sessionManagementHelper - Handles the iFrame prompt-none response.
    * @param additionalParams - Extra authorize request params.
    * @param tokenRequestConfig - Additional params for the token request.
    * @returns The user session, or `false` if the user is not signed in.
@@ -479,96 +433,116 @@ class AuthenticationHelper<T> {
     constructSilentSignInUrl: (additionalParams?: Record<string, string | boolean>) => Promise<string>,
     requestAccessToken: (
       authzCode: string,
-      sessionState: string,
       state: string,
       tokenRequestConfig?: {params: Record<string, unknown>},
     ) => Promise<User>,
-    sessionManagementHelper: SessionManagementHelperInterface,
     additionalParams?: Record<string, string | boolean>,
     tokenRequestConfig?: {params: Record<string, unknown>},
   ): Promise<User | boolean> {
     if (SPAUtils.isInitializedSilentSignIn()) {
-      await sessionManagementHelper.receivePromptNoneResponse();
+      await this.handleSilentSignInResponse();
 
       return Promise.resolve({
         allowedScopes: '',
         displayName: '',
         email: '',
-        sessionState: '',
         sub: '',
         tenantDomain: '',
         username: '',
       });
     }
 
-    const rpIFrame = document.getElementById(RP_IFRAME) as HTMLIFrameElement;
-    const promptNoneIFrame: HTMLIFrameElement = rpIFrame?.contentDocument?.getElementById(
-      PROMPT_NONE_IFRAME,
-    ) as HTMLIFrameElement;
+    let url: string;
 
     try {
-      const url = await constructSilentSignInUrl(additionalParams);
-      promptNoneIFrame.src = url;
+      url = await constructSilentSignInUrl(additionalParams);
     } catch (error) {
       return Promise.reject(error);
     }
 
+    const silentSignInIFrame: HTMLIFrameElement = document.createElement('iframe');
+    silentSignInIFrame.style.display = 'none';
+
     return new Promise((resolve, reject) => {
+      const cleanUp = (): void => {
+        window.removeEventListener('message', listenToSilentSignInIFrame);
+        clearTimeout(timer);
+        silentSignInIFrame.remove();
+      };
+
       const timer = setTimeout(() => {
+        cleanUp();
         resolve(false);
       }, 10000);
 
-      const listenToPromptNoneIFrame = async (e: MessageEvent) => {
+      const listenToSilentSignInIFrame = async (e: MessageEvent): Promise<void> => {
+        if (e.origin !== window.location.origin || e.source !== silentSignInIFrame.contentWindow) {
+          return;
+        }
+
         const data: Message<AuthorizationInfo | null> = e.data;
 
-        if (data?.type == CHECK_SESSION_SIGNED_OUT) {
-          window.removeEventListener('message', listenToPromptNoneIFrame);
-          clearTimeout(timer);
+        if (data?.type === SILENT_SIGN_IN_SIGNED_OUT) {
+          cleanUp();
           resolve(false);
         }
 
-        if (data?.type == CHECK_SESSION_SIGNED_IN && data?.data?.code) {
+        if (data?.type === SILENT_SIGN_IN_SIGNED_IN && data?.data?.code) {
           const authInfo = data.data;
-          requestAccessToken(authInfo.code, authInfo.sessionState, authInfo.state, tokenRequestConfig)
-            .then((response: User) => {
-              window.removeEventListener('message', listenToPromptNoneIFrame);
-              resolve(response);
-            })
-            .catch((error) => {
-              window.removeEventListener('message', listenToPromptNoneIFrame);
-              reject(error);
-            })
-            .finally(() => {
-              clearTimeout(timer);
-            });
+
+          cleanUp();
+          requestAccessToken(authInfo.code, authInfo.state, tokenRequestConfig).then(resolve).catch(reject);
         }
       };
 
-      window.addEventListener('message', listenToPromptNoneIFrame);
+      window.addEventListener('message', listenToSilentSignInIFrame);
+
+      silentSignInIFrame.src = url;
+      document.body.appendChild(silentSignInIFrame);
     });
   }
 
   /**
-   * Handles the early-return path of `signIn()` when a session already exists
-   * or the page is handling a prompt-none response.
+   * Handles the page load inside the silent sign-in iframe: relays the authorization response to the
+   * parent window and blanks the iframe.
    *
-   * @param shouldStopAuthn - Returns `true` if we should short-circuit and return early.
-   * @param checkSession - Callback to initialize OIDC session management.
+   * @returns `true` if the current page load was a silent sign-in response.
+   */
+  public async handleSilentSignInResponse(): Promise<boolean> {
+    const url: URL = new URL(window.location.href);
+    const state: string | null = url.searchParams.get(STATE_QUERY);
+
+    if (state === null || !state.includes(SILENT_SIGN_IN_STATE)) {
+      return false;
+    }
+
+    const code: string | null = url.searchParams.get('code');
+    const message: Message<AuthorizationInfo | null> =
+      code !== null && code.length !== 0
+        ? {data: {code, state}, type: SILENT_SIGN_IN_SIGNED_IN}
+        : {type: SILENT_SIGN_IN_SIGNED_OUT};
+
+    window.parent.postMessage(message, window.location.origin);
+
+    window.location.href = 'about:blank';
+
+    await SPAUtils.waitTillPageRedirect();
+
+    return true;
+  }
+
+  /**
+   * Handles the early-return path of `signIn()` when a session already exists
+   * or the page is handling a silent sign-in response.
+   *
    * @returns The current user if already signed in, or `undefined` to continue normal sign-in.
    */
-  public async handleSignIn(
-    shouldStopAuthn: () => Promise<boolean>,
-    checkSession: () => Promise<void>,
-  ): Promise<User | undefined> {
-    const config = await this._storageManager.getConfigData();
-    const configAny = config as any;
-
-    if (await shouldStopAuthn()) {
+  public async handleSignIn(): Promise<User | undefined> {
+    if (await this.handleSilentSignInResponse()) {
       return Promise.resolve({
         allowedScopes: '',
         displayName: '',
         email: '',
-        sessionState: '',
         sub: '',
         tenantDomain: '',
         username: '',
@@ -578,10 +552,6 @@ class AuthenticationHelper<T> {
     if (await this._isSignedIn()) {
       await this._spaHelper.clearRefreshTokenTimeout();
       await this._spaHelper.refreshAccessTokenAutomatically(() => this.refreshAccessToken());
-
-      if (configAny.syncSession) {
-        checkSession();
-      }
 
       return Promise.resolve(await this._getUser());
     }

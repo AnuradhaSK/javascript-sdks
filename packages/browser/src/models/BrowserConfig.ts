@@ -13,12 +13,6 @@ export interface BrowserClientConfig {
    * @default BrowserStorage.SessionStorage
    */
   storage?: BrowserStorage | 'sessionStorage' | 'localStorage' | 'browserMemory';
-  /** Enable OIDC Session Management via RP Iframe. Requires same-domain or third-party cookies. */
-  syncSession?: boolean;
-  /** Interval in seconds between session-check polls. @default 3 */
-  checkSessionInterval?: number;
-  /** Interval in seconds for silent token refresh. @default 300 */
-  sessionRefreshInterval?: number;
   /** Allowed external URL prefixes for `httpRequest` calls. */
   allowedExternalUrls?: string[];
   /** Additional query params to append to every authorize request. */

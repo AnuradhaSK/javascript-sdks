@@ -29,7 +29,6 @@ export default defineEventHandler(async (event: H3Event) => {
   const query: Record<string, unknown> = getQuery(event);
   const code: string | undefined = query.code as string | undefined;
   const state: string | undefined = query.state as string | undefined;
-  const sessionState: string | undefined = query.session_state as string | undefined;
   const error: string | undefined = query.error as string | undefined;
   const errorDescription: string | undefined = query.error_description as string | undefined;
 
@@ -81,7 +80,6 @@ export default defineEventHandler(async (event: H3Event) => {
       () => {}, // no-op redirect callback (we're handling the code exchange)
       sessionId,
       code,
-      sessionState || '',
       state,
     );
   } catch (err: any) {

@@ -546,7 +546,6 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
   protected async requestAccessToken(
     authorizationCode: string,
-    sessionState: string,
     state: string,
     userId?: string,
     tokenRequestConfig?: {params: Record<string, unknown>},
@@ -568,14 +567,6 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
         'Token endpoint not found.',
         'No token endpoint was found in the OIDC provider meta data returned by the well-known endpoint ' +
           'or the token endpoint passed to the SDK is empty.',
-      );
-    }
-
-    if (sessionState) {
-      await this.storageManager.setSessionDataParameter(
-        OIDCRequestConstants.Params.SESSION_STATE as keyof SessionData,
-        sessionState,
-        userId,
       );
     }
 
@@ -695,7 +686,6 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
     return {
       authorizationEndpoint: meta.authorization_endpoint ?? '',
-      checkSessionIframe: meta.check_session_iframe ?? '',
       endSessionEndpoint: meta.end_session_endpoint ?? '',
       introspectionEndpoint: meta.introspection_endpoint ?? '',
       issuer: meta.issuer ?? '',
@@ -730,7 +720,6 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
     return {
       scopes: sessionData?.scope?.split(' '),
-      sessionState: sessionData?.session_state ?? '',
     };
   }
 
