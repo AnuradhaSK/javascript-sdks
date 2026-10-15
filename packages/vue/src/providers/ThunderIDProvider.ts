@@ -18,6 +18,7 @@ import {
   Preferences,
   getVendorPrefix,
   resolveResourceEndpoint,
+  SPAUtils,
 } from '@thunderid/browser';
 import {
   type Component,
@@ -58,6 +59,7 @@ interface ThunderIDProviderProps {
   organizationHandle: string | undefined;
   preferences: Preferences | undefined;
   scopes: string | string[] | undefined;
+  session: ThunderIDVueConfig['session'];
   signInOptions: SignInOptions | undefined;
   signInUrl: string | undefined;
   signUpUrl: string | undefined;
@@ -151,6 +153,11 @@ const ThunderIDProvider: Component = defineComponent({
       type: [Array, String] as PropType<string | string[]>,
     },
     /** Additional sign-in options. */
+    /** Behaviour around the ThunderID SSO session, such as checking for it before signing in. */
+    session: {
+      default: undefined,
+      type: Object as PropType<ThunderIDVueConfig['session']>,
+    },
     signInOptions: {
       default: undefined,
       type: Object as PropType<SignInOptions>,
@@ -210,6 +217,7 @@ const ThunderIDProvider: Component = defineComponent({
         organizationHandle: props.organizationHandle,
         preferences: props.preferences,
         scopes: props.scopes,
+        session: props.session,
         signInOptions: props.signInOptions,
         signInUrl: props.signInUrl,
         signUpUrl: props.signUpUrl,
@@ -433,7 +441,9 @@ const ThunderIDProvider: Component = defineComponent({
             const executionIdFromUrl: string | null = urlParams.get('executionId');
             const storedExecutionId: string | null = sessionStorage.getItem(`${vendor}_execution_id`);
 
-            if (code && !executionIdFromUrl && !storedExecutionId) {
+            // A silent sign-in response is handled even without a code: an error such as
+            // login_required must still be relayed from the iframe to the waiting parent.
+            if ((code || SPAUtils.isSilentStatePresentInURL()) && !executionIdFromUrl && !storedExecutionId) {
               await signIn();
             }
           } catch (error) {

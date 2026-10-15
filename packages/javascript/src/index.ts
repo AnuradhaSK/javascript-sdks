@@ -161,6 +161,8 @@ export type {
   SignInOptions,
   SignOutOptions,
   SignUpOptions,
+  SessionConfig,
+  SilentSignInConfig,
 } from './models/config';
 export type {TokenEndpointAuthMethod} from './models/token-endpoint-auth';
 export type {ComponentRenderContext, ComponentRenderer, ComponentsExtensions} from './models/extensions/components';

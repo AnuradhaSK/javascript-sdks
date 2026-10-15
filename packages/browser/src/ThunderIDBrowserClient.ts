@@ -9,6 +9,7 @@ import {
   IdToken,
   OIDCEndpoints,
   OIDCRequestConstants,
+  SessionConfig,
   Storage,
   TokenResponse,
   extractPkceStorageKeyFromState,
@@ -246,6 +247,23 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       return this._exchangeCodeForTokens(resolvedAuthorizationCode, resolvedState, resolvedTokenRequestConfig);
     }
 
+    // Opt-in: look for an existing ThunderID SSO session before leaving the app. Skipped inside an
+    // iframe, and when the caller asks for a specific prompt (login, consent, ...), which a silent
+    // request cannot honour.
+    const sessionConfig: SessionConfig | undefined = (config as BrowserAuthConfig | undefined)?.session;
+
+    if (sessionConfig?.silentSignIn?.beforeRedirect && window.self === window.top && !signInConfig?.['prompt']) {
+      try {
+        const silentUser: User | boolean = await this._signInSilentlyInternal(signInConfig, tokenRequestConfig);
+
+        if (silentUser && typeof silentUser === 'object') {
+          return silentUser;
+        }
+      } catch (error) {
+        logger.debug('Checking for an existing session failed; continuing with the sign-in redirect.', error);
+      }
+    }
+
     return this.getSignInUrl(signInConfig as any).then(async (url: string) => {
       if (this._storage === BrowserStorage.BrowserMemory && config.enablePKCE) {
         const pkceKey: string = extractPkceStorageKeyFromState(resolvedState);
@@ -302,18 +320,28 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       return undefined;
     }
 
-    const response = await this._authHelper!.signInSilently(
-      (params) => this._constructSilentSignInUrl(params),
-      (code, s, trc) => this._exchangeCodeForTokens(code, s, trc),
-      additionalParams,
-      tokenRequestConfig,
-    );
+    const response = await this._signInSilentlyInternal(additionalParams, tokenRequestConfig);
 
     if (this._onSignInCallback && response) {
       this._onSignInCallback(response as User);
     }
 
     return response;
+  }
+
+  private async _signInSilentlyInternal(
+    additionalParams?: Record<string, string | boolean>,
+    tokenRequestConfig?: {params: Record<string, unknown>},
+  ): Promise<User | boolean> {
+    const {session} = await this.getStorageManager().getConfigData();
+
+    return this._authHelper!.signInSilently(
+      (params) => this._constructSilentSignInUrl(params),
+      (code, s, trc) => this._exchangeCodeForTokens(code, s, trc),
+      additionalParams,
+      tokenRequestConfig,
+      session?.silentSignIn?.timeout,
+    );
   }
 
   public override async signOut(

@@ -15,6 +15,7 @@ import {
   getVendorPrefix,
   resolveResourceEndpoint,
   AttributeSchema,
+  SPAUtils,
 } from '@thunderid/browser';
 import {FC, RefObject, PropsWithChildren, ReactElement, useEffect, useMemo, useRef, useState, useCallback} from 'react';
 import ThunderIDContext from './ThunderIDContext';
@@ -291,7 +292,9 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
             `${getVendorPrefix(config.vendor)}_execution_id`,
           );
 
-          if (code && !executionIdFromUrl && !storedExecutionId) {
+          // A silent sign-in response is handled even without a code: an error such as
+          // login_required must still be relayed from the iframe to the waiting parent.
+          if ((code || SPAUtils.isSilentStatePresentInURL()) && !executionIdFromUrl && !storedExecutionId) {
             await signIn();
           }
         } catch (error) {

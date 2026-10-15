@@ -26,6 +26,7 @@ import {
   SILENT_SIGN_IN_SIGNED_IN,
   SILENT_SIGN_IN_SIGNED_OUT,
   SILENT_SIGN_IN_STATE,
+  SILENT_SIGN_IN_TIMEOUT,
   STATE_QUERY,
 } from '../constants/SPAConstants';
 import {SPATokenExchangeConfig} from '../models/TokenExchangeConfig';
@@ -427,6 +428,7 @@ class AuthenticationHelper<T> {
    * @param requestAccessToken - Exchanges the returned code for tokens.
    * @param additionalParams - Extra authorize request params.
    * @param tokenRequestConfig - Additional params for the token request.
+   * @param timeout - How long to wait for the iframe's response, in milliseconds.
    * @returns The user session, or `false` if the user is not signed in.
    */
   public async signInSilently(
@@ -438,6 +440,7 @@ class AuthenticationHelper<T> {
     ) => Promise<User>,
     additionalParams?: Record<string, string | boolean>,
     tokenRequestConfig?: {params: Record<string, unknown>},
+    timeout: number = SILENT_SIGN_IN_TIMEOUT,
   ): Promise<User | boolean> {
     if (SPAUtils.isInitializedSilentSignIn()) {
       await this.handleSilentSignInResponse();
@@ -473,7 +476,7 @@ class AuthenticationHelper<T> {
       const timer = setTimeout(() => {
         cleanUp();
         resolve(false);
-      }, 10000);
+      }, timeout);
 
       const listenToSilentSignInIFrame = async (e: MessageEvent): Promise<void> => {
         if (e.origin !== window.location.origin || e.source !== silentSignInIFrame.contentWindow) {
