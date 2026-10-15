@@ -83,14 +83,12 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
   const [error, setError] = useState<Error | null>(null);
   const [pendingLanguage, setPendingLanguage] = useState<string | null>(null);
 
-  // Track the last fetchFlowMeta reference that was actually dispatched.
-  // This prevents two classes of double-fetch:
-  //   1. React StrictMode simulates unmount+remount — the re-mount fires the
-  //      effect again with the same fetchFlowMeta reference; without this guard
-  //      the else-branch would issue a redundant second network request.
-  //   2. Rapid dependency changes (e.g. baseUrl stabilising) that produce two
-  //      effect firings before the first fetch completes.
-  const lastFetchedRef: RefObject<(() => Promise<void>) | null> = useRef<(() => Promise<void>) | null>(null);
+  // The last request the initial-fetch effect dispatched, as a key of everything that shapes it.
+  // `fetchFlowMeta` is recreated whenever a dependency changes identity, and several do while
+  // ThunderID initializes (`isInitialized` flips, `endpoints` is replaced with the resolved
+  // configuration) without changing the request. Keying on the request skips those repeats, and
+  // the StrictMode re-mount, so only a real change (e.g. a language switch) fetches again.
+  const lastRequestKeyRef: RefObject<string | null> = useRef<string | null>(null);
   const initialMetaConsumedRef: RefObject<boolean> = useRef(false);
   const fetchFlowMeta: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!enabled) {
@@ -126,6 +124,27 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
       setIsLoading(false);
     }
   }, [enabled, baseUrl, endpoints, applicationId, isInitialized, i18nContext?.currentLanguage, fetchMeta, namespace]);
+
+  const fetchMetaRef: RefObject<FlowMetaProviderProps['fetchMeta'] | null> = useRef(fetchMeta);
+  const fetchMetaVersionRef: RefObject<number> = useRef(0);
+  if (fetchMetaRef.current !== fetchMeta) {
+    fetchMetaRef.current = fetchMeta;
+    fetchMetaVersionRef.current += 1;
+  }
+
+  // Null while the fetch would be skipped, so the request that follows initialization still runs.
+  const requestKey: string | null =
+    enabled && !isInitialized && !applicationId
+      ? null
+      : JSON.stringify([
+          enabled,
+          enabled && !fetchMeta ? baseUrl : null,
+          enabled && !fetchMeta ? resolveResourceEndpoint('flowMeta', {endpoints}) : null,
+          applicationId ?? null,
+          namespace ?? null,
+          i18nContext?.currentLanguage ?? null,
+          fetchMetaVersionRef.current,
+        ]);
 
   const switchLanguage: (language: string) => Promise<void> = useCallback(
     async (language: string): Promise<void> => {
@@ -181,27 +200,29 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
   }, [pendingLanguage, i18nContext?.setLanguage]);
 
   useEffect(() => {
+    if (requestKey === null) {
+      return;
+    }
+
     if (!initialMetaConsumedRef.current) {
       initialMetaConsumedRef.current = true;
 
       if (initialMeta) {
         // Seeded from SSR (or another caller) — skip the redundant first client-side fetch.
-        // Later dependency changes (e.g. an explicit language switch) still fetch normally.
-        lastFetchedRef.current = fetchFlowMeta;
+        // Later changes to the request (e.g. an explicit language switch) still fetch normally.
+        lastRequestKeyRef.current = requestKey;
         return;
       }
     }
 
-    if (lastFetchedRef.current === fetchFlowMeta) {
-      // Same reference as the last dispatch — this is a StrictMode re-mount
-      // or an effect re-fire with unchanged deps. Skip to avoid a duplicate fetch.
+    if (lastRequestKeyRef.current === requestKey) {
       return;
     }
 
-    lastFetchedRef.current = fetchFlowMeta;
+    lastRequestKeyRef.current = requestKey;
     fetchFlowMeta();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchFlowMeta]);
+  }, [requestKey]);
 
   // When meta loads with i18n translations, inject them into the i18n system.
   // Meta translations act as the base layer — prop-provided bundles still take precedence.
