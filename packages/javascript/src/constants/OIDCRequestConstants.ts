@@ -10,7 +10,6 @@ import ScopeConstants from './ScopeConstants';
 const OIDCRequestConstants: {
   readonly Params: {
     readonly AUTHORIZATION_CODE: string;
-    readonly SESSION_STATE: string;
     readonly SIGN_OUT_SUCCESS: string;
     readonly STATE: string;
   };
@@ -33,11 +32,6 @@ const OIDCRequestConstants: {
      * Used in the authorization code flow.
      */
     AUTHORIZATION_CODE: 'code',
-
-    /**
-     * Session state parameter used for session management between the client and the OP.
-     */
-    SESSION_STATE: 'session_state',
 
     /**
      * Indicates whether sign-out was successful during the end-session flow.

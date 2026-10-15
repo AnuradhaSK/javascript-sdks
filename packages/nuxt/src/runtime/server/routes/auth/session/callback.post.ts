@@ -31,7 +31,6 @@ function isTokenResponse(value: unknown): value is TokenResponse {
  * Request body:
  * - `code` — authorization code from the IDP redirect
  * - `state` — state parameter from the redirect
- * - `sessionState` — session_state parameter from the redirect (optional)
  *
  * Response shape (success):
  * ```json
@@ -48,8 +47,8 @@ export default defineEventHandler(async (event: H3Event) => {
   const afterSignInUrl: string = ((config.public.thunderid as any)?.afterSignInUrl as string | undefined) || '/';
 
   // ── Parse request body ────────────────────────────────────────────────────
-  const body: {code?: string; sessionState?: string; state?: string} = await readBody(event);
-  const {code, state, sessionState} = body ?? {};
+  const body: {code?: string; state?: string} = await readBody(event);
+  const {code, state} = body ?? {};
 
   if (!code) {
     throw createError({statusCode: 400, statusMessage: 'Missing required parameter: code'});
@@ -77,7 +76,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
   let tokenResponse: unknown;
   try {
-    tokenResponse = await client.signIn({code, session_state: sessionState, state}, {}, sessionId);
+    tokenResponse = await client.signIn({code, state}, {}, sessionId);
   } catch (err: any) {
     return {error: err?.message ?? String(err), success: false};
   }

@@ -296,7 +296,7 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
       }) as unknown as Promise<EmbeddedSignInFlowResponse>;
     }
 
-    return super.signIn(arg4, arg3, arg1?.code, arg1?.session_state, arg1?.state, arg1) as unknown as Promise<User>;
+    return super.signIn(arg4, arg3, arg1?.code, arg1?.state, arg1) as unknown as Promise<User>;
   }
 
   override async signOut(...args: any[]): Promise<string> {

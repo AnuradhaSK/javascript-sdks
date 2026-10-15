@@ -96,7 +96,6 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
       authRedirectCallback,
       userId,
       req.query['code'] as string | undefined,
-      req.query['session_state'] as string | undefined,
       req.query['state'] as string | undefined,
       signInConfig,
     )) as unknown as TokenResponse;

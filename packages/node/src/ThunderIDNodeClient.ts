@@ -50,10 +50,9 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
   }
 
   public override async signIn(...args: any[]): Promise<TokenResponse> {
-    const [authURLCallback, userId, authorizationCode, sessionState, state, signInConfig] = args as [
+    const [authURLCallback, userId, authorizationCode, state, signInConfig] = args as [
       AuthURLCallback,
       string,
-      string?,
       string?,
       string?,
       Record<string, string | boolean>?,
@@ -105,7 +104,7 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
       });
     }
 
-    await this.requestAccessToken(authorizationCode, sessionState ?? '', state, userId);
+    await this.requestAccessToken(authorizationCode, state, userId);
     const sm = this.getStorageManager();
     const sessionData: SessionData = await sm.getSessionData(userId);
     await this.indexSession(userId, sessionData);

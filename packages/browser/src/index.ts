@@ -31,8 +31,6 @@ export {default as SPACryptoUtils} from './utils/SPACryptoUtils';
 export {default as SPAUtils} from './utils/SPAUtils';
 export {default as SPAHelper} from './utils/SPAHelper';
 export {default as AuthenticationHelper} from './utils/AuthenticationHelper';
-export {default as createSessionManagementHelper} from './utils/SessionManagementHelper';
-export type {SessionManagementHelperInterface} from './utils/SessionManagementHelper';
 export {default as hasAuthParamsInUrl} from './utils/hasAuthParamsInUrl';
 export {default as hasCalledForThisInstanceInUrl} from './utils/hasCalledForThisInstanceInUrl';
 export {default as navigate} from './utils/navigate';

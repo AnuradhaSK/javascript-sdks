@@ -8,11 +8,9 @@ export interface SessionData {
   id_token: string;
   refresh_token?: string;
   scope: string;
-  session_state: string;
   token_type: string;
 }
 
 export interface UserSession {
   scopes: string[];
-  sessionState: string;
 }

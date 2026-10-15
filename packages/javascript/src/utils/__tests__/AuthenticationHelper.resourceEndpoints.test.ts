@@ -90,7 +90,6 @@ describe('AuthenticationHelper resource-endpoint filtering', (): void => {
         endSessionEndpoint: 'https://idp.example.com/oauth2/logout',
         issuer: 'https://idp.example.com',
         jwksUri: 'https://idp.example.com/oauth2/jwks',
-        checkSessionIframe: 'https://idp.example.com/oauth2/checksession',
         revocationEndpoint: 'https://idp.example.com/oauth2/revoke',
         tokenEndpoint: 'https://idp.example.com/oauth2/token',
         userinfoEndpoint: 'https://idp.example.com/oauth2/userinfo',

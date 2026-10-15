@@ -10,10 +10,6 @@ export interface AuthCodeResponse {
    */
   code: string;
   /**
-   * The session state identifier
-   */
-  session_state: string;
-  /**
    * The state parameter returned from the authorization endpoint
    */
   state: string;

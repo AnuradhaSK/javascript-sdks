@@ -4,7 +4,7 @@
 /**
  * Re-export of the auth params URL check from the Browser SDK.
  *
- * Checks if `code` (and optionally `session_state`) are present in the URL search params,
+ * Checks if `code` is present in the URL search params,
  * indicating an OAuth2 authorization code callback.
  *
  * @see {@link @thunderid/browser#hasAuthParamsInUrl}
