@@ -42,6 +42,37 @@ export type SignOutOptions = Record<string, unknown>;
  */
 export type SignUpOptions = Record<string, unknown>;
 
+/**
+ * Options for the ThunderID SSO session. See {@link BaseConfig.session}.
+ */
+export interface SessionConfig {
+  /**
+   * Silent sign-in: a `prompt=none` authorize request in a hidden iframe that signs the user in from
+   * an existing ThunderID SSO session without any interaction.
+   */
+  silentSignIn?: SilentSignInConfig;
+}
+
+/**
+ * Options for silent sign-in. See {@link SessionConfig.silentSignIn}.
+ */
+export interface SilentSignInConfig {
+  /**
+   * Before `signIn()` redirects to the authorization endpoint, try a silent sign-in first. When the
+   * SSO session exists the user is signed in without leaving the application; otherwise the redirect
+   * continues as usual. Skipped when the sign-in options set their own `prompt`.
+   * @default false
+   */
+  beforeRedirect?: boolean;
+
+  /**
+   * How long to wait for a silent sign-in response, in milliseconds, before treating the user as
+   * signed out. Applies to `signInSilently()` and to `beforeRedirect`.
+   * @default 10000
+   */
+  timeout?: number;
+}
+
 export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions {
   /**
    * Whether to enable PKCE (Proof Key for Code Exchange) for the authorization request.
@@ -428,6 +459,17 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    * The values should be defined at the framework layer.
    */
   storage?: T;
+
+  /**
+   * Behaviour around the ThunderID server's SSO session.
+   *
+   * @remarks Browser SDKs only. The session is checked with a `prompt=none` request in a hidden
+   * iframe, so it can only be found when the application and ThunderID are on the same site and the
+   * browser sends ThunderID's session cookie into the iframe.
+   * @example
+   * session: {silentSignIn: {beforeRedirect: true}}
+   */
+  session?: SessionConfig;
 
   /**
    * Configuration for token lifecycle management.

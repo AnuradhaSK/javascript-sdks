@@ -94,12 +94,14 @@ const getAuthorizeRequestUrlParams = (
   }
 
   const AUTH_INSTANCE_PREFIX = 'instance_';
-  let customStateValue = '';
+  const customState: string = customParams?.[OIDCRequestConstants.Params.STATE]?.toString() ?? '';
+  let customStateValue: string = customState;
 
+  // Keep a caller-supplied state after the instance prefix rather than dropping it: the prefix routes
+  // the callback to the right client instance, and the custom value marks the kind of request (for
+  // example a silent sign-in) for the page that handles the callback.
   if (options.instanceId) {
-    customStateValue = AUTH_INSTANCE_PREFIX + options.instanceId;
-  } else if (customParams) {
-    customStateValue = customParams[OIDCRequestConstants.Params.STATE]?.toString() ?? '';
+    customStateValue = AUTH_INSTANCE_PREFIX + options.instanceId + (customState ? `_${customState}` : '');
   }
 
   authorizeRequestParams.set(
