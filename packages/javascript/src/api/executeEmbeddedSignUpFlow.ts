@@ -54,6 +54,10 @@ const executeEmbeddedSignUpFlow = async ({
     isNewFlowStart || hasOnlyFlowId ? {...basePayload, verbose: true} : basePayload;
 
   const response: Response = await fetch(endpoint, {
+    // Send and accept cookies on the cross-origin call to the ThunderID server. A flow that
+    // establishes an SSO session returns its handle as a Set-Cookie on this response, and the browser
+    // discards it unless credentials are included. Callers can still override this via requestConfig.
+    credentials: 'include',
     ...requestConfig,
     body: JSON.stringify(requestPayload),
     headers: {
