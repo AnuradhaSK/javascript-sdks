@@ -17,10 +17,12 @@ export type ResourceEndpointKey =
   | 'applications'
   | 'flowExecute'
   | 'flowMeta'
+  | 'flows'
   | 'users'
   | 'usersMe'
   | 'usersMeCredentials'
-  | 'usersMeMeta';
+  | 'usersMeMeta'
+  | 'userTypes';
 
 /**
  * The `config.endpoints` keys that address resource-server endpoints rather than OIDC/OAuth
@@ -31,10 +33,12 @@ export const RESOURCE_ENDPOINT_KEYS: readonly ResourceEndpointKey[] = [
   'applications',
   'flowExecute',
   'flowMeta',
+  'flows',
   'users',
   'usersMe',
   'usersMeCredentials',
   'usersMeMeta',
+  'userTypes',
 ];
 
 /**

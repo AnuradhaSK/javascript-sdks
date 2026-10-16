@@ -3,6 +3,9 @@
 
 import {
   EmbeddedFlowType,
+  FetchAuthFlows,
+  FetchUsers,
+  FetchUserTypes,
   getOrganizationUnitChildren,
   OrganizationUnitListResponse,
   resolveResourceEndpoint,
@@ -11,6 +14,9 @@ import {FC, ReactElement, ReactNode, useCallback} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseInviteUser, {BaseInviteUserRenderProps, InviteUserFlowResponse} from './BaseInviteUser';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
+import useFetchAuthFlows from '../../../../hooks/useFetchAuthFlows';
+import useFetchUsers from '../../../../hooks/useFetchUsers';
+import useFetchUserTypes from '../../../../hooks/useFetchUserTypes';
 
 /**
  * Render props for InviteUser (re-exported for convenience).
@@ -33,7 +39,8 @@ export interface InviteUserProps {
   className?: string;
 
   /**
-   * Callback when an error occurs.
+   * Callback when an error occurs. It also receives the errors of failed user, flow and user type picker loads,
+   * which the form itself does not show.
    */
   onError?: (error: Error) => void;
 
@@ -181,6 +188,10 @@ const InviteUser: FC<InviteUserProps> = ({
     [baseUrl, getAccessToken],
   );
 
+  const fetchAuthFlows: FetchAuthFlows = useFetchAuthFlows();
+  const fetchUsers: FetchUsers = useFetchUsers();
+  const fetchUserTypes: FetchUserTypes = useFetchUserTypes();
+
   return (
     <BaseInviteUser
       onInitialize={handleInitialize}
@@ -189,6 +200,9 @@ const InviteUser: FC<InviteUserProps> = ({
       onFlowChange={onFlowChange}
       className={className}
       fetchOrganizationUnitChildren={fetchOrganizationUnitChildren}
+      fetchAuthFlows={fetchAuthFlows}
+      fetchUsers={fetchUsers}
+      fetchUserTypes={fetchUserTypes}
       isInitialized={isInitialized}
       size={size}
       variant={variant}

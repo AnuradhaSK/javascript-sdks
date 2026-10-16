@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {withVendorCSSClassPrefix, bem} from '@thunderid/browser';
-import {FC, InputHTMLAttributes, ReactNode} from 'react';
+import {FC, InputHTMLAttributes, KeyboardEvent, ReactNode} from 'react';
 import useStyles from './TextField.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
 import {cx} from '../../../styles/emotion';
@@ -19,9 +19,17 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
    */
   disabled?: boolean;
   /**
+   * Extra content shown inside the field, at its end after the end icon, such as an action button
+   */
+  endAdornment?: ReactNode;
+  /**
    * Icon to display at the end (right) of the input
    */
   endIcon?: ReactNode;
+  /**
+   * Accessible name of the end icon when it is a button, that is when `onEndIconClick` is set
+   */
+  endIconLabel?: string;
   /**
    * Error message to display below the input
    */
@@ -52,6 +60,18 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   startIcon?: ReactNode;
 }
 
+/**
+ * Makes an element with `role="button"` respond to Enter and Space, as a native button does.
+ */
+const activateOnKey =
+  (activate: () => void) =>
+  (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      activate();
+    }
+  };
+
 const TextField: FC<TextFieldProps> = ({
   label,
   error,
@@ -60,7 +80,9 @@ const TextField: FC<TextFieldProps> = ({
   disabled,
   helperText,
   startIcon,
+  endAdornment,
   endIcon,
+  endIconLabel = 'End icon',
   onStartIconClick,
   onEndIconClick,
   type = 'text',
@@ -71,6 +93,7 @@ const TextField: FC<TextFieldProps> = ({
   const hasError = !!error;
   const hasStartIcon = !!startIcon;
   const hasEndIcon = !!endIcon;
+  const hasEndAdornment = !!endAdornment;
   const styles: Record<string, string> = useStyles(
     theme,
     colorScheme,
@@ -78,6 +101,7 @@ const TextField: FC<TextFieldProps> = ({
     hasError,
     hasStartIcon,
     hasEndIcon,
+    hasEndAdornment,
   );
 
   const inputClassName: string = cx(
@@ -95,6 +119,11 @@ const TextField: FC<TextFieldProps> = ({
   const startIconClassName: string = cx(withVendorCSSClassPrefix(bem('text-field', 'start-icon')), styles['startIcon']);
 
   const endIconClassName: string = cx(withVendorCSSClassPrefix(bem('text-field', 'end-icon')), styles['endIcon']);
+
+  const endAdornmentClassName: string = cx(
+    withVendorCSSClassPrefix(bem('text-field', 'end-adornment')),
+    styles['endAdornment'],
+  );
 
   return (
     <FormControl
@@ -115,6 +144,7 @@ const TextField: FC<TextFieldProps> = ({
             onClick={onStartIconClick}
             role={onStartIconClick ? 'button' : undefined}
             tabIndex={onStartIconClick && !disabled ? 0 : undefined}
+            onKeyDown={onStartIconClick && !disabled ? activateOnKey(onStartIconClick) : undefined}
             aria-label="Start icon"
           >
             {startIcon}
@@ -134,11 +164,13 @@ const TextField: FC<TextFieldProps> = ({
             onClick={onEndIconClick}
             role={onEndIconClick ? 'button' : undefined}
             tabIndex={onEndIconClick && !disabled ? 0 : undefined}
-            aria-label="End icon"
+            onKeyDown={onEndIconClick && !disabled ? activateOnKey(onEndIconClick) : undefined}
+            aria-label={endIconLabel}
           >
             {endIcon}
           </div>
         )}
+        {endAdornment && <div className={endAdornmentClassName}>{endAdornment}</div>}
       </div>
     </FormControl>
   );

@@ -27,6 +27,8 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'OU',
   'elements.display.copyable_text.copy': 'Copie',
   'elements.display.copyable_text.copied': 'Copié!',
+  'elements.display.copyable_text.show': 'Afficher',
+  'elements.display.copyable_text.hide': 'Masquer',
 
   /* Fields */
   'elements.fields.generic.placeholder': 'Entrez votre {field}',
@@ -45,6 +47,17 @@ const translations: I18nTranslations = {
   'elements.fields.organization.description.label': "Description de l'organisation",
   'elements.fields.organization.select.label': "Sélectionner l'organisation",
   'elements.fields.organization.select.placeholder': 'Choisissez une organisation',
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': 'Sélectionner un flux de connexion',
+  'elements.fields.auth_flow_select.empty': 'Aucun flux de connexion trouvé.',
+  'elements.fields.select.load_more': 'Charger plus',
+  'elements.fields.select.loading': 'Chargement…',
+  'elements.fields.select.loading_more': 'Chargement supplémentaire…',
+  'elements.fields.user_select.aria_label': 'Sélectionner un utilisateur',
+  'elements.fields.user_select.empty': 'Aucun utilisateur trouvé.',
+  'elements.fields.user_type_select.aria_label': 'Sélectionner un type d’utilisateur',
+  'elements.fields.user_type_select.empty': 'Aucun type d’utilisateur trouvé.',
 
   /* Validation */
   'validations.required.field.error': 'Ce champ est obligatoire',

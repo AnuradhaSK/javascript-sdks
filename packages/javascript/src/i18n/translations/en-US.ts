@@ -27,6 +27,8 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'OR',
   'elements.display.copyable_text.copy': 'Copy',
   'elements.display.copyable_text.copied': 'Copied!',
+  'elements.display.copyable_text.show': 'Show',
+  'elements.display.copyable_text.hide': 'Hide',
 
   /* Fields */
   'elements.fields.generic.placeholder': 'Enter your {field}',
@@ -45,6 +47,17 @@ const translations: I18nTranslations = {
   'elements.fields.organization.description.label': 'Organization Description',
   'elements.fields.organization.select.label': 'Select Organization',
   'elements.fields.organization.select.placeholder': 'Choose an organization',
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': 'Select a login flow',
+  'elements.fields.auth_flow_select.empty': 'No login flows found.',
+  'elements.fields.select.load_more': 'Load more',
+  'elements.fields.select.loading': 'Loading…',
+  'elements.fields.select.loading_more': 'Loading more…',
+  'elements.fields.user_select.aria_label': 'Select a user',
+  'elements.fields.user_select.empty': 'No users found.',
+  'elements.fields.user_type_select.aria_label': 'Select a user type',
+  'elements.fields.user_type_select.empty': 'No user types found.',
 
   /* Validation */
   'validations.required.field.error': 'This field is required',

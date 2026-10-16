@@ -10,7 +10,7 @@
  *   --error  – shows validation error state
  *
  * Elements:
- *   __label | __required | __input | __error | __helper
+ *   __label | __required | __input | __error | __helper | __status | __load-more
  */
 const SELECT_CSS = `
 /* ============================================================
@@ -89,6 +89,20 @@ const SELECT_CSS = `
   font-size: var(--thunderid-typography-fontSize-xs);
   color: var(--thunderid-color-text-secondary);
   line-height: var(--thunderid-typography-lineHeight-normal);
+}
+
+.thunderid-select__status {
+  font-size: var(--thunderid-typography-fontSize-xs);
+  color: var(--thunderid-color-text-secondary);
+  line-height: var(--thunderid-typography-lineHeight-normal);
+}
+.thunderid-select__status:empty {
+  display: none;
+}
+
+.thunderid-select__load-more {
+  color: var(--thunderid-color-primary-main);
+  font-weight: var(--thunderid-typography-fontWeight-medium);
 }
 `;
 

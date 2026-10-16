@@ -17,6 +17,7 @@ import {VendorConstants} from '@thunderid/node';
 import {defu} from 'defu';
 import NuxtAPIRoutes from './runtime/constants/NuxtAPIRoutes';
 import type {ThunderIDNuxtConfig, ThunderIDSessionPayload, ThunderIDSSRData} from './runtime/types';
+import getEnabledResourcePickers from './runtime/utils/getEnabledResourcePickers';
 
 type ViteUserConfig = Parameters<Parameters<typeof extendViteConfig>[0]>[0];
 
@@ -270,6 +271,14 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     addComponent({filePath: resolve('./runtime/components/user/UserProfile'), name: 'UserProfile'});
     addComponent({filePath: resolve('./runtime/components/user/UserDropdown'), name: 'UserDropdown'});
     addComponent({filePath: resolve('./runtime/components/user/ChangeCredential'), name: 'ChangeCredential'});
+
+    // ── Management pickers ──────────────────────────────────────────────────
+    // Opt-in: each picker's route lists a management resource with the signed-in user's session, so the route and its
+    // component are registered only for a picker the application turned on.
+    getEnabledResourcePickers(userOptions.resourcePickers).forEach(({component, componentPath, handlerPath, route}) => {
+      addServerHandler({handler: resolve(handlerPath), route});
+      addComponent({filePath: resolve(componentPath), name: component});
+    });
 
     // ── Auth callback ────────────────────────────────────────────────────────
     addComponent({filePath: resolve('./runtime/components/auth/Callback'), name: 'Callback'});

@@ -13,6 +13,8 @@ import deleteApplication from '../applications/deleteApplication';
 import getApplication from '../applications/getApplication';
 import getApplications from '../applications/getApplications';
 import updateApplication from '../applications/updateApplication';
+import getFlows from '../flows/getFlows';
+import getUserTypes from '../user-types/getUserTypes';
 import createUser from '../users/createUser';
 import deleteUser from '../users/deleteUser';
 import getUser from '../users/getUser';
@@ -97,6 +99,19 @@ describe('management API', () => {
       'DELETE',
       `${baseUrl}/agents/ag-1`,
     ],
+    [
+      'getFlows',
+      (fetcher: ApiFetcher) => getFlows({baseUrl, fetcher, flowType: 'AUTHENTICATION', limit: 30, offset: 60}),
+      'GET',
+      `${baseUrl}/flows?flowType=AUTHENTICATION&limit=30&offset=60`,
+    ],
+    ['getFlows without a flow type', (fetcher: ApiFetcher) => getFlows({baseUrl, fetcher}), 'GET', `${baseUrl}/flows`],
+    [
+      'getUserTypes',
+      (fetcher: ApiFetcher) => getUserTypes({baseUrl, fetcher, limit: 30, offset: 30}),
+      'GET',
+      `${baseUrl}/user-types?limit=30&offset=30`,
+    ],
   ])('%s sends the expected request', async (_name: string, run: Run, method: string, url: string) => {
     const fetcher: FetcherMock = createFetcher();
 
@@ -145,6 +160,40 @@ describe('management API', () => {
     },
   );
 
+  it.each<[string, Run, string]>([
+    [
+      'getFlows',
+      (fetcher: ApiFetcher) => getFlows({fetcher, flowType: 'AUTHENTICATION', url: 'https://rs.example.com/flows'}),
+      'https://rs.example.com/flows?flowType=AUTHENTICATION',
+    ],
+    [
+      'getUserTypes',
+      (fetcher: ApiFetcher) => getUserTypes({fetcher, limit: 10, url: 'https://rs.example.com/user-types'}),
+      'https://rs.example.com/user-types?limit=10',
+    ],
+  ])('%s uses the collection URL override instead of the base URL', async (_name: string, run: Run, url: string) => {
+    const fetcher: FetcherMock = createFetcher();
+
+    await run(fetcher);
+
+    expect(sentRequest(fetcher).url).toBe(url);
+  });
+
+  it.each<[string, (fetcher: ApiFetcher, signal: AbortSignal) => Promise<unknown>]>([
+    ['getFlows', (fetcher: ApiFetcher, signal: AbortSignal) => getFlows({baseUrl, fetcher, signal})],
+    ['getUserTypes', (fetcher: ApiFetcher, signal: AbortSignal) => getUserTypes({baseUrl, fetcher, signal})],
+  ])('%s passes the abort signal and headers to the request', async (_name: string, run) => {
+    const fetcher: FetcherMock = createFetcher();
+    const signal: AbortSignal = new AbortController().signal;
+
+    await run(fetcher, signal);
+
+    const init: RequestInit = fetcher.mock.calls[0][1];
+
+    expect(init.signal).toBe(signal);
+    expect(init.headers).toMatchObject({Accept: 'application/json'});
+  });
+
   it('prefixes error codes with the operation name', async () => {
     const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockResolvedValue({
       ok: false,
@@ -156,5 +205,17 @@ describe('management API', () => {
     await expect(getApplication({applicationId: 'x', baseUrl, fetcher})).rejects.toMatchObject({
       code: 'getApplication-NotFoundError-001',
     });
+  });
+
+  it('uses the operation name as the error code prefix for the flow and user type lists', async () => {
+    const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockResolvedValue({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      text: () => Promise.resolve('bad'),
+    } as Response);
+
+    await expect(getFlows({baseUrl, fetcher})).rejects.toMatchObject({code: 'getFlows-ResponseError-001'});
+    await expect(getUserTypes({baseUrl, fetcher})).rejects.toMatchObject({code: 'getUserTypes-ResponseError-001'});
   });
 });

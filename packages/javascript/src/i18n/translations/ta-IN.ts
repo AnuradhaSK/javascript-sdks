@@ -27,6 +27,8 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'அல்லது',
   'elements.display.copyable_text.copy': 'நகலெடுக்கவும்',
   'elements.display.copyable_text.copied': 'நகலெடுக்கப்பட்டது!',
+  'elements.display.copyable_text.show': 'காட்டு',
+  'elements.display.copyable_text.hide': 'மறை',
 
   /* Fields */
   'elements.fields.generic.placeholder': '{field} உள்ளிடவும்',
@@ -45,6 +47,17 @@ const translations: I18nTranslations = {
   'elements.fields.organization.description.label': 'அமைப்பு விளக்கம்',
   'elements.fields.organization.select.label': 'அமைப்பை தேர்ந்தெடு',
   'elements.fields.organization.select.placeholder': 'அமைப்பை தெரிந்தெடுக்கவும்',
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': 'உள்நுழைவு ஓட்டத்தைத் தேர்ந்தெடுக்கவும்',
+  'elements.fields.auth_flow_select.empty': 'உள்நுழைவு ஓட்டங்கள் எதுவும் கிடைக்கவில்லை.',
+  'elements.fields.select.load_more': 'மேலும் ஏற்றவும்',
+  'elements.fields.select.loading': 'ஏற்றுகிறது…',
+  'elements.fields.select.loading_more': 'மேலும் ஏற்றுகிறது…',
+  'elements.fields.user_select.aria_label': 'ஒரு பயனரைத் தேர்ந்தெடுக்கவும்',
+  'elements.fields.user_select.empty': 'பயனர்கள் எவரும் கிடைக்கவில்லை.',
+  'elements.fields.user_type_select.aria_label': 'பயனர் வகையைத் தேர்ந்தெடுக்கவும்',
+  'elements.fields.user_type_select.empty': 'பயனர் வகைகள் எவையும் கிடைக்கவில்லை.',
 
   /* Validation */
   'validations.required.field.error': 'இந்த புலம் தேவை',

@@ -6,10 +6,16 @@ import {
   BackchannelLogoutConstants,
   BackchannelLogoutResult,
   ExtendedAuthorizeRequestUrlParams,
+  getFlows,
+  getUsers,
+  getUserTypes,
   IdToken,
   InvalidLogoutTokenError,
   logger,
   LogoutTokenClaims,
+  ManagedFlowListResponse,
+  ManagedUserListResponse,
+  ManagedUserTypeListResponse,
   OIDCEndpoints,
   resolveResourceEndpoint,
   SessionData,
@@ -386,6 +392,61 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
       payload,
       url: resolveResourceEndpoint('usersMeCredentials', configData),
     });
+  }
+
+  /**
+   * The URL inputs and bearer token for a management request made on behalf of the session identified by
+   * `userId`. The access token stays on the server.
+   */
+  private async managementRequestConfig(
+    key: 'flows' | 'users' | 'userTypes',
+    userId?: string,
+  ): Promise<{baseUrl: string | undefined; headers: {Authorization: string}; url: string | undefined}> {
+    const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+
+    return {
+      baseUrl: configData?.baseUrl,
+      headers: {
+        Authorization: `Bearer ${await this.getAccessToken(userId)}`,
+      },
+      url: resolveResourceEndpoint(key, configData),
+    };
+  }
+
+  /**
+   * Retrieves one page of the user directory on behalf of the session identified by `userId`.
+   *
+   * Makes a single request and does not follow `links`. The access token stays on the server.
+   */
+  public async getUsers(
+    options: {filter?: string; limit?: number; offset?: number; signal?: AbortSignal} = {},
+    userId?: string,
+  ): Promise<ManagedUserListResponse> {
+    return getUsers({...options, ...(await this.managementRequestConfig('users', userId))});
+  }
+
+  /**
+   * Retrieves one page of flows on behalf of the session identified by `userId`.
+   *
+   * Makes a single request and does not follow `links`. The access token stays on the server.
+   */
+  public async getFlows(
+    options: {flowType?: string; limit?: number; offset?: number; signal?: AbortSignal} = {},
+    userId?: string,
+  ): Promise<ManagedFlowListResponse> {
+    return getFlows({...options, ...(await this.managementRequestConfig('flows', userId))});
+  }
+
+  /**
+   * Retrieves one page of user types on behalf of the session identified by `userId`.
+   *
+   * Makes a single request and does not follow `links`. The access token stays on the server.
+   */
+  public async getUserTypes(
+    options: {limit?: number; offset?: number; signal?: AbortSignal} = {},
+    userId?: string,
+  ): Promise<ManagedUserTypeListResponse> {
+    return getUserTypes({...options, ...(await this.managementRequestConfig('userTypes', userId))});
   }
 }
 

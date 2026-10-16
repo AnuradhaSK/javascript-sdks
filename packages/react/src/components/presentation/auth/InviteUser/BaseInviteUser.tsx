@@ -7,9 +7,13 @@ import {
   FlowExecutionError,
   FlowMetadataResponse,
   buildValidatorFromRules,
+  FetchAuthFlows,
+  FetchUsers,
+  FetchUserTypes,
   logger,
   OrganizationUnitListResponse,
   Preferences,
+  resolveFlowTemplateLiterals,
 } from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import useStyles from './BaseInviteUser.styles';
@@ -163,12 +167,29 @@ export interface BaseInviteUserProps {
   ) => Promise<OrganizationUnitListResponse>;
 
   /**
+   * Function to load one page of authentication flows.
+   * When provided, enables the flow picker for AUTH_FLOW_SELECT components.
+   */
+  fetchAuthFlows?: FetchAuthFlows;
+  /**
+   * Function to load one page of users.
+   * When provided, enables the user picker for USER_SELECT components.
+   */
+  fetchUsers?: FetchUsers;
+  /**
+   * Function to load one page of user types.
+   * When provided, enables the user type picker for USER_TYPE_SELECT components.
+   */
+  fetchUserTypes?: FetchUserTypes;
+
+  /**
    * Whether the SDK is initialized.
    */
   isInitialized?: boolean;
 
   /**
-   * Callback when an error occurs.
+   * Callback when an error occurs. It also receives the errors of failed user, flow and user type picker loads,
+   * which the form itself does not show.
    */
   onError?: (error: Error) => void;
 
@@ -239,7 +260,10 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
   onFlowChange,
   className = '',
   children,
+  fetchAuthFlows,
   fetchOrganizationUnitChildren,
+  fetchUsers,
+  fetchUserTypes,
   isInitialized = true,
   preferences,
   size = 'medium',
@@ -413,7 +437,10 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
               comp.type === 'SELECT' ||
               comp.type === 'PHONE_INPUT' ||
               comp.type === 'OTP_INPUT' ||
-              comp.type === 'DATE_INPUT') &&
+              comp.type === 'DATE_INPUT' ||
+              comp.type === 'USER_SELECT' ||
+              comp.type === 'AUTH_FLOW_SELECT' ||
+              comp.type === 'USER_TYPE_SELECT') &&
             comp.ref
           ) {
             const value: any = formValues[comp.ref];
@@ -603,22 +630,27 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
   /**
    * Extract title and subtitle from components.
    */
-  const extractHeadings: any = useCallback((components: any[]): {subtitle?: string; title?: string} => {
-    let title: string | undefined;
-    let subtitle: string | undefined;
+  const extractHeadings: any = useCallback(
+    (components: any[]): {subtitle?: string; title?: string} => {
+      // The flow writes its texts as translation templates, so resolve them here as the field labels are.
+      const resolve = (text: string): string => resolveFlowTemplateLiterals(text, {meta, t});
+      let title: string | undefined;
+      let subtitle: string | undefined;
 
-    components.forEach((comp: any) => {
-      if (comp.type === 'TEXT') {
-        if (comp.variant === 'HEADING_1' && !title) {
-          title = comp.label;
-        } else if ((comp.variant === 'HEADING_2' || comp.variant === 'SUBTITLE_1') && !subtitle) {
-          subtitle = comp.label;
+      components.forEach((comp: any) => {
+        if (comp.type === 'TEXT') {
+          if (comp.variant === 'HEADING_1' && !title) {
+            title = comp.label && resolve(comp.label);
+          } else if ((comp.variant === 'HEADING_2' || comp.variant === 'SUBTITLE_1') && !subtitle) {
+            subtitle = comp.label && resolve(comp.label);
+          }
         }
-      }
-    });
+      });
 
-    return {subtitle, title};
-  }, []);
+      return {subtitle, title};
+    },
+    [meta, t],
+  );
 
   /**
    * Filter out heading components for default rendering.
@@ -649,17 +681,29 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
           _customRenderers: customRenderers,
           _theme: theme,
           additionalData: currentFlow?.data?.additionalData,
+          fetchAuthFlows,
           fetchOrganizationUnitChildren,
+          fetchUsers,
+          fetchUserTypes,
+          meta,
           onInputBlur: handleInputBlur,
+          onPickerError: onError,
           onSubmit: handleSubmit,
           size,
+          t,
           variant,
         },
       ),
     [
       customRenderers,
       currentFlow?.data?.additionalData,
+      fetchAuthFlows,
       fetchOrganizationUnitChildren,
+      fetchUsers,
+      fetchUserTypes,
+      meta,
+      onError,
+      t,
       formValues,
       touchedFields,
       formErrors,

@@ -22,6 +22,7 @@ import {
   KeyValuePair,
   parseKeyValuePairs,
 } from '@thunderid/browser';
+import type {FetchAuthFlows, FetchUsers, FetchUserTypes} from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {h, type VNode} from 'vue';
 import {createVueLogger} from '../../../utils/logger';
@@ -31,10 +32,14 @@ import GoogleButton from '../../adapters/GoogleButton';
 import MicrosoftButton from '../../adapters/MicrosoftButton';
 import {createField} from '../../factories/FieldFactory';
 import Button from '../../primitives/Button';
+import CopyableText from '../../primitives/CopyableText/CopyableText';
 import Divider from '../../primitives/Divider';
 import KeyValueList from '../../primitives/KeyValueList';
 import Select from '../../primitives/Select/Select';
 import Typography from '../../primitives/Typography';
+import BaseAuthFlowSelect from '../../primitives/AuthFlowSelect/BaseAuthFlowSelect';
+import BaseUserSelect from '../../primitives/UserSelect/BaseUserSelect';
+import BaseUserTypeSelect from '../../primitives/UserTypeSelect/BaseUserTypeSelect';
 
 const logger: ReturnType<typeof createVueLogger> = createVueLogger('AuthOptionFactory');
 
@@ -142,12 +147,20 @@ const createAuthComponentFromFlow = (
   options: {
     additionalData?: Record<string, any>;
     buttonClassName?: string;
+    /** Data source for AUTH_FLOW_SELECT fields. */
+    fetchAuthFlows?: FetchAuthFlows;
+    /** Data source for USER_SELECT fields. */
+    fetchUsers?: FetchUsers;
+    /** Data source for USER_TYPE_SELECT fields. */
+    fetchUserTypes?: FetchUserTypes;
     inStack?: boolean;
     inputClassName?: string;
     isTimeoutDisabled?: boolean;
     key?: string | number;
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
+    /** Called with the error of a failed picker load. The form itself shows no error for it. */
+    onPickerError?: (error: Error) => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
     size?: 'small' | 'medium' | 'large';
     t?: TranslationFn;
@@ -162,6 +175,34 @@ const createAuthComponentFromFlow = (
       return text || '';
     }
     return resolveFlowTemplateLiterals(text, {meta: options.meta, t: options.t || ((k: string): string => k)});
+  };
+
+  // The props a flow gives each of the resource pickers (USER_SELECT, AUTH_FLOW_SELECT, USER_TYPE_SELECT).
+  const resourceSelectProps = (): Record<string, unknown> => {
+    const identifier: string = component.ref ?? '';
+    const isTouched: boolean = touchedFields[identifier] || false;
+
+    return {
+      class: options.inputClassName,
+      component,
+      error: isTouched ? formErrors[identifier] : undefined,
+      key,
+      label: resolve(component.label) || '',
+      modelValue: formValues[identifier] || '',
+      name: identifier,
+      onBlur: () => options.onInputBlur?.(identifier),
+      onError: options.onPickerError,
+      'onUpdate:modelValue': (val: string) => onInputChange(identifier, val),
+      placeholder: resolve(component.placeholder),
+      required: component.required,
+    };
+  };
+
+  // A component type this render cannot draw is logged and left out.
+  const skipUnsupported = (typeName: string): null => {
+    logger.warn(`Unsupported component type: ${typeName}. Skipping render.`);
+
+    return null;
   };
 
   switch (component.type) {
@@ -383,6 +424,23 @@ const createAuthComponentFromFlow = (
       });
     }
 
+    // The resource pickers load with a signed-in user's access token, so without a data source, which is every flow
+    // except InviteUser, they are not drawn.
+    case EmbeddedFlowComponentType.UserSelect:
+      return options.fetchUsers
+        ? h(BaseUserSelect, {...resourceSelectProps(), fetchUsers: options.fetchUsers})
+        : skipUnsupported('USER_SELECT');
+
+    case EmbeddedFlowComponentType.AuthFlowSelect:
+      return options.fetchAuthFlows
+        ? h(BaseAuthFlowSelect, {...resourceSelectProps(), fetchAuthFlows: options.fetchAuthFlows})
+        : skipUnsupported('AUTH_FLOW_SELECT');
+
+    case EmbeddedFlowComponentType.UserTypeSelect:
+      return options.fetchUserTypes
+        ? h(BaseUserTypeSelect, {...resourceSelectProps(), fetchUserTypes: options.fetchUserTypes})
+        : skipUnsupported('USER_TYPE_SELECT');
+
     case EmbeddedFlowComponentType.Block: {
       if (component.components && component.components.length > 0) {
         const blockChildren: (VNode | null)[] = component.components
@@ -554,6 +612,14 @@ const createAuthComponentFromFlow = (
       return h(KeyValueList, {key, label: resolve(component.label) || undefined, pairs});
     }
 
+    case EmbeddedFlowComponentType.CopyableText: {
+      const sourceKey: string | undefined = component.source;
+      const value: string = sourceKey && options.additionalData ? String(options.additionalData[sourceKey] ?? '') : '';
+      const labelText: string = resolve(component.label);
+
+      return h(CopyableText, {key, label: labelText, masked: Boolean(component.masked), value});
+    }
+
     default:
       logger.warn(`Unsupported component type: ${(component as any).type}. Skipping render.`);
       return null;
@@ -667,10 +733,18 @@ export const renderInviteUserComponents = (
   options?: {
     additionalData?: Record<string, any>;
     buttonClassName?: string;
+    /** Data source for AUTH_FLOW_SELECT fields. */
+    fetchAuthFlows?: FetchAuthFlows;
+    /** Data source for USER_SELECT fields. */
+    fetchUsers?: FetchUsers;
+    /** Data source for USER_TYPE_SELECT fields. */
+    fetchUserTypes?: FetchUserTypes;
     inputClassName?: string;
     isTimeoutDisabled?: boolean;
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
+    /** Called with the error of a failed picker load. The form itself shows no error for it. */
+    onPickerError?: (error: Error) => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
     size?: 'small' | 'medium' | 'large';
     t?: TranslationFn;

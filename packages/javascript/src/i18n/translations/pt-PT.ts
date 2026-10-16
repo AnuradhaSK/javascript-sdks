@@ -27,6 +27,8 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'OU',
   'elements.display.copyable_text.copy': 'Cópia',
   'elements.display.copyable_text.copied': 'Copiado!',
+  'elements.display.copyable_text.show': 'Mostrar',
+  'elements.display.copyable_text.hide': 'Ocultar',
 
   /* Fields */
   'elements.fields.generic.placeholder': 'Introduza o seu {field}',
@@ -45,6 +47,17 @@ const translations: I18nTranslations = {
   'elements.fields.organization.description.label': 'Descrição da Organização',
   'elements.fields.organization.select.label': 'Selecionar Organização',
   'elements.fields.organization.select.placeholder': 'Selecione uma organização',
+
+  /* Select */
+  'elements.fields.auth_flow_select.aria_label': 'Selecionar um fluxo de início de sessão',
+  'elements.fields.auth_flow_select.empty': 'Nenhum fluxo de início de sessão encontrado.',
+  'elements.fields.select.load_more': 'Carregar mais',
+  'elements.fields.select.loading': 'A carregar…',
+  'elements.fields.select.loading_more': 'A carregar mais…',
+  'elements.fields.user_select.aria_label': 'Selecionar um utilizador',
+  'elements.fields.user_select.empty': 'Nenhum utilizador encontrado.',
+  'elements.fields.user_type_select.aria_label': 'Selecionar um tipo de utilizador',
+  'elements.fields.user_type_select.empty': 'Nenhum tipo de utilizador encontrado.',
 
   /* Validation */
   'validations.required.field.error': 'Este campo é obrigatório',

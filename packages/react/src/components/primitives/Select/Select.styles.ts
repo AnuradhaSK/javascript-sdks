@@ -87,11 +87,29 @@ const useStyles = (theme: Theme, colorScheme: string, disabled: boolean, hasErro
       }
     `;
 
+    const status: string = css`
+      display: block;
+      margin-top: calc(${theme.vars.spacing.unit} / 2);
+      font-size: ${theme.vars.typography.fontSizes.sm};
+      color: ${theme.vars.colors.text.secondary};
+
+      &:empty {
+        display: none;
+      }
+    `;
+
+    const loadMore: string = css`
+      color: ${theme.vars.colors.primary.main};
+      font-weight: ${theme.vars.typography.fontWeights.medium};
+    `;
+
     return {
+      loadMore,
       option,
       select,
       selectDisabled,
       selectError,
+      status,
     };
   }, [theme, colorScheme, disabled, hasError]);
 

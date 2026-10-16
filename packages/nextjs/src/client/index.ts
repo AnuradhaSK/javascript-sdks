@@ -38,3 +38,12 @@ export type {UserProfileProps} from './components/presentation/UserProfile/UserP
 
 export {default as ChangeCredential} from './components/presentation/ChangeCredential/ChangeCredential';
 export type {ChangeCredentialProps} from './components/presentation/ChangeCredential/ChangeCredential';
+
+export {default as UserSelect} from './components/presentation/UserSelect/UserSelect';
+export type {UserSelectProps} from './components/presentation/UserSelect/UserSelect';
+
+export {default as AuthFlowSelect} from './components/presentation/AuthFlowSelect/AuthFlowSelect';
+export type {AuthFlowSelectProps} from './components/presentation/AuthFlowSelect/AuthFlowSelect';
+
+export {default as UserTypeSelect} from './components/presentation/UserTypeSelect/UserTypeSelect';
+export type {UserTypeSelectProps} from './components/presentation/UserTypeSelect/UserTypeSelect';

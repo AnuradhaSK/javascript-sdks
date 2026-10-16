@@ -481,7 +481,8 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
               comp.type === 'EMAIL_INPUT' ||
               comp.type === 'PHONE_INPUT' ||
               comp.type === 'OTP_INPUT' ||
-              comp.type === 'DATE_INPUT') &&
+              comp.type === 'DATE_INPUT' ||
+              comp.type === 'SELECT') &&
             comp.ref
           ) {
             const value: any = formValues[comp.ref];

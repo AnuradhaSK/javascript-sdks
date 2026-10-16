@@ -37,6 +37,10 @@ export {default as deleteApplication} from './api/applications/deleteApplication
 export type {DeleteApplicationConfig} from './api/applications/deleteApplication';
 export {default as getUsers} from './api/users/getUsers';
 export type {GetUsersConfig} from './api/users/getUsers';
+export {default as getFlows} from './api/flows/getFlows';
+export type {GetFlowsConfig} from './api/flows/getFlows';
+export {default as getUserTypes} from './api/user-types/getUserTypes';
+export type {GetUserTypesConfig} from './api/user-types/getUserTypes';
 export {default as getUser} from './api/users/getUser';
 export type {GetUserConfig} from './api/users/getUser';
 export {default as createUser} from './api/users/createUser';
@@ -66,6 +70,10 @@ export {default as ConsentConstants} from './constants/ConsentConstants';
 export {default as ApplicationQueryKeys} from './constants/ApplicationQueryKeys';
 export {default as UserQueryKeys} from './constants/UserQueryKeys';
 export {default as AgentQueryKeys} from './constants/AgentQueryKeys';
+export {default as UserSelectConstants} from './constants/UserSelectConstants';
+export {default as AuthFlowSelectConstants} from './constants/AuthFlowSelectConstants';
+export {default as UserTypeSelectConstants} from './constants/UserTypeSelectConstants';
+export {default as SelectConstants} from './constants/SelectConstants';
 
 export {default as ThunderIDError} from './errors/ThunderIDError';
 export {default as ThunderIDAPIError} from './errors/ThunderIDAPIError';
@@ -99,6 +107,25 @@ export type {
   FieldError,
   PrefixOption,
 } from './models/embedded-flow';
+export type {
+  FetchSelectPage,
+  SelectPage,
+  SelectPageQuery,
+  SelectPageQueryResult,
+  SelectPageRequest,
+} from './models/select-page';
+export type {
+  SelectOption,
+  SelectOptionDefaults,
+  SelectOptionInput,
+  SelectOptionMapping,
+  SelectOptionsBatch,
+  SelectMessages,
+  SelectOptionsLoadContext,
+} from './models/select';
+export type {FetchUsers, UserSelectOptionMapping} from './models/user-select';
+export type {FetchAuthFlows} from './models/auth-flow-select';
+export type {FetchUserTypes} from './models/user-type-select';
 export {EmbeddedSignInFlowStatus, EmbeddedSignInFlowType} from './models/embedded-signin-flow';
 export type {
   ExtendedEmbeddedSignInFlowResponse,
@@ -212,6 +239,8 @@ export type {
   ManagedUserListResponse,
   UpdateManagedUserRequest,
 } from './models/managed-user';
+export type {ManagedFlow, ManagedFlowListResponse} from './models/managed-flow';
+export type {ManagedUserType, ManagedUserTypeListResponse} from './models/managed-user-type';
 export type {
   Agent,
   AgentInboundAuthConfig,
@@ -271,6 +300,38 @@ export {default as removeTrailingSlash} from './utils/removeTrailingSlash';
 export {default as resolveFieldName} from './utils/resolveFieldName';
 export {default as resolveResourceEndpoint} from './utils/resolveResourceEndpoint';
 export type {ResourceEndpointKey, ResourceEndpointConfig} from './utils/resolveResourceEndpoint';
+export {default as computeNextPageOffset} from './utils/computeNextPageOffset';
+export {default as isAdvancingPageOffset} from './utils/isAdvancingPageOffset';
+export {default as dedupeSelectOptions} from './utils/dedupeSelectOptions';
+export {default as toSelectOption} from './utils/toSelectOption';
+export {default as toSelectOptions} from './utils/toSelectOptions';
+export {default as normalizeSelectOptions} from './utils/normalizeSelectOptions';
+export {default as isRetryableError} from './utils/isRetryableError';
+export {default as withRetry} from './utils/withRetry';
+export {default as mergeOptionsBatch} from './utils/mergeOptionsBatch';
+export {default as loadUntilOptionsGrow} from './utils/loadUntilOptionsGrow';
+export {default as capPageSize} from './utils/capPageSize';
+export {default as resolvePageSize} from './utils/resolvePageSize';
+export {default as parseSelectPageQuery} from './utils/parseSelectPageQuery';
+export {default as getSelectMessages} from './utils/getSelectMessages';
+export {default as toError} from './utils/toError';
+export type {OptionsBatchIssue, OptionsMergeResult, OptionsMergeState} from './utils/mergeOptionsBatch';
+export {default as createResourceOptionsLoader} from './utils/createResourceOptionsLoader';
+export {default as loadPageWithRetryAndLog} from './utils/loadPageWithRetryAndLog';
+export type {PageLoadOptions} from './utils/loadPageWithRetryAndLog';
+export {createResourceFailureLogger, logResourceFailure} from './utils/logResourceFailure';
+export type {ResourceFailureDetails, ResourceFailureLogger} from './utils/logResourceFailure';
+export type {
+  ResourceOptionsBatch,
+  ResourceOptionsLoaderConfig,
+  ResourceOptionsLoader,
+  ResourceOptionsLoadContext,
+} from './utils/createResourceOptionsLoader';
+export type {RetryOptions} from './utils/withRetry';
+export {default as toUserSelectOption} from './utils/toUserSelectOption';
+export {default as toUserSelectPage} from './utils/toUserSelectPage';
+export {default as toAuthFlowSelectPage} from './utils/toAuthFlowSelectPage';
+export {default as toUserTypeSelectPage} from './utils/toUserTypeSelectPage';
 export {default as evaluatePasswordPolicy} from './utils/evaluatePasswordPolicy';
 export type {PasswordPolicy, PasswordRuleResult} from './utils/evaluatePasswordPolicy';
 export {default as evaluateChangePasswordForm} from './utils/evaluateChangePasswordForm';
@@ -279,6 +340,8 @@ export {default as resolveChangeCredentialPolicy} from './utils/resolveChangeCre
 export {default as supportsCredential} from './utils/supportsCredential';
 export {default as mapCredentialUpdateError} from './utils/mapCredentialUpdateError';
 export type {CredentialUpdateErrorField, CredentialUpdateErrorResult} from './utils/mapCredentialUpdateError';
+export {default as mapSelectPageError} from './utils/mapSelectPageError';
+export type {SelectPageErrorResult} from './utils/mapSelectPageError';
 export {default as resolveMeta} from './utils/resolveMeta';
 export {default as resolveFlowTemplateLiterals} from './utils/resolveFlowTemplateLiterals';
 export {default as parseKeyValuePairs} from './utils/parseKeyValuePairs';
