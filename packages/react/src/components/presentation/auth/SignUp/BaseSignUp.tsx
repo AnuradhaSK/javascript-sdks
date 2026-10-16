@@ -59,6 +59,11 @@ interface PasskeyState {
  */
 export interface BaseSignUpRenderProps {
   /**
+   * Additional data from the current flow step (e.g. `source` lookups for `KEY_VALUE_LIST`)
+   */
+  additionalData: Record<string, unknown>;
+
+  /**
    * Flow components
    */
   components: any[];
@@ -1113,6 +1118,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   // If render props are provided, use them
   if (children) {
     const renderProps: BaseSignUpRenderProps = {
+      additionalData: currentFlow?.data?.additionalData ?? {},
       components: (currentFlow?.data as any)?.components || [],
       error: apiError,
       fieldErrors: formErrors,

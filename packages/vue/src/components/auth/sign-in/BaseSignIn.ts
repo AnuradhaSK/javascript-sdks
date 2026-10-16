@@ -34,6 +34,7 @@ import Typography from '../../primitives/Typography';
  * Render props passed to the default scoped slot for custom UI rendering.
  */
 export interface BaseSignInRenderProps {
+  additionalData: Record<string, unknown>;
   components: EmbeddedFlowComponent[];
   error?: Error | null;
   fieldErrors: Record<string, string>;
@@ -335,6 +336,7 @@ const BaseSignIn: Component = defineComponent({
       // If a scoped slot is provided, use render props pattern
       if (slots['default']) {
         const renderProps: BaseSignInRenderProps = {
+          additionalData: props.additionalData,
           components: props.components || [],
           error: apiError.value,
           fieldErrors: formErrors.value,

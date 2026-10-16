@@ -3,6 +3,7 @@
 
 import {render, waitFor, cleanup, act} from '@testing-library/react';
 import {afterEach, beforeEach, describe, expect, it, vi, Mock, MockInstance} from 'vitest';
+import type {ReactNode} from 'react';
 import I18nProvider from '../../../../../contexts/I18n/I18nProvider';
 import ThemeProvider from '../../../../../contexts/Theme/ThemeProvider';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../../../contexts/ThunderID/ThunderIDContext';
@@ -30,7 +31,7 @@ const thunderIDContext: ThunderIDContextProps = {
  * without depending on the default UI. Navigation is disabled unless a test opts in, because these
  * tests run in a real browser and assigning window.location.href would navigate the test page.
  */
-const renderSignUp = (props: Record<string, unknown> = {}) => {
+const renderSignUp = ({children, ...props}: Record<string, unknown> = {}) => {
   const captured: {submit?: (component: unknown, data?: unknown, skipValidation?: boolean) => Promise<void>} = {};
 
   render(
@@ -38,10 +39,11 @@ const renderSignUp = (props: Record<string, unknown> = {}) => {
       <I18nProvider>
         <ThemeProvider>
           <SignUp shouldRedirectAfterSignUp={false} {...props}>
-            {({handleSubmit}: {handleSubmit: typeof captured.submit}) => {
-              captured.submit = handleSubmit;
-              return <div />;
-            }}
+            {(children as (renderProps: unknown) => ReactNode) ??
+              (({handleSubmit}: {handleSubmit: typeof captured.submit}) => {
+                captured.submit = handleSubmit;
+                return <div />;
+              })}
           </SignUp>
         </ThemeProvider>
       </I18nProvider>
@@ -133,6 +135,24 @@ describe('SignUp', () => {
       expect(document.querySelector('dd')?.textContent).toBe('alice@example.com');
     });
     expect(document.querySelector('dt')?.textContent).toBe('Email');
+  });
+
+  it('exposes the step additionalData to render props', async () => {
+    mockSignUp.mockResolvedValueOnce({
+      data: {additionalData: {linkingPromptDetails: '[]'}, components: []},
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'VIEW',
+    });
+    const renderChild = vi.fn(() => <div />);
+
+    renderSignUp({children: renderChild});
+
+    await waitFor(() => {
+      expect(renderChild).toHaveBeenLastCalledWith(
+        expect.objectContaining({additionalData: {linkingPromptDetails: '[]'}}),
+      );
+    });
   });
 
   it('refuses to submit again once the flow has completed', async () => {

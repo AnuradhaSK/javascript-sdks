@@ -49,6 +49,7 @@ const SignUp: FC<SignUpProps> = ({
   variant = 'outlined',
   afterSignUpUrl,
   onError,
+  children,
 }: SignUpProps) => {
   const {signUp, applicationId: contextApplicationId, scopes} = useThunderID();
 
@@ -97,7 +98,9 @@ const SignUp: FC<SignUpProps> = ({
       size={size}
       variant={variant}
       isInitialized={true}
-    />
+    >
+      {children}
+    </BaseSignUp>
   );
 };
 

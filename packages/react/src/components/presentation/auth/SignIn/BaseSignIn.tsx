@@ -37,6 +37,11 @@ import {renderSignInComponents} from '../AuthOptionFactory';
  */
 export interface BaseSignInRenderProps {
   /**
+   * Additional data from the current flow step (e.g. `source` lookups for `KEY_VALUE_LIST`)
+   */
+  additionalData: Record<string, unknown>;
+
+  /**
    * Flow components
    */
   components: EmbeddedFlowComponent[];
@@ -566,6 +571,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   // If render props are provided, use them
   if (children) {
     const renderProps: BaseSignInRenderProps = {
+      additionalData,
       components,
       error: apiError,
       fieldErrors: formErrors,
