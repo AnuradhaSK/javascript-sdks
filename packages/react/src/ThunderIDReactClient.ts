@@ -48,6 +48,32 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
     }
   }
 
+  /**
+   * Returns the stored config, re-running initialization first when it has gone missing.
+   *
+   * NOTE: With React 19 strict mode, the initialization logic runs twice, and there's an intermittent
+   * issue where the config object is not getting stored in the storage layer with Vite scaffolding.
+   * An operation that resolves endpoints from a lost config fails (for example "required endpoints
+   * are missing"), so recover it from the config this client was initialized with.
+   */
+  private async ensureConfigData(): Promise<ThunderIDReactConfig | undefined> {
+    const config: ThunderIDReactConfig | undefined = (await this.getStorageManager().getConfigData()) as
+      | ThunderIDReactConfig
+      | undefined;
+    const isConfigLost: boolean =
+      !config || Object.keys(config).length === 0 || (Boolean(this._initializeConfig?.baseUrl) && !config.baseUrl);
+
+    if (!isConfigLost || !this._initializeConfig) {
+      return config;
+    }
+
+    await this.initialize(this._initializeConfig);
+
+    // Reload the config persisted by initialization so downstream endpoint resolution
+    // (baseUrl and the flowExecute override) uses the recovered values, not the stale empty config.
+    return (await this.getStorageManager().getConfigData()) as ThunderIDReactConfig | undefined;
+  }
+
   override initialize(config: ThunderIDReactConfig): Promise<boolean> {
     return this.withLoading(async () => {
       this._initializeConfig = {
@@ -124,19 +150,7 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
       const arg1: any = args[0];
       const arg2: any = args[1];
 
-      let config: ThunderIDReactConfig | undefined = (await this.getStorageManager().getConfigData()) as
-        | ThunderIDReactConfig
-        | undefined;
-
-      // NOTE: With React 19 strict mode, the initialization logic runs twice, and there's an intermittent
-      // issue where the config object is not getting stored in the storage layer with Vite scaffolding.
-      // Hence, we need to check if the client is initialized but the config object is empty, and reinitialize.
-      if (!config || Object.keys(config).length === 0) {
-        await this.initialize(this._initializeConfig!);
-        // Reload the config persisted by initialization so downstream endpoint resolution
-        // (baseUrl and the flowExecute override) uses the recovered values, not the stale empty config.
-        config = (await this.getStorageManager().getConfigData()) as ThunderIDReactConfig | undefined;
-      }
+      const config: ThunderIDReactConfig | undefined = await this.ensureConfigData();
 
       if (typeof arg1 === 'object' && arg1 !== null && arg1.callOnlyOnRedirect === true) {
         return undefined as any;
@@ -203,6 +217,8 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
   }
 
   override async signInSilently(options?: SignInOptions): Promise<User | boolean> {
+    await this.ensureConfigData();
+
     return super.signInSilently(options as Record<string, string | boolean>) as Promise<User | boolean>;
   }
 
