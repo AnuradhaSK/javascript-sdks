@@ -330,21 +330,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 📦 Pack Sample
-        id: pack
-        uses: ./.github/actions/pack-sample
-        with:
-          sdk: browser
-          version: ${{ steps.bump.outputs.version }}
-
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/browser/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID Browser SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.pack.outputs.archive }}"
+            --generate-notes
 
   release-node:
     name: 🟢 Release @thunderid/node
@@ -403,21 +395,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 📦 Pack Sample
-        id: pack
-        uses: ./.github/actions/pack-sample
-        with:
-          sdk: node
-          version: ${{ steps.bump.outputs.version }}
-
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/node/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID Node SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.pack.outputs.archive }}"
+            --generate-notes
 
   # ── Level 2: depends on browser / node ─────────────────────────────────────
   release-express:
@@ -477,21 +461,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 📦 Pack Sample
-        id: pack
-        uses: ./.github/actions/pack-sample
-        with:
-          sdk: express
-          version: ${{ steps.bump.outputs.version }}
-
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/express/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID Express SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.pack.outputs.archive }}"
+            --generate-notes
 
   release-react:
     name: ⚛️ Release @thunderid/react
@@ -550,21 +526,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 📦 Pack Sample
-        id: pack
-        uses: ./.github/actions/pack-sample
-        with:
-          sdk: react
-          version: ${{ steps.bump.outputs.version }}
-
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/react/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID React SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.pack.outputs.archive }}"
+            --generate-notes
 
   release-vue:
     name: 🟩 Release @thunderid/vue
@@ -623,21 +591,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 📦 Pack Sample
-        id: pack
-        uses: ./.github/actions/pack-sample
-        with:
-          sdk: vue
-          version: ${{ steps.bump.outputs.version }}
-
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/vue/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID Vue SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.pack.outputs.archive }}"
+            --generate-notes
 
   # ── Level 3: depends on react / node+react / browser+node+vue ──────────────
   release-react-router:
@@ -827,21 +787,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 📦 Pack Sample
-        id: pack
-        uses: ./.github/actions/pack-sample
-        with:
-          sdk: nextjs
-          version: ${{ steps.bump.outputs.version }}
-
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/nextjs/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID Next.js SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.pack.outputs.archive }}"
+            --generate-notes
 
   release-nuxt:
     name: 💚 Release @thunderid/nuxt
@@ -900,18 +852,10 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 📦 Pack Sample
-        id: pack
-        uses: ./.github/actions/pack-sample
-        with:
-          sdk: nuxt
-          version: ${{ steps.bump.outputs.version }}
-
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/nuxt/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID Nuxt SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.pack.outputs.archive }}"
+            --generate-notes

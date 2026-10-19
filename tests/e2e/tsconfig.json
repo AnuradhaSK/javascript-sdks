@@ -14,5 +14,5 @@
     "noEmit": true
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "playwright-report", "test-results", "blob-report"]
+  "exclude": ["node_modules", ".samples", "playwright-report", "test-results", "blob-report"]
 }
