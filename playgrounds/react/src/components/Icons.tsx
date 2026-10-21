@@ -3,21 +3,19 @@
 
 import {ReactElement} from 'react';
 
-/** The ThunderID mark, with the top bar lightened for the playground's dark background. */
-export const Logo = ({height = 26}: {height?: number}): ReactElement => (
-  <svg
-    width={Math.round((height / 257) * 207)}
-    height={height}
-    viewBox="0 0 207 257"
-    fill="none"
-    aria-label="ThunderID"
-  >
-    <path d="M55.4763 26.4391L58.8866 0H0V26.4391H55.4763Z" fill="#E8F4FF" />
-    <path d="M39.8438 147.407L49.5455 72.2839H4.9909e-05V256.743H60.5602L80.048 147.407H39.8438Z" fill="#3688FF" />
-    <path
-      d="M192.42 59.361C182.782 40.2307 168.929 25.5705 150.903 15.3381C145.501 12.2662 139.761 9.6605 133.703 7.5208L115.401 103.702H159.757L76.2987 256.743H83.3735C109.449 256.743 131.69 251.574 150.14 241.236C168.569 230.897 182.634 216.131 192.356 196.959C202.058 177.765 206.909 154.8 206.909 128.043C206.909 101.286 202.079 78.5123 192.441 59.3821L192.42 59.361Z"
-      fill="#3688FF"
-    />
+/** The full ThunderID logo (mark and wordmark), in its variant for dark backgrounds. */
+export const Logo = ({height = 22}: {height?: number}): ReactElement => (
+  <img src="/thunderid-logo.svg" alt="ThunderID" height={height} width={Math.round((height / 257) * 1187)} />
+);
+
+export const ReactLogo = ({size = 22}: {size?: number}): ReactElement => (
+  <svg width={size} height={size} viewBox="-11.5 -10.23 23 20.46" aria-label="React">
+    <circle r="2.05" fill="#61dafb" />
+    <g stroke="#61dafb" strokeWidth="1" fill="none">
+      <ellipse rx="11" ry="4.2" />
+      <ellipse rx="11" ry="4.2" transform="rotate(60)" />
+      <ellipse rx="11" ry="4.2" transform="rotate(120)" />
+    </g>
   </svg>
 );
 

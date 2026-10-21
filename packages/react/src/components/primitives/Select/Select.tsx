@@ -3,7 +3,7 @@
 
 import {bem, normalizeSelectOptions, SelectConstants, withVendorCSSClassPrefix} from '@thunderid/browser';
 import type {SelectOption, SelectOptionInput} from '@thunderid/browser';
-import {ChangeEvent, FC, RefObject, SelectHTMLAttributes, useEffect, useMemo, useRef} from 'react';
+import {ChangeEvent, FC, RefObject, SelectHTMLAttributes, useEffect, useId, useMemo, useRef} from 'react';
 import useStyles from './Select.styles';
 import useSelectMessages, {SelectMessages} from './useSelectMessages';
 import useTheme from '../../../contexts/Theme/useTheme';
@@ -85,6 +85,11 @@ const Select: FC<SelectProps> = ({
   const {theme, colorScheme}: ReturnType<typeof useTheme> = useTheme();
   const messages: SelectMessages = useSelectMessages();
   const hasError = !!error;
+  const generatedId: string = useId();
+  const inputId: string = rest.id ?? generatedId;
+  const helperTextId: string | undefined = error || helperText ? `${inputId}-helper-text` : undefined;
+  const describedBy: string | undefined =
+    [rest['aria-describedby'], helperTextId].filter(Boolean).join(' ') || undefined;
   const styles: Record<string, string> = useStyles(theme, colorScheme, disabled ?? false, hasError);
   const items: SelectOption[] = useMemo(() => normalizeSelectOptions(options), [options]);
   const selectRef: RefObject<HTMLSelectElement | null> = useRef<HTMLSelectElement>(null);
@@ -139,11 +144,12 @@ const Select: FC<SelectProps> = ({
     <FormControl
       error={error}
       helperText={helperText}
+      helperTextId={helperTextId}
       className={cx(withVendorCSSClassPrefix(bem('select')), className)}
       style={style}
     >
       {label && (
-        <InputLabel required={required} error={hasError}>
+        <InputLabel htmlFor={inputId} required={required} error={hasError}>
           {label}
         </InputLabel>
       )}
@@ -154,6 +160,8 @@ const Select: FC<SelectProps> = ({
         aria-required={required}
         aria-busy={loading || undefined}
         {...rest}
+        id={inputId}
+        aria-describedby={describedBy}
         ref={selectRef}
         onChange={onLoadMore ? handleChange : onChange}
       >

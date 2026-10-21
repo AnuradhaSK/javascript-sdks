@@ -17,6 +17,11 @@ const OIDCRequestConstants: {
     readonly Payload: {
       readonly DEFAULT_SCOPES: readonly string[];
     };
+    readonly Storage: {
+      readonly StorageKeys: {
+        readonly STATE: string;
+      };
+    };
   };
   readonly SignOut: {
     readonly Storage: {
@@ -58,6 +63,16 @@ const OIDCRequestConstants: {
        * The default scopes used in OIDC sign-in requests.
        */
       DEFAULT_SCOPES: [ScopeConstants.OPENID, ScopeConstants.PROFILE],
+    },
+
+    Storage: {
+      StorageKeys: {
+        /**
+         * Key prefix under which the `state` sent with an authorization request is kept, so the
+         * callback can be compared with it. Suffixed with the request index, like the PKCE key.
+         */
+        STATE: 'authorization_state',
+      },
     },
   },
 

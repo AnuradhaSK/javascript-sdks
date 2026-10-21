@@ -197,7 +197,7 @@ export type {CallbackRouteOptions, ThunderIDRouteRecord} from './router/callback
 // ── Phase 4 — Theme Utilities ──
 export {getActiveTheme} from './theme/getActiveTheme';
 export {detectThemeMode, createClassObserver, createMediaQueryListener} from './theme/themeDetection';
-export type {BrowserThemeDetection} from './theme/themeDetection';
+export type {BrowserThemeDetection, MediaQueryListener} from './theme/themeDetection';
 
 // ── Re-exports from @thunderid/browser (embedded flow models) ──
 export {

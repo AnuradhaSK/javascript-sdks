@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {withVendorCSSClassPrefix, bem} from '@thunderid/browser';
-import {FC, InputHTMLAttributes} from 'react';
+import {FC, InputHTMLAttributes, useId} from 'react';
 import useStyles from './DatePicker.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
 import {cx} from '../../../styles/emotion';
@@ -53,17 +53,24 @@ const DatePicker: FC<DatePickerProps> = ({
 }: DatePickerProps) => {
   const {theme, colorScheme}: ReturnType<typeof useTheme> = useTheme();
   const hasError = !!error;
+  const generatedId: string = useId();
+  const inputId: string = rest.id ?? generatedId;
+  const helperTextId: string | undefined = error || helperText ? `${inputId}-helper-text` : undefined;
+  const describedBy: string | undefined =
+    [rest['aria-describedby'], helperTextId].filter(Boolean).join(' ') || undefined;
   const styles: Record<string, string> = useStyles(theme, colorScheme, hasError, !!disabled);
 
   return (
     <FormControl
       error={error}
       helperText={helperText}
+      helperTextId={helperTextId}
       className={cx(withVendorCSSClassPrefix(bem('date-picker')), className)}
       style={style}
     >
       {label && (
         <InputLabel
+          htmlFor={inputId}
           required={required}
           error={hasError}
           className={cx(withVendorCSSClassPrefix(bem('date-picker', 'label')), styles['label'])}
@@ -89,6 +96,8 @@ const DatePicker: FC<DatePickerProps> = ({
         aria-invalid={hasError}
         aria-required={required}
         {...rest}
+        id={inputId}
+        aria-describedby={describedBy}
       />
     </FormControl>
   );

@@ -99,9 +99,19 @@ export const createClassObserver = (
 };
 
 /**
- * Creates a media query listener for system theme changes
+ * A `MediaQueryList` returned by `createMediaQueryListener`, with a `disconnect()` that removes the
+ * listener it registered.
  */
-export const createMediaQueryListener = (callback: (isDark: boolean) => void): MediaQueryList | null => {
+export type MediaQueryListener = MediaQueryList & {
+  /** Stops calling the callback on system theme changes. */
+  disconnect: () => void;
+};
+
+/**
+ * Creates a media query listener for system theme changes. Call `disconnect()` on the returned
+ * object to remove the listener.
+ */
+export const createMediaQueryListener = (callback: (isDark: boolean) => void): MediaQueryListener | null => {
   if (typeof window === 'undefined' || !window.matchMedia) {
     return null;
   }
@@ -120,5 +130,13 @@ export const createMediaQueryListener = (callback: (isDark: boolean) => void): M
     mediaQuery.addListener(handleChange);
   }
 
-  return mediaQuery;
+  return Object.assign(mediaQuery, {
+    disconnect: (): void => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleChange);
+      } else {
+        mediaQuery.removeListener(handleChange);
+      }
+    },
+  });
 };

@@ -25,8 +25,13 @@ Apps under [`playgrounds/`](playgrounds) exercise the SDKs from the source in th
 
 | Playground | Run | What it shows |
 |---|---|---|
+| [Browser](playgrounds/browser) | `pnpm --filter @thunderid/playground-browser dev` | Capability checks against `ThunderIDBrowserClient` with a live `on()` hook log, an explorer for the `@thunderid/browser` UI helpers, and tokens |
 | [Express](playgrounds/express) | `pnpm --filter @thunderid/playground-express dev` | API explorer for the `@thunderid/express` handlers and protected routes, with an SDK trace |
+| [Next.js](playgrounds/nextjs) | `pnpm --filter @thunderid/playground-nextjs dev` | Client and server capability checks, a component explorer for the `@thunderid/nextjs` components, a Server page with an API explorer for the proxy and route handlers, and tokens |
+| [Node.js](playgrounds/node) | `pnpm --filter @thunderid/playground-node dev` | Operations explorer for every `ThunderIDNodeClient` method from `@thunderid/node`, with the HTTP requests and an SDK trace |
+| [Nuxt](playgrounds/nuxt) | `pnpm --filter @thunderid/playground-nuxt dev` | Client and server capability checks, a component explorer for the `@thunderid/nuxt` components with Vue SFC snippets, live composables, and a Server page with the SSR context, the server session, and an API explorer for the module routes, server utilities, and route middleware |
 | [React](playgrounds/react) | `pnpm --filter @thunderid/playground-react dev` | Capability checks, a component explorer for the `@thunderid/react` components, and live hooks and tokens |
+| [Vue](playgrounds/vue) | `pnpm --filter @thunderid/playground-vue dev` | Capability checks, a component explorer for the `@thunderid/vue` components with Vue SFC snippets, and live composables and tokens |
 
 ## Contributing
 

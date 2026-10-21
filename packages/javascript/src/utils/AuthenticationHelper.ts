@@ -432,11 +432,12 @@ class AuthenticationHelper<T> {
       return text;
     }
 
+    // Each value is read only when the template uses its placeholder, so a template without
+    // {{username}} works for a session that holds no ID token.
     return text
-      .replace(TokenExchangeConstants.Placeholders.ACCESS_TOKEN, sessionData.access_token)
-      .replace(
-        TokenExchangeConstants.Placeholders.USERNAME,
-        this.getAuthenticatedUserInfo(sessionData.id_token).username ?? '',
+      .replace(TokenExchangeConstants.Placeholders.ACCESS_TOKEN, (): string => sessionData?.access_token ?? '')
+      .replace(TokenExchangeConstants.Placeholders.USERNAME, (): string =>
+        sessionData?.id_token ? (this.getAuthenticatedUserInfo(sessionData.id_token).username ?? '') : '',
       )
       .replace(TokenExchangeConstants.Placeholders.SCOPES, scope)
       .replace(TokenExchangeConstants.Placeholders.CLIENT_ID, configData.clientId ?? '')

@@ -109,9 +109,7 @@ const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
 
     const mediaQuery = createMediaQueryListener(handleThemeChange);
     return () => {
-      if (mediaQuery?.removeEventListener) {
-        mediaQuery.removeEventListener('change', handleThemeChange as unknown as EventListener);
-      }
+      mediaQuery?.disconnect();
     };
   }, [mode]);
 

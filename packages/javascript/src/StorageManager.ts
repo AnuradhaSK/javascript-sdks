@@ -79,6 +79,12 @@ class StorageManager<T> {
   }
 
   protected static isLocalStorageAvailable(): boolean {
+    // Outside a browser window, do not touch `localStorage`: Node.js defines it as an experimental
+    // global, and reading it prints a warning (and, when enabled, shares it across every session).
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
     try {
       const testValue = '__AUTH_SDK_STORAGE_TEST__';
 

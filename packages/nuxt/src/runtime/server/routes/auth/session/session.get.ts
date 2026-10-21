@@ -11,7 +11,7 @@ import {useRuntimeConfig} from '#imports';
 /**
  * GET /api/auth/session
  *
- * Returns the current auth state: { isSignedIn, user, isLoading }.
+ * Returns the current auth state: { isSignedIn, user, isLoading, organizationId, scopes }.
  * Used by the client-side composable to hydrate auth state.
  */
 export default defineEventHandler(async (event: H3Event): Promise<ThunderIDAuthState> => {
@@ -29,7 +29,13 @@ export default defineEventHandler(async (event: H3Event): Promise<ThunderIDAuthS
   try {
     const client: ThunderIDNuxtClient = ThunderIDNuxtClient.getInstance();
     const user: Awaited<ReturnType<ThunderIDNuxtClient['getUser']>> = await client.getUser(session.sessionId);
-    return {isLoading: false, isSignedIn: true, user};
+    return {
+      isLoading: false,
+      isSignedIn: true,
+      organizationId: session.organizationId,
+      scopes: session.scopes,
+      user,
+    };
   } catch {
     return {isLoading: false, isSignedIn: false, user: null};
   }

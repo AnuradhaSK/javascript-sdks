@@ -100,46 +100,15 @@ a:hover {
   font-size: 15px;
 }
 
+.pg-brand-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--pg-border-2);
+}
+
 .pg-brand strong {
   font-weight: 600;
   letter-spacing: -0.2px;
-}
-
-.pg-brand span {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.pg-sdk-switch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: var(--pg-radius-control);
-  background: var(--pg-surface-2);
-  border: 1px solid var(--pg-border-2);
-}
-
-.pg-sdk-switch select {
-  background: transparent;
-  border: none;
-  color: var(--pg-text);
-  font: 500 13px var(--pg-sans);
-}
-
-.pg-sdk-switch select option {
-  background: #0b1424;
-}
-
-.pg-sdk-badge {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  background: rgba(97, 218, 251, 0.15);
-  color: #61dafb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: 600 10px/1 var(--pg-mono);
 }
 
 .pg-nav {

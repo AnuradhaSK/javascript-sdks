@@ -100,3 +100,67 @@ describe('TextField end adornment', () => {
     expect(container.querySelector('[class*="end-adornment"]')).toBeNull();
   });
 });
+
+describe('TextField label and description', () => {
+  afterEach(cleanup);
+
+  it('names the input with its label', () => {
+    render(withProviders(<TextField label="Email" />));
+
+    expect(screen.getByLabelText('Email')).toBe(screen.getByRole('textbox'));
+  });
+
+  it('keeps an id the caller gives', () => {
+    render(withProviders(<TextField id="email" label="Email" />));
+
+    expect(screen.getByLabelText('Email')).toHaveAttribute('id', 'email');
+  });
+
+  it('gives each field its own id', () => {
+    render(
+      withProviders(
+        <>
+          <TextField label="First" />
+          <TextField label="Second" />
+        </>,
+      ),
+    );
+
+    expect(screen.getByLabelText('First').id).not.toBe(screen.getByLabelText('Second').id);
+  });
+
+  it('describes an invalid input with its error', () => {
+    render(withProviders(<TextField label="Email" error="Enter a valid email" />));
+    const input: HTMLElement = screen.getByLabelText('Email');
+
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription('Enter a valid email');
+  });
+
+  it('describes the input with its helper text', () => {
+    render(withProviders(<TextField label="Email" helperText="We never share it" />));
+    const input: HTMLElement = screen.getByLabelText('Email');
+
+    expect(input).toHaveAttribute('aria-invalid', 'false');
+    expect(input).toHaveAccessibleDescription('We never share it');
+  });
+
+  it('keeps a description the caller gives', () => {
+    render(
+      withProviders(
+        <>
+          <span id="hint">Work address</span>
+          <TextField label="Email" error="Required" aria-describedby="hint" />
+        </>,
+      ),
+    );
+
+    expect(screen.getByLabelText('Email')).toHaveAccessibleDescription('Work address Required');
+  });
+
+  it('has no description without helper text or an error', () => {
+    render(withProviders(<TextField label="Email" />));
+
+    expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-describedby');
+  });
+});

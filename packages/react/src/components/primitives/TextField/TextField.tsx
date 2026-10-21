@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {withVendorCSSClassPrefix, bem} from '@thunderid/browser';
-import {FC, InputHTMLAttributes, KeyboardEvent, ReactNode} from 'react';
+import {FC, InputHTMLAttributes, KeyboardEvent, ReactNode, useId} from 'react';
 import useStyles from './TextField.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
 import {cx} from '../../../styles/emotion';
@@ -90,6 +90,11 @@ const TextField: FC<TextFieldProps> = ({
   ...rest
 }: TextFieldProps) => {
   const {theme, colorScheme}: ReturnType<typeof useTheme> = useTheme();
+  const generatedId: string = useId();
+  const inputId: string = rest.id ?? generatedId;
+  const helperTextId: string | undefined = error || helperText ? `${inputId}-helper-text` : undefined;
+  const describedBy: string | undefined =
+    [rest['aria-describedby'], helperTextId].filter(Boolean).join(' ') || undefined;
   const hasError = !!error;
   const hasStartIcon = !!startIcon;
   const hasEndIcon = !!endIcon;
@@ -129,11 +134,12 @@ const TextField: FC<TextFieldProps> = ({
     <FormControl
       error={error}
       helperText={helperText}
+      helperTextId={helperTextId}
       className={cx(withVendorCSSClassPrefix(bem('text-field')), className)}
       style={style}
     >
       {label && (
-        <InputLabel required={required} error={hasError}>
+        <InputLabel htmlFor={inputId} required={required} error={hasError}>
           {label}
         </InputLabel>
       )}
@@ -157,6 +163,8 @@ const TextField: FC<TextFieldProps> = ({
           aria-invalid={hasError}
           aria-required={required}
           {...rest}
+          id={inputId}
+          aria-describedby={describedBy}
         />
         {endIcon && (
           <div

@@ -32,13 +32,18 @@ import {ThunderIDNodeConfig} from './models/config';
 import MemoryCacheStore from './stores/MemoryCacheStore';
 import NodeCryptoUtils from './utils/NodeCryptoUtils';
 import SessionIndex, {IndexedSessions, SessionBinding} from './utils/SessionIndex';
-import SessionUtils from './utils/SessionUtils';
 
 class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> extends ThunderIDJavaScriptClient<T> {
   private _nodeInstanceId = 0;
 
   // Logout tokens already handled, by `jti`, with the time each expires in milliseconds.
   private _handledLogoutTokens: Map<string, number> = new Map<string, number>();
+
+  // Refreshes in progress, by session, so concurrent callers share one.
+  private _refreshesInFlight: Map<string, Promise<TokenResponse | User>> = new Map<
+    string,
+    Promise<TokenResponse | User>
+  >();
 
   public constructor(instanceId = 0) {
     super(undefined, new NodeCryptoUtils());
@@ -307,22 +312,39 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
     this._handledLogoutTokens.set(claims.jti, claims.exp * 1000);
   }
 
+  /**
+   * Whether the session holds a valid access token. An expired access token is refreshed when the
+   * session holds a refresh token. A session whose access token expired and cannot be refreshed is
+   * removed.
+   */
   public override async isSignedIn(userId?: string): Promise<boolean> {
     try {
-      if (!(await super.isSignedIn(userId))) {
+      // The parent answers for an unexpired access token, and gets a new one for a
+      // client_credentials client.
+      if (await super.isSignedIn(userId)) {
+        return true;
+      }
+
+      const sm = this.getStorageManager();
+      const sessionData: SessionData = await sm.getSessionData(userId);
+
+      if (!sessionData?.access_token) {
         return false;
       }
-      const sm = this.getStorageManager();
-      const sessionData = await sm.getSessionData(userId);
-      if (await SessionUtils.validateSession(sessionData)) {
-        return true;
+
+      if (sessionData.refresh_token) {
+        try {
+          await this.refreshAccessToken(userId);
+
+          return true;
+        } catch (error: unknown) {
+          logger.debug('The expired session could not be refreshed, so it is removed.', error);
+        }
       }
-      const refreshedToken = await this.refreshAccessToken(userId);
-      if (refreshedToken) {
-        return true;
-      }
+
       await this.forgetSession(userId, sessionData);
       await sm.removeSessionData(userId);
+
       return false;
     } catch {
       return false;
@@ -342,8 +364,30 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
     return super.getIdToken(userId);
   }
 
+  /**
+   * Refreshes the session's tokens. Concurrent calls for one session share a single request, so a
+   * rotated refresh token is not sent twice.
+   */
   public override async refreshAccessToken(userId?: string): Promise<TokenResponse | User> {
-    return super.refreshAccessToken(userId);
+    const key: string = userId ?? '';
+    const inFlight: Promise<TokenResponse | User> | undefined = this._refreshesInFlight.get(key);
+
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const refresh: Promise<TokenResponse | User> = (async (): Promise<TokenResponse | User> => {
+      // A process can serve a stored session before any call loaded the discovery document.
+      await this.loadOpenIDProviderConfiguration(false);
+
+      return super.refreshAccessToken(userId);
+    })().finally((): void => {
+      this._refreshesInFlight.delete(key);
+    });
+
+    this._refreshesInFlight.set(key, refresh);
+
+    return refresh;
   }
 
   public override async revokeAccessToken(userId?: string): Promise<Response | boolean> {

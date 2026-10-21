@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {withVendorCSSClassPrefix, bem} from '@thunderid/browser';
-import {FC, InputHTMLAttributes} from 'react';
+import {FC, InputHTMLAttributes, useId} from 'react';
 import useStyles from './Checkbox.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
 import {cx} from '../../../styles/emotion';
@@ -43,12 +43,18 @@ const Checkbox: FC<CheckboxProps> = ({
 }: CheckboxProps) => {
   const {theme, colorScheme}: ReturnType<typeof useTheme> = useTheme();
   const hasError = !!error;
+  const generatedId: string = useId();
+  const inputId: string = rest.id ?? generatedId;
+  const helperTextId: string | undefined = error || helperText ? `${inputId}-helper-text` : undefined;
+  const describedBy: string | undefined =
+    [rest['aria-describedby'], helperTextId].filter(Boolean).join(' ') || undefined;
   const styles: Record<string, string> = useStyles(theme, colorScheme, hasError, !!required);
 
   return (
     <FormControl
       error={error}
       helperText={helperText}
+      helperTextId={helperTextId}
       className={cx(withVendorCSSClassPrefix(bem('checkbox')), className)}
       helperTextMarginLeft={`calc(${theme.vars.spacing.unit} * 3.5)`}
     >
@@ -61,9 +67,12 @@ const Checkbox: FC<CheckboxProps> = ({
           aria-invalid={hasError}
           aria-required={required}
           {...rest}
+          id={inputId}
+          aria-describedby={describedBy}
         />
         {label && (
           <InputLabel
+            htmlFor={inputId}
             required={required}
             error={hasError}
             variant="inline"

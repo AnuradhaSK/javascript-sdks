@@ -1,0 +1,29 @@
+{
+  "name": "@thunderid/playground-browser",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Playground for exercising every @thunderid/browser capability against a local ThunderID server.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .js,.ts,.cjs,.mjs",
+    "lint:fix": "eslint . --fix --ext .js,.ts,.cjs,.mjs",
+    "format:check": "prettier --check --cache .",
+    "format:fix": "prettier --write --cache ."
+  },
+  "dependencies": {
+    "@thunderid/browser": "workspace:*"
+  },
+  "devDependencies": {
+    "@thunderid/eslint-plugin": "catalog:",
+    "@thunderid/prettier-config": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "vite": "^6.4.4"
+  }
+}

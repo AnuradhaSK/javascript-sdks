@@ -16,8 +16,13 @@ import {
   HttpError,
   HttpRequestConfig,
   HttpResponse,
+  UserProfile,
   createPackageComponentLogger,
+  generateFlattenedUserProfile,
+  getUsersMe,
+  resolveResourceEndpoint,
 } from '@thunderid/javascript';
+import Hooks from './constants/Hooks';
 import {REFRESH_ACCESS_TOKEN_ERR0R, SILENT_SIGN_IN_STATE, TOKEN_REQUEST_CONFIG_KEY} from './constants/SPAConstants';
 import FetchHttpClient from './FetchHttpClient';
 import {BrowserAuthConfig} from './models/BrowserConfig';
@@ -29,6 +34,7 @@ import LocalStore from './stores/LocalStore';
 import MemoryStore from './stores/MemoryStore';
 import SessionStore from './stores/SessionStore';
 import AuthenticationHelper from './utils/AuthenticationHelper';
+import createHttpClientFetcher from './utils/createHttpClientFetcher';
 import navigate from './utils/navigate';
 import SPACryptoUtils from './utils/SPACryptoUtils';
 import SPAHelper from './utils/SPAHelper';
@@ -40,6 +46,8 @@ const BROWSER_DEFAULT_CONFIG = {
   autoLogoutOnTokenRefreshError: false,
   periodicTokenRefresh: false,
 };
+
+type HookCallback = (response?: any) => void | Promise<void>;
 
 const initiateStore = (storage: BrowserStorage | string | undefined): Storage => {
   switch (storage) {
@@ -62,14 +70,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   private _storage: BrowserStorage | string = BrowserStorage.SessionStorage;
   private _getSignOutURLFromSessionStorage = false;
   private _isHttpHandlerEnabled = true;
-  private _httpErrorCallback: ((error: HttpError) => void | Promise<void>) | undefined;
-  private _httpFinishCallback: (() => void) | undefined;
-  private _onSignInCallback: (response: User) => void = () => null;
-  private _onSignOutCallback: () => void = () => null;
-  private _onSignOutFailedCallback: (error: SignOutError) => void = () => null;
-  private _onEndUserSession: (response: any) => void = () => null;
-  private _onInitialize: (response: boolean) => void = () => null;
-  private _onCustomGrant = new Map<string, (response: any) => void>();
+  private _hookCallbacks = new Map<string, Set<HookCallback>>();
   private _initialized = false;
   private _startedInitialize = false;
 
@@ -104,6 +105,12 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     };
 
     this._httpClient = FetchHttpClient.getInstance(this._browserInstanceId, true, attachToken);
+    this._httpClient.setHttpRequestStartCallback((request: HttpRequestConfig) => {
+      void this._emitHook(Hooks.HttpRequestStart, request);
+    });
+    this._httpClient.setHttpRequestSuccessCallback((response: HttpResponse) => {
+      void this._emitHook(Hooks.HttpRequestSuccess, response);
+    });
 
     this._authHelper = new AuthenticationHelper<T>(sm, this._spaHelper, this._browserInstanceId, {
       exchangeToken: (cfg: SPATokenExchangeConfig) => super.exchangeToken(cfg as any),
@@ -121,9 +128,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     this._initialized = true;
 
-    if (this._onInitialize) {
-      this._onInitialize(true);
-    }
+    void this._emitHook(Hooks.Initialize, true);
 
     if (!merged.autoLogoutOnTokenRefreshError) {
       return true;
@@ -201,8 +206,8 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     const user = await this._signInInternal(config, authorizationCode, state, tokenRequestConfig);
 
-    if (user && this._onSignInCallback) {
-      this._onSignInCallback(user);
+    if (user) {
+      void this._emitHook(Hooks.SignIn, user);
     }
 
     return user;
@@ -322,8 +327,8 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     const response = await this._signInSilentlyInternal(additionalParams, tokenRequestConfig);
 
-    if (this._onSignInCallback && response) {
-      this._onSignInCallback(response as User);
+    if (response) {
+      void this._emitHook(Hooks.SignIn, response);
     }
 
     return response;
@@ -430,31 +435,66 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   public async httpRequest(requestConfig: HttpRequestConfig): Promise<HttpResponse | undefined> {
     await this._validateMethod(false);
 
-    return this._authHelper!.httpRequest(
+    const response: HttpResponse = await this._authHelper!.httpRequest(
       this._httpClient!,
       requestConfig,
       this._isHttpHandlerEnabled,
-      this._httpErrorCallback,
-      this._httpFinishCallback,
+      this._emitHttpError,
+      this._emitHttpFinish,
     );
+
+    if (this._isHttpHandlerEnabled) {
+      this._emitHttpFinish();
+    }
+
+    return response;
   }
 
   public async httpRequestAll(configs: HttpRequestConfig[]): Promise<HttpResponse[] | undefined> {
     await this._validateMethod(false);
 
-    return this._authHelper!.httpRequestAll(
+    const responses: HttpResponse[] | undefined = await this._authHelper!.httpRequestAll(
       configs,
       this._httpClient!,
       this._isHttpHandlerEnabled,
-      this._httpErrorCallback,
-      this._httpFinishCallback,
+      this._emitHttpError,
+      this._emitHttpFinish,
     );
+
+    if (this._isHttpHandlerEnabled) {
+      this._emitHttpFinish();
+    }
+
+    return responses;
   }
 
   public override async getUser(userId?: string): Promise<User> {
     await this._validateMethod();
 
     return super.getUser(userId);
+  }
+
+  /**
+   * Fetches the signed-in user's profile from the `/users/me` endpoint (or `endpoints.usersMe` when
+   * configured), sending the request through the client's HTTP client so the access token is attached.
+   *
+   * @param options - Optional `baseUrl` or full `url` overrides for the profile endpoint.
+   * @returns The user's profile.
+   */
+  public override async getUserProfile(options?: {baseUrl?: string; url?: string}): Promise<UserProfile> {
+    await this._validateMethod();
+
+    const configData = await this.getStorageManager().getConfigData();
+    const profile: User = await getUsersMe({
+      baseUrl: options?.baseUrl ?? (configData as any)?.baseUrl,
+      fetcher: createHttpClientFetcher(this._browserInstanceId),
+      url: resolveResourceEndpoint('usersMe', configData as any, options?.url),
+    });
+
+    return {
+      flattenedProfile: generateFlattenedUserProfile(profile),
+      profile,
+    };
   }
 
   public override async getAccessToken(sessionId?: string): Promise<string> {
@@ -504,7 +544,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   protected notifySignIn(user: User): void {
-    this._onSignInCallback(user);
+    void this._emitHook(Hooks.SignIn, user);
   }
 
   public async isSessionActive(): Promise<boolean | undefined> {
@@ -531,7 +571,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     await this._spaHelper!.clearRefreshTokenTimeout(timer);
 
-    this._onEndUserSession && (await this._onEndUserSession(true));
+    await this._emitHook(Hooks.RevokeAccessToken, true);
 
     return true;
   }
@@ -555,8 +595,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       this._enableRetrievingSignOutURLFromSession(cfg),
     );
 
-    const cb = this._onCustomGrant.get(config.id);
-    cb?.(response);
+    void this._emitHook(`${Hooks.CustomGrant}:${config.id}`, response);
 
     return response;
   }
@@ -596,6 +635,15 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     return this.getCryptoHelper().decodeJwtToken<R>(token);
   }
 
+  /**
+   * Subscribes a callback to a lifecycle hook. Every callback registered for a hook is called when it
+   * fires; registering the same callback again for the same hook has no further effect. Hooks can be
+   * registered before or after `initialize()`.
+   *
+   * @param hook - The hook to subscribe to (see `Hooks`).
+   * @param callback - Called when the hook fires.
+   * @param id - The custom grant id. Required for `custom-grant`.
+   */
   public async on(hook: string, callback: (response?: any) => void | Promise<void>, id?: string): Promise<void> {
     await this.isInitialized();
 
@@ -607,47 +655,33 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       );
     }
 
-    switch (hook) {
-      case 'sign-in':
-        this._onSignInCallback = callback;
+    switch (hook as Hooks) {
+      case Hooks.SignIn:
+      case Hooks.RevokeAccessToken:
+      case Hooks.Initialize:
+      case Hooks.HttpRequestError:
+      case Hooks.HttpRequestFinish:
+      case Hooks.HttpRequestStart:
+      case Hooks.HttpRequestSuccess:
+        this._addHookCallback(hook, callback);
         break;
-      case 'sign-out':
-        this._onSignOutCallback = callback;
+      case Hooks.SignOut:
         if (
           await SPAUtils.isSignOutSuccessful(
             ThunderIDBrowserClient.isSignOutSuccessful.bind(ThunderIDBrowserClient),
             () => ThunderIDBrowserClient.clearSession(),
           )
         ) {
-          this._onSignOutCallback();
+          void callback();
         }
         break;
-      case 'revoke-access-token':
-        this._onEndUserSession = callback;
+      case Hooks.CustomGrant:
+        id && this._addHookCallback(`${Hooks.CustomGrant}:${id}`, callback);
         break;
-      case 'initialize':
-        this._onInitialize = callback;
-        break;
-      case 'http-request-error':
-        this._httpErrorCallback = callback;
-        break;
-      case 'http-request-finish':
-        this._httpFinishCallback = callback;
-        break;
-      case 'http-request-start':
-        this._httpClient?.setHttpRequestStartCallback?.(callback);
-        break;
-      case 'http-request-success':
-        this._httpClient?.setHttpRequestSuccessCallback?.(callback);
-        break;
-      case 'custom-grant':
-        id && this._onCustomGrant.set(id, callback);
-        break;
-      case 'sign-out-failed': {
-        this._onSignOutFailedCallback = callback;
+      case Hooks.SignOutFailed: {
         const signOutFail = SPAUtils.didSignOutFail(ThunderIDBrowserClient.didSignOutFail.bind(ThunderIDBrowserClient));
         if (signOutFail) {
-          this._onSignOutFailedCallback(signOutFail as SignOutError);
+          void callback(signOutFail as SignOutError);
         }
         break;
       }
@@ -655,6 +689,27 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
         throw new ThunderIDAuthException('SPA-AUTH_CLIENT-ON-IV01', 'Invalid hook.', `Unknown hook: "${hook}"`);
     }
   }
+
+  private _addHookCallback(hook: string, callback: HookCallback): void {
+    const callbacks: Set<HookCallback> = this._hookCallbacks.get(hook) ?? new Set<HookCallback>();
+
+    callbacks.add(callback);
+    this._hookCallbacks.set(hook, callbacks);
+  }
+
+  private _emitHook(hook: string, response?: unknown): Promise<unknown[]> {
+    return Promise.all(
+      [...(this._hookCallbacks.get(hook) ?? [])].map((callback: HookCallback) => Promise.resolve(callback(response))),
+    );
+  }
+
+  private _emitHttpError = async (error: HttpError): Promise<void> => {
+    await this._emitHook(Hooks.HttpRequestError, error);
+  };
+
+  private _emitHttpFinish = (): void => {
+    void this._emitHook(Hooks.HttpRequestFinish);
+  };
 
   private _enableRetrievingSignOutURLFromSession(config: SPATokenExchangeConfig): void {
     if (config.preventSignOutURLUpdate) {

@@ -10,6 +10,7 @@ import {DefaultCacheStore} from './DefaultCacheStore';
 import {DefaultCrypto} from './DefaultCrypto';
 import {ThunderIDAuthException} from './errors/exception';
 import ThunderIDAPIError from './errors/ThunderIDAPIError';
+import ThunderIDRuntimeError from './errors/ThunderIDRuntimeError';
 import {IsomorphicCrypto} from './IsomorphicCrypto';
 import {AgentConfig} from './models/agent';
 import {AuthCodeResponse} from './models/auth-code-response';
@@ -32,10 +33,55 @@ import deepMerge from './utils/deepMerge';
 import extractPkceStorageKeyFromState from './utils/extractPkceStorageKeyFromState';
 import generatePkceStorageKey from './utils/generatePkceStorageKey';
 import getAuthorizeRequestUrlParams from './utils/getAuthorizeRequestUrlParams';
+import getOAuthErrorMessage from './utils/getOAuthErrorMessage';
 import logger from './utils/logger';
 import processOpenIDScopes from './utils/processOpenIDScopes';
 
 const WELL_KNOWN_PATH = '/.well-known/openid-configuration';
+
+/**
+ * The issuer a discovery document must name: the configured `endpoints.issuer`, else the URL the
+ * well-known path was appended to (OpenID Connect Discovery 1.0, section 4.3).
+ */
+const getExpectedIssuer = (
+  configuredIssuer: string | undefined,
+  wellKnownOverride: string | undefined,
+  baseUrl: string | undefined,
+): string | undefined => {
+  if (configuredIssuer) {
+    return configuredIssuer;
+  }
+
+  if (wellKnownOverride) {
+    return wellKnownOverride.endsWith(WELL_KNOWN_PATH)
+      ? wellKnownOverride.slice(0, -WELL_KNOWN_PATH.length)
+      : undefined;
+  }
+
+  return baseUrl || undefined;
+};
+
+/**
+ * Compares two issuers exactly, apart from a trailing slash on either side.
+ */
+const issuersMatch = (discovered: unknown, expected: string): boolean =>
+  typeof discovered === 'string' && discovered.replace(/\/+$/, '') === expected.replace(/\/+$/, '');
+
+/**
+ * Reads a readable message from the body of a failed token, revocation, or custom grant response.
+ */
+const readErrorMessage = async (response: Response, fallback: string): Promise<string> =>
+  getOAuthErrorMessage(await response.json().catch((): undefined => undefined), fallback);
+
+/**
+ * The storage key of the `state` sent with the authorization request whose PKCE key is given. Both
+ * share the request index, so the callback finds the state from the index at the end of `state`.
+ */
+const getStateStorageKey = (pkceKey: string): string =>
+  pkceKey.replace(
+    PKCEConstants.Storage.StorageKeys.CODE_VERIFIER,
+    OIDCRequestConstants.SignIn.Storage.StorageKeys.STATE,
+  );
 
 const REVOKE_ACCESS_TOKEN_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -134,13 +180,24 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     return true;
   }
 
-  public getConfiguration(): T {
-    return this.storageManager.getConfigData() as unknown as T;
+  public async getConfiguration(): Promise<T> {
+    return (await this.storageManager.getConfigData()) as unknown as T;
   }
 
+  /**
+   * Returns the signed-in user, read from the claims of the session's ID token.
+   *
+   * @param userId - The session to read, on a server.
+   * @throws {ThunderIDRuntimeError} With code `JS-AUTH_CORE-GU-NF01` when the session holds no ID token.
+   */
   public async getUser(userId?: string): Promise<User> {
     const sessionData: SessionData = await this.storageManager.getSessionData(userId);
-    const authenticatedUser: User = this.authHelper.getAuthenticatedUserInfo(sessionData?.id_token);
+
+    if (!sessionData?.id_token) {
+      throw new ThunderIDRuntimeError('No signed-in session was found.', 'JS-AUTH_CORE-GU-NF01', 'javascript');
+    }
+
+    const authenticatedUser: User = this.authHelper.getAuthenticatedUserInfo(sessionData.id_token);
 
     Object.keys(authenticatedUser).forEach((key: string) => {
       if (authenticatedUser[key] === undefined || authenticatedUser[key] === '' || authenticatedUser[key] === null) {
@@ -281,7 +338,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     if (config.attachToken) {
       requestHeaders = {
         ...requestHeaders,
-        Authorization: `Bearer ${(await this.storageManager.getSessionData(sessionId)).access_token}`,
+        Authorization: `Bearer ${(await this.storageManager.getSessionData(sessionId))?.access_token}`,
       };
     }
 
@@ -308,7 +365,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       throw new ThunderIDAuthException(
         'JS-AUTH_CORE-RCG-HE03',
         `Invalid response status received for the custom grant request. (${response.statusText})`,
-        (await response.json()) as string,
+        await readErrorMessage(response, 'The custom grant request was rejected.'),
       );
     }
 
@@ -402,10 +459,34 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
       if (response) {
         let discoveryResolved = false;
+        let discovered: OIDCDiscoveryApiResponse | undefined;
+
         try {
-          await this.storageManager.setOIDCProviderMetaData(
-            await this.authHelper.resolveEndpoints(await response.json()),
-          );
+          discovered = (await response.json()) as OIDCDiscoveryApiResponse;
+        } catch {
+          discovered = undefined;
+        }
+
+        // Validate the discovered issuer before any endpoint from the document is used. A mismatch
+        // fails here rather than falling back to endpoints derived from the base URL.
+        if (discovered && typeof discovered === 'object') {
+          const expectedIssuer: string | undefined = getExpectedIssuer(endpoints?.issuer, wellKnownOverride, baseUrl);
+
+          if (expectedIssuer !== undefined && !issuersMatch(discovered.issuer, expectedIssuer)) {
+            throw new ThunderIDRuntimeError(
+              'The discovered issuer does not match the expected issuer. Set endpoints.issuer if your server uses a custom issuer.',
+              'JS-AUTH_CORE-GOPMD-IV03',
+              'javascript',
+            );
+          }
+        }
+
+        try {
+          if (!discovered || typeof discovered !== 'object') {
+            throw new Error('The discovery response is not a JSON object.');
+          }
+
+          await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpoints(discovered));
           discoveryResolved = true;
         } catch (error: unknown) {
           // Parsing or endpoint resolution failed; fall through to baseUrl fallback.
@@ -517,6 +598,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
             codeChallengeMethod: PKCEConstants.DEFAULT_CODE_CHALLENGE_METHOD,
             instanceId: this.getInstanceId().toString(),
             prompt: configData.prompt,
+            randomState: this.cryptoHelper.generateState(),
             redirectUri: configData.afterSignInUrl ?? '',
             responseMode: configData.responseMode,
             scopes: processOpenIDScopes(configData.scopes),
@@ -524,6 +606,13 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
         ) as Parameters<typeof getAuthorizeRequestUrlParams>[0],
         {key: pkceKey},
         authRequestConfig,
+      );
+
+      // Kept so the callback can be compared with the state this request sent.
+      await this.storageManager.setHybridDataParameter(
+        getStateStorageKey(pkceKey),
+        authorizeRequestParams.get(OIDCRequestConstants.Params.STATE) ?? '',
+        userId,
       );
 
       Array.from(authorizeRequestParams.entries()).forEach(([paramKey, paramValue]: [string, string]) => {
@@ -557,6 +646,21 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     ) {
       await this.loadOpenIDProviderConfiguration(false);
     }
+
+    const stateStorageKey: string = getStateStorageKey(extractPkceStorageKeyFromState(state ?? ''));
+    const expectedState: unknown = await this.storageManager.getHybridDataParameter(stateStorageKey, userId);
+
+    // The stored state is left in place on a mismatch, so a stray callback cannot cancel the
+    // sign-in that is still in progress.
+    if (!state || typeof expectedState !== 'string' || !expectedState || state !== expectedState) {
+      throw new ThunderIDRuntimeError(
+        'The state returned to the callback does not match the state of the authorization request.',
+        'JS-AUTH_CORE-RAT1-IV04',
+        'javascript',
+      );
+    }
+
+    await this.storageManager.removeHybridDataParameter(stateStorageKey, userId);
 
     const tokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
     const configData = await this.configProvider();
@@ -630,7 +734,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       throw new ThunderIDAuthException(
         'JS-AUTH_CORE-RAT1-HE03',
         `Requesting access token failed with ${tokenResponse.statusText}`,
-        (await tokenResponse.json()) as string,
+        await readErrorMessage(tokenResponse, 'The token request was rejected.'),
       );
     }
 
@@ -681,7 +785,12 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     return `${logoutEndpoint}?${queryParams.toString()}`;
   }
 
+  /**
+   * Returns the endpoints the SDK calls. Loads the discovery document first when no other call has.
+   */
   protected async getOpenIDProviderEndpoints(): Promise<Partial<OIDCEndpoints>> {
+    await this.loadOpenIDProviderConfiguration(false);
+
     const meta: OIDCDiscoveryApiResponse = await this.oidcProviderMetaDataProvider();
 
     return {
@@ -697,22 +806,37 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     };
   }
 
+  /**
+   * Returns the discovery document. Loads it first when no other call has. Resolves to `null`
+   * before `initialize()`.
+   */
   public async getDiscoveryResponse(): Promise<OIDCDiscoveryApiResponse | null> {
     if (!this.storageManager) {
       return null;
     }
 
+    await this.loadOpenIDProviderConfiguration(false);
+
     return this.storageManager.loadOpenIDProviderConfiguration();
   }
 
+  /**
+   * Returns the claims of the session's ID token, or of `idToken` when the session holds none.
+   *
+   * @throws {ThunderIDRuntimeError} With code `JS-AUTH_CORE-GDIT-NF01` when there is no ID token to decode.
+   */
   protected async getDecodedIdToken(userId?: string, idToken?: string): Promise<IdToken> {
-    const storedIdToken: string = (await this.storageManager.getSessionData(userId)).id_token;
+    const token: string | undefined = (await this.storageManager.getSessionData(userId))?.id_token ?? idToken;
 
-    return this.cryptoHelper.decodeJwtToken<IdToken>(storedIdToken ?? idToken);
+    if (!token) {
+      throw new ThunderIDRuntimeError('No signed-in session was found.', 'JS-AUTH_CORE-GDIT-NF01', 'javascript');
+    }
+
+    return this.cryptoHelper.decodeJwtToken<IdToken>(token);
   }
 
   protected async getIdToken(userId?: string): Promise<string> {
-    return (await this.storageManager.getSessionData(userId)).id_token;
+    return (await this.storageManager.getSessionData(userId))?.id_token;
   }
 
   protected async getUserSession(userId?: string): Promise<UserSession> {
@@ -775,7 +899,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       throw new ThunderIDAuthException(
         'JS-AUTH_CORE-RAT2-HE04',
         `Refreshing access token failed with ${tokenResponse.statusText}`,
-        (await tokenResponse.json()) as string,
+        await readErrorMessage(tokenResponse, 'The refresh token request was rejected.'),
       );
     }
 
@@ -862,7 +986,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       throw new ThunderIDAuthException(
         'JS-AUTH_CORE-RCCT-HE03',
         `Requesting client credentials token failed with ${tokenResponse.statusText}`,
-        (await tokenResponse.json()) as string,
+        await readErrorMessage(tokenResponse, 'The client credentials token request was rejected.'),
       );
     }
 
@@ -932,7 +1056,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       throw new ThunderIDAuthException(
         'JS-AUTH_CORE-RAT3-HE03',
         `Invalid response status received for revoke access token request (${response.statusText}).`,
-        (await response.json()) as string,
+        await readErrorMessage(response, 'The revocation request was rejected.'),
       );
     }
 
@@ -1052,7 +1176,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
     if (!response.ok) {
       throw new ThunderIDAPIError(
-        parsedBody as string,
+        getOAuthErrorMessage(parsedBody, 'The backchannel authentication request was rejected.'),
         'JS-AUTH_CORE-CIBA1-HE03',
         'javascript',
         response.status,

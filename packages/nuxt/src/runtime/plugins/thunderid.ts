@@ -116,6 +116,8 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
       authState.value = {
         isLoading: false,
         isSignedIn: ssr.isSignedIn,
+        organizationId: ssr.session?.organizationId,
+        scopes: ssr.session?.scopes,
         user: ssr.user,
       };
       userProfileState.value = ssr.userProfile;

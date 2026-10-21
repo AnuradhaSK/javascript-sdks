@@ -12,6 +12,7 @@ import {
   useEffect,
   useState,
   CSSProperties,
+  useId,
 } from 'react';
 import useStyles from './OtpField.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
@@ -110,6 +111,9 @@ const OtpField: FC<OtpInputProps> = ({
   const styles: Record<string, string> = useStyles(theme, colorScheme, !!disabled, !!error, length);
   const [otp, setOtp] = useState<string[]>(Array(length).fill(''));
   const inputRefs: MutableRefObject<HTMLInputElement[]> = useRef<HTMLInputElement[]>([]);
+  const fieldId: string = useId();
+  const labelId = `${fieldId}-label`;
+  const helperTextId: string | undefined = error || helperText ? `${fieldId}-helper-text` : undefined;
 
   useEffect(() => {
     inputRefs.current = inputRefs.current.slice(0, length);
@@ -227,16 +231,22 @@ const OtpField: FC<OtpInputProps> = ({
     <FormControl
       error={error}
       helperText={helperText}
+      helperTextId={helperTextId}
       className={cx(withVendorCSSClassPrefix(bem('otp-field')), className)}
       helperTextAlign="center"
       style={style}
     >
       {label && (
-        <InputLabel required={required} error={!!error}>
+        <InputLabel id={labelId} required={required} error={!!error}>
           {label}
         </InputLabel>
       )}
-      <div className={cx(withVendorCSSClassPrefix(bem('otp-field', 'input-container')), styles['inputContainer'])}>
+      <div
+        role="group"
+        aria-labelledby={label ? labelId : undefined}
+        aria-describedby={helperTextId}
+        className={cx(withVendorCSSClassPrefix(bem('otp-field', 'input-container')), styles['inputContainer'])}
+      >
         {Array.from({length}, (_: unknown, index: number) => (
           <input
             key={index}
@@ -261,6 +271,7 @@ const OtpField: FC<OtpInputProps> = ({
             aria-label={`${label || 'OTP'} digit ${index + 1}`}
             aria-invalid={!!error}
             aria-required={required}
+            aria-describedby={helperTextId}
             autoComplete="one-time-code"
           />
         ))}

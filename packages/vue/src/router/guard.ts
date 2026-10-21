@@ -91,7 +91,7 @@ export const createThunderIDGuard = (options: GuardOptions = {}): ThunderIDNavig
     if (!ctx) {
       logger.error(
         'createThunderIDGuard: ThunderID context not found. ' +
-          'Ensure the ThunderIDPlugin is installed before using the router guard.',
+          'Ensure <ThunderIDProvider> is mounted (or the context is provided at app level) before using the router guard.',
       );
       next({path: redirectTo});
 

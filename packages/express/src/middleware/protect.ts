@@ -28,8 +28,15 @@ const protect = (
       }
     };
 
-    if (!client || !sessionId) {
-      Logger.error('No session ID found in the request cookies');
+    if (!client) {
+      Logger.error('thunderID() middleware must be mounted before protect()');
+      reject();
+      return;
+    }
+
+    // A request without a session, or with one that has ended, is an ordinary unauthenticated request.
+    if (!sessionId) {
+      Logger.debug('No session ID found in the request cookies');
       reject();
       return;
     }
@@ -40,7 +47,7 @@ const protect = (
       return next();
     }
 
-    Logger.error('Invalid session ID found in the request cookies');
+    Logger.debug('The session in the request cookies is not signed in');
     reject();
   };
 };

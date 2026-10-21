@@ -24,4 +24,5 @@ export interface BrowserClientConfig {
 }
 
 /** Full browser SDK configuration, combining base OIDC config with browser-specific fields. */
-export type BrowserAuthConfig = AuthClientConfig<BrowserClientConfig>;
+export type BrowserAuthConfig = AuthClientConfig<NonNullable<BrowserClientConfig['storage']>> &
+  Omit<BrowserClientConfig, 'storage'>;

@@ -5,11 +5,10 @@
 pnpm + Turborepo monorepo of TypeScript SDKs under `packages/`: a framework-agnostic core
 (`@thunderid/javascript`), a browser layer (`@thunderid/browser`), a server layer (`@thunderid/node`), and
 framework SDKs built on top of those (`react`, `vue`, `nuxt`, `nextjs`, `express`, `react-router`,
-`tanstack-router`). The per-framework quickstarts live in
+`tanstack-router`). The per-framework quickstarts and integration samples live in
 [thunder-id/samples](https://github.com/thunder-id/samples) and depend on the published packages; the E2E
-suite fetches them into `tests/e2e/.samples` and wires them to this workspace's builds
-(`tests/e2e/scripts/prepare-samples.ts`). `samples/integrations/` holds integration samples that are not
-part of any published package.
+suite fetches the quickstarts into `tests/e2e/.samples` and wires them to this workspace's builds
+(`tests/e2e/scripts/prepare-samples.ts`).
 
 ## SDK development specification
 
@@ -96,8 +95,7 @@ field, so storage keys, cookie names, CSS class prefixes, state keys, etc. shoul
 ## Code style
 
 - TypeScript, ESLint via `@thunderid/eslint-plugin`, Prettier.
-- Every source file carries a copyright header (`@thunderid/copyright-header` ESLint rule); `samples/**` is
-  exempt (see `eslint.config.js`).
+- Every source file carries a copyright header (`@thunderid/copyright-header` ESLint rule).
 - Prefer editing or re-exporting an existing util over duplicating a helper across packages (see hierarchy
   above).
 
@@ -116,6 +114,5 @@ packages/
   react-router/     React Router integration
   tanstack-router/  TanStack Router integration
 playgrounds/        Playground apps that exercise the SDKs from source (not published)
-samples/            Integration samples (quickstarts live in thunder-id/samples)
 tests/e2e/          Playwright suite driving the quickstarts against a real ThunderID server
 ```

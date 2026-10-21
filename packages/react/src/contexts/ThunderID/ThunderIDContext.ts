@@ -3,12 +3,15 @@
 
 import {
   ApiFetcher,
+  EmbeddedRecoveryFlowRequest,
+  EmbeddedRecoveryFlowResponse,
   FlowMetadataResponse,
   HttpRequestConfig,
   HttpResponse,
   IdToken,
   OIDCDiscoveryApiResponse,
   SignInOptions,
+  StorageManager,
   TokenExchangeRequestConfig,
   TokenResponse,
   VendorConstants,
@@ -75,8 +78,9 @@ export type ThunderIDContextProps = {
   getIdToken: () => Promise<string>;
   /**
    * Returns the underlying StorageManager instance for reading and writing SDK-managed storage.
+   * Resolves to `null` where the SDK has no browser storage (the context default, and `@thunderid/nextjs`).
    */
-  getStorageManager: () => Promise<any>;
+  getStorageManager: () => Promise<StorageManager<ThunderIDReactConfig> | null>;
   /**
    * HTTP request function to make API calls.
    * @param requestConfig - Configuration for the HTTP request.
@@ -146,7 +150,7 @@ export type ThunderIDContextProps = {
   /**
    * Recovery function to initiate the account/password recovery flow.
    */
-  recover: (...args: any[]) => Promise<any>;
+  recover: (payload?: EmbeddedRecoveryFlowRequest) => Promise<EmbeddedRecoveryFlowResponse>;
 
   /**
    * Resolves `{{ t(key) }}` and `{{ meta(path) }}` template expressions in a string,

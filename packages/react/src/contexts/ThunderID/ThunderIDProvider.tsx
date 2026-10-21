@@ -11,6 +11,8 @@ import {
   IdToken,
   extractUserClaimsFromIdToken,
   EmbeddedSignInFlowResponse,
+  EmbeddedRecoveryFlowRequest,
+  EmbeddedRecoveryFlowResponse,
   createPackageComponentLogger,
   getVendorPrefix,
   resolveResourceEndpoint,
@@ -18,7 +20,7 @@ import {
   SPAUtils,
 } from '@thunderid/browser';
 import {FC, RefObject, PropsWithChildren, ReactElement, useEffect, useMemo, useRef, useState, useCallback} from 'react';
-import ThunderIDContext from './ThunderIDContext';
+import ThunderIDContext, {ThunderIDContextProps} from './ThunderIDContext';
 import useBrowserUrl from '../../hooks/useBrowserUrl';
 import {ThunderIDReactConfig} from '../../models/config';
 import {configureEmotionNonce} from '../../styles/emotion';
@@ -76,7 +78,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   const invalidator: ResourceInvalidator = useMemo(() => createResourceInvalidator(), []);
   const storageManagerRef: any = useRef<any>(null);
   const {hasAuthParams, hasCalledForThisInstance} = useBrowserUrl();
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isSignedInSync, setIsSignedInSync] = useState<boolean>(false);
   const [isInitializedSync, setIsInitializedSync] = useState<boolean>(false);
   const [isLoadingSync, setIsLoadingSync] = useState<boolean>(true);
@@ -428,8 +430,9 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
     [client],
   );
 
-  const getStorageManager: () => Promise<any> = useCallback(async (): Promise<any> => {
-    const storageManager: any = storageManagerRef.current ?? (await client.getStorageManager());
+  const getStorageManager: ThunderIDContextProps['getStorageManager'] = useCallback(async () => {
+    const storageManager: Awaited<ReturnType<ThunderIDContextProps['getStorageManager']>> =
+      storageManagerRef.current ?? (await client.getStorageManager());
     if (storageManager) {
       storageManagerRef.current = storageManager;
     }
@@ -456,8 +459,9 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
     [client],
   );
 
-  const recover: (payload: any) => Promise<any> = useCallback(
-    async (payload: any): Promise<any> => client.recover(payload),
+  const recover: ThunderIDContextProps['recover'] = useCallback(
+    async (payload?: EmbeddedRecoveryFlowRequest): Promise<EmbeddedRecoveryFlowResponse> =>
+      (await client.recover(payload)) as EmbeddedRecoveryFlowResponse,
     [client],
   );
 

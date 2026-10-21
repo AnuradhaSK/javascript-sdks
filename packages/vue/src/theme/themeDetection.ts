@@ -18,4 +18,5 @@ export {
   createClassObserver,
   createMediaQueryListener,
   type BrowserThemeDetection,
+  type MediaQueryListener,
 } from '@thunderid/browser';

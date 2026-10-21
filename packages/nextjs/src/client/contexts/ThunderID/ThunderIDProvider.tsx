@@ -31,6 +31,7 @@ import {FC, PropsWithChildren, RefObject, useEffect, useMemo, useRef, useState} 
 import ThunderIDContext, {ThunderIDContextProps} from './ThunderIDContext';
 import {RefreshResult} from '../../../server/actions/refreshToken';
 import logger from '../../../utils/logger';
+import fetchFlowMetaFromServer from '../../fetchFlowMetaFromServer';
 
 /**
  * Props interface of {@link ThunderIDClientProvider}
@@ -39,14 +40,6 @@ export type ThunderIDClientProviderProps = Partial<Omit<ThunderIDProviderProps, 
   Pick<ThunderIDProviderProps, 'baseUrl' | 'clientId'> & {
     applicationId: ThunderIDContextProps['applicationId'];
     clearSession: () => Promise<void>;
-    /**
-     * Server Action that fetches `GET /flow/meta` server-side, passed down to `FlowMetaProvider` so
-     * it never calls `baseUrl` directly from the browser — avoiding the CORS requirement that a
-     * direct client-side fetch to the ThunderID server would otherwise impose. Used for both the
-     * initial fetch (when `initialMeta` isn't seeded, e.g. it failed server-side) and subsequent
-     * `switchLanguage()` calls.
-     */
-    fetchMeta?: (params: {applicationId?: string; language?: string}) => Promise<FlowMetadataResponse>;
     handleOAuthCallback: (
       code: string,
       state: string,
@@ -93,7 +86,6 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
   scopes,
   vendor,
   initialMeta = null,
-  fetchMeta,
 }: PropsWithChildren<ThunderIDClientProviderProps>) => {
   const reRenderCheckRef: RefObject<boolean> = useRef(false);
   const router: AppRouterInstance = useRouter();
@@ -399,7 +391,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
           <FlowMetaProvider
             enabled={preferences?.resolveFromMeta !== false}
             initialMeta={initialMeta}
-            fetchMeta={fetchMeta}
+            fetchMeta={fetchFlowMetaFromServer}
           >
             <ThemeProvider theme={preferences?.theme?.overrides} mode={preferences?.theme?.mode}>
               <FlowProvider>

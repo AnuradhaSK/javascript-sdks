@@ -74,8 +74,6 @@ const identities = () => {
 
 const renderTopbar = () => {
   const {meta} = state;
-  $('sdk-label').textContent = `Express · ${meta.sdk.name} ${meta.sdk.version}`;
-
   const appStatus = $('app-status');
   appStatus.dataset.state = 'ok';
   appStatus.lastChild.textContent = new URL(meta.app).host;

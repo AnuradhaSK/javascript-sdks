@@ -1,11 +1,11 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import type {SessionData} from '@thunderid/browser';
 import {useThunderID} from '@thunderid/react';
 import {useEffect, useState} from 'react';
 import {describeError} from './events';
 import {decodeJwt, JwtClaims} from './jwt';
-import {SdkStorageManager} from './sdk';
 
 export interface SessionSnapshot {
   accessToken: string | null;
@@ -49,10 +49,9 @@ export const useSession = (refreshKey = 0): SessionSnapshot => {
           getIdToken(),
           getDecodedIdToken(),
         ]);
-        const storage: SdkStorageManager | null = (await getStorageManager()) as SdkStorageManager | null;
-        const data: Record<string, unknown> = (await storage?.getSessionData()) ?? {};
-        const createdAt: number | null = typeof data['created_at'] === 'number' ? data['created_at'] : null;
-        const expiresIn = Number(data['expires_in'] ?? 0);
+        const data: Partial<SessionData> = (await (await getStorageManager())?.getSessionData()) ?? {};
+        const createdAt: number | null = typeof data.created_at === 'number' ? data.created_at : null;
+        const expiresIn = Number(data.expires_in ?? 0);
         const accessExp: unknown = decodeJwt(accessToken)?.payload['exp'];
         let expiresAt: number | null = null;
 
@@ -66,8 +65,8 @@ export const useSession = (refreshKey = 0): SessionSnapshot => {
           idClaims: idClaims as JwtClaims,
           idToken,
           issuedAt: createdAt,
-          refreshToken: !!data['refresh_token'],
-          scope: typeof data['scope'] === 'string' ? data['scope'] : null,
+          refreshToken: !!data.refresh_token,
+          scope: typeof data.scope === 'string' ? data.scope : null,
         };
       } catch (error) {
         return {...EMPTY, error: describeError(error)};

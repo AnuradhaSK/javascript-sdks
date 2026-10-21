@@ -21,8 +21,10 @@ import {
   SPAUtils,
 } from '@thunderid/browser';
 import {
+  type AppContext,
   type Component,
   defineComponent,
+  getCurrentInstance,
   h,
   onMounted,
   onUnmounted,
@@ -46,6 +48,9 @@ import {THUNDERID_KEY} from '../keys';
 import type {ThunderIDVueConfig} from '../models/config';
 import type {ThunderIDContext} from '../models/contexts';
 import ThunderIDVueClient from '../ThunderIDVueClient';
+import {createVueLogger} from '../utils/logger';
+
+const logger: ReturnType<typeof createVueLogger> = createVueLogger('ThunderIDProvider');
 
 interface ThunderIDProviderProps {
   afterSignInUrl: string | undefined;
@@ -393,6 +398,16 @@ const ThunderIDProvider: Component = defineComponent({
 
     provide(THUNDERID_KEY, context);
 
+    // Also provide at app level, so code that runs in the app context rather than inside this
+    // component tree (such as Vue Router guards, which run in `app.runWithContext()`) can inject it.
+    // The first provider wins; one the host framework already provided is left untouched.
+    const appContext: AppContext | undefined = getCurrentInstance()?.appContext;
+    const providesAtAppLevel: boolean = !!appContext && !((THUNDERID_KEY as symbol) in appContext.provides);
+
+    if (appContext && providesAtAppLevel) {
+      appContext.app.provide(THUNDERID_KEY, context);
+    }
+
     // ── Lifecycle ──
     onMounted(async (): Promise<void> => {
       // 1. Initialize the client
@@ -402,7 +417,12 @@ const ThunderIDProvider: Component = defineComponent({
       // 2. Load the OpenID provider configuration
       // We manually initialize this here because `initialize` doesn't load it for us.
       // This is needed for endpoints like /.well-known/openid-configuration.
-      await client.getDiscoveryResponse();
+      // A failure is not fatal: sign-in loads it again before it needs any endpoint.
+      try {
+        await client.getDiscoveryResponse();
+      } catch (error) {
+        logger.warn('Could not load the OIDC discovery metadata on mount.', error);
+      }
 
       const initializedConfig: any = await (client.getConfiguration() as any);
 
@@ -490,6 +510,9 @@ const ThunderIDProvider: Component = defineComponent({
     });
 
     onUnmounted((): void => {
+      if (appContext && providesAtAppLevel && appContext.provides[THUNDERID_KEY as symbol] === context) {
+        delete appContext.provides[THUNDERID_KEY as symbol];
+      }
       if (signInCheckInterval) {
         clearInterval(signInCheckInterval);
       }
