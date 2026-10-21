@@ -14,6 +14,7 @@ import {
   detectThemeMode,
   createClassObserver,
   createMediaQueryListener,
+  type MediaQueryListener,
 } from '@thunderid/browser';
 import {
   computed,
@@ -180,7 +181,7 @@ const ThemeProvider: Component = defineComponent({
 
     // Set up automatic theme detection listeners
     let classObserver: MutationObserver | null = null;
-    let mediaQuery: MediaQueryList | null = null;
+    let mediaQuery: MediaQueryListener | null = null;
 
     const handleThemeChange = (isDark: boolean): void => {
       colorScheme.value = isDark ? 'dark' : 'light';
@@ -201,9 +202,7 @@ const ThemeProvider: Component = defineComponent({
 
     onBeforeUnmount((): void => {
       if (classObserver) classObserver.disconnect();
-      if (mediaQuery?.removeEventListener) {
-        mediaQuery.removeEventListener('change', handleThemeChange as any);
-      }
+      mediaQuery?.disconnect();
     });
 
     const context: ThemeContextValue = {

@@ -74,6 +74,9 @@ const AffixedField: FC<AffixedFieldProps> = ({
   // Stable id for the visually-hidden prefix announcement; only referenced when a
   // fixed prefix is present, but generated unconditionally so the hook order is stable.
   const prefixDescriptionId: string = `${useId()}-prefix`;
+  const generatedId: string = useId();
+  const inputId: string = rest.id ?? generatedId;
+  const helperTextId: string | undefined = error || helperText ? `${inputId}-helper-text` : undefined;
 
   const containerClassName: string = cx(
     withVendorCSSClassPrefix(bem('affixed-field', 'container')),
@@ -124,11 +127,12 @@ const AffixedField: FC<AffixedFieldProps> = ({
     <FormControl
       error={error}
       helperText={helperText}
+      helperTextId={helperTextId}
       className={cx(withVendorCSSClassPrefix(bem('affixed-field')), className)}
       style={style}
     >
       {label && (
-        <InputLabel required={required} error={hasError}>
+        <InputLabel htmlFor={inputId} required={required} error={hasError}>
           {label}
         </InputLabel>
       )}
@@ -141,9 +145,11 @@ const AffixedField: FC<AffixedFieldProps> = ({
           aria-invalid={hasError}
           aria-required={required}
           {...rest}
+          id={inputId}
           aria-describedby={
-            [rest['aria-describedby'], hasFixedPrefix ? prefixDescriptionId : undefined].filter(Boolean).join(' ') ||
-            undefined
+            [rest['aria-describedby'], hasFixedPrefix ? prefixDescriptionId : undefined, helperTextId]
+              .filter(Boolean)
+              .join(' ') || undefined
           }
         />
       </div>

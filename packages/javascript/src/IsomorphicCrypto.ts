@@ -22,6 +22,17 @@ export class IsomorphicCrypto<T = any> {
   }
 
   /**
+   * Generates the random part of an authorization request `state` from 32 random bytes. Only
+   * letters and digits are kept, so the value never contains the `_` that separates the parts of
+   * the state.
+   *
+   * @returns A random string of about 42 characters.
+   */
+  public generateState(): string {
+    return this.cryptoUtils.base64URLEncode(this.cryptoUtils.generateRandomBytes(32)).replace(/[^A-Za-z0-9]/g, '');
+  }
+
+  /**
    * Derive code challenge from the code verifier.
    *
    * @param verifier - Code verifier.

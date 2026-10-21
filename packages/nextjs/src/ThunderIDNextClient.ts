@@ -349,7 +349,7 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
       throw new Error('The second argument must be a string.');
     }
 
-    const config: T = this.getConfiguration();
+    const config: T = await this.getConfiguration();
     const afterSignOutUrl: string = config?.afterSignOutUrl || '/';
 
     const resolvedSessionId: string = args[1] || (await getSessionId())!;

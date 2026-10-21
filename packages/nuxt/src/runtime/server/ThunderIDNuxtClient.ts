@@ -27,7 +27,10 @@ import {
 } from '@thunderid/node';
 import type {ThunderIDNuxtConfig, ThunderIDSessionPayload} from '../types';
 
-class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtConfig> {
+// `baseUrl` is optional in the module options, but the server only initializes the client once it has one.
+type ThunderIDNuxtClientConfig = ThunderIDNuxtConfig & Pick<AuthClientConfig, 'baseUrl'>;
+
+class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtClientConfig> {
   private static instance: ThunderIDNuxtClient;
 
   public isInitialized = false;
@@ -61,7 +64,7 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtConfig> {
       tokenRequest: config.tokenRequest,
     } as AuthClientConfig<ThunderIDNuxtConfig>;
 
-    const result: boolean = await super.initialize(authConfig as unknown as ThunderIDNuxtConfig, storage);
+    const result: boolean = await super.initialize(authConfig as unknown as ThunderIDNuxtClientConfig, storage);
     this.isInitialized = true;
     return result;
   }

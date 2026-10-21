@@ -9,6 +9,10 @@
     "lib": ["ESNext", "DOM"],
     "module": "ESNext",
     "moduleResolution": "node",
+    "paths": {
+      "jose/base64url": ["./node_modules/jose/dist/types/util/base64url"],
+      "jose/*": ["./node_modules/jose/dist/types/*"]
+    },
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "sourceMap": true,

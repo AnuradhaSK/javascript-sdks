@@ -36,11 +36,12 @@ class SessionUtils {
   /**
    * Returns `true` if the session token is still within its validity window.
    *
-   * @param sessionData - The session data to check.
+   * @param sessionData - The session data to check. `expires_in` is in seconds, as the token
+   * endpoint returns it, and `created_at` in milliseconds.
    */
   public static validateSession(sessionData: SessionData): Promise<boolean> {
     const currentTime: number = Date.now();
-    const expiryTimeStamp: number = sessionData.created_at + parseInt(sessionData.expires_in, 10) * 60 * 1000;
+    const expiryTimeStamp: number = sessionData.created_at + parseInt(sessionData.expires_in, 10) * 1000;
     return Promise.resolve(currentTime < expiryTimeStamp);
   }
 }

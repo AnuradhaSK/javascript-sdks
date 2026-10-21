@@ -1,7 +1,6 @@
 packages:
   - packages/*
   - playgrounds/*
-  - samples/integrations/*/*
   - tests/*
 
 allowBuilds:
@@ -69,8 +68,8 @@ overrides:
   # (CVE-2026-33327/33328/35590/35591) — plus GHSA-rgj7-g3m4-5g8c (2026-09-11), which bundles the
   # libheif flaws GHSA-g89c-p67h-r497 / GHSA-2jg2-4ch7-h545 and needs >=0.35.4, plus
   # GHSA-wq5f-xc86-pv6w (2026-10-06), a librsvg memory flaw that can lead to RCE on glibc-based Linux
-  # and needs >=0.35.5, above the previous 0.35.4 pin. Transitive via packages/nextjs,
-  # packages/better-auth and the nextjs samples' `next` > `sharp` (Next.js image optimization).
+  # and needs >=0.35.5, above the previous 0.35.4 pin. Transitive via packages/nextjs and
+  # packages/better-auth's `next` > `sharp` (Next.js image optimization).
   # `next`@latest already declares `sharp: ^0.35.4`, which permits 0.35.5 — this pin can likely be
   # dropped once the lockfile entry is refreshed.
   sharp: 0.35.5
@@ -104,6 +103,14 @@ overrides:
   # `@mapbox/node-pre-gyp`@latest already depends on `tar: ^7.4.0`, which permits 7.5.21 — this pin
   # can likely be dropped once nitropack/@vercel/nft's own lockfile entries are refreshed.
   tar: 7.5.21
+  # JUSTIFICATION: Fixes GHSA-587h-7wmj-h5pm (2026-10-21), where launch-editor's `fs.existsSync()`
+  # existence check can be bypassed on Windows; the 8.x line needs >=8.2.4. Transitive via the
+  # vite 8 that pnpm auto-installs for `vitest`'s peer range (`@thunderid/eslint-plugin` >
+  # `@vitest/eslint-plugin` > `vitest` > `vite`). `vitest` already permits 8.2.4, but pnpm keeps the
+  # peer at the locked 8.2.1 through `pnpm update` and `pnpm dedupe`. Drop the pin once a fresh
+  # lockfile resolves vite 8 at >=8.2.4 on its own. The 6.x and 7.x lines and launch-editor took
+  # their patched releases (6.4.4, 7.3.7, 2.14.2) through a plain `pnpm update`.
+  vite@8: 8.2.4
 
 auditConfig:
   ignoreGhsas:

@@ -1,14 +1,14 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {EmbeddedFlowType} from '@thunderid/browser';
+import {EmbeddedFlowType, type SessionData} from '@thunderid/browser';
 import type {I18nContextValue, ThemeContextValue, ThunderIDContextProps, UserContextProps} from '@thunderid/react';
 import {COMPONENTS, STORY_COUNT} from './explorer/stories';
 import playgroundConfig from '../config';
 import {describeError, track} from '../lib/events';
 import {checkServerHealth} from '../lib/health';
 import {decodeJwt, formatDuration} from '../lib/jwt';
-import {asText, sdkRecover, sdkSignIn, sdkSignOut, sdkSignUp, sdkStorage, SdkStorageManager, toUser} from '../lib/sdk';
+import {asText, sdkSignIn, sdkSignOut, sdkSignUp, toUser} from '../lib/sdk';
 import {getDisplayName} from '../lib/user';
 
 export type CapabilityStatus = 'idle' | 'running' | 'pass' | 'fail' | 'skip' | 'unavailable';
@@ -231,7 +231,7 @@ export const CAPABILITIES: Capability[] = [
         'recover',
         () =>
           withTimeout(
-            sdkRecover(sdk, {applicationId: sdk.applicationId, flowType: EmbeddedFlowType.Recovery}),
+            sdk.recover({applicationId: sdk.applicationId, flowType: EmbeddedFlowType.Recovery}),
             10000,
             'flow initiation',
           ),
@@ -344,10 +344,9 @@ export const CAPABILITIES: Capability[] = [
 
       if (gate) return gate;
 
-      const storage: SdkStorageManager | null = await sdkStorage(sdk);
-      const session: Record<string, unknown> = (await storage?.getSessionData()) ?? {};
+      const session: Partial<SessionData> = (await (await sdk.getStorageManager())?.getSessionData()) ?? {};
 
-      if (!session['refresh_token']) {
+      if (!session.refresh_token) {
         return fail('no refresh_token in session: add offline_access or enable refresh tokens for the app');
       }
 

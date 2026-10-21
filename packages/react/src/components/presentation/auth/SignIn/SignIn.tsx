@@ -574,7 +574,8 @@ const SignIn: FC<SignInProps> = ({
         'react',
       );
       setError(error);
-      throw error;
+
+      return;
     }
 
     try {

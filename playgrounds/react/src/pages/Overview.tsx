@@ -196,9 +196,6 @@ const Overview = (): ReactElement => {
           </p>
         </div>
         <div className="pg-row">
-          <a className="pg-btn" href={playgroundConfig.expressPlaygroundUrl}>
-            Server SDKs
-          </a>
           <button
             type="button"
             className="pg-btn"

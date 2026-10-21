@@ -9,10 +9,6 @@ import type {ThunderIDContextProps} from '@thunderid/react';
  */
 export type SdkUser = Record<string, unknown>;
 
-export interface SdkStorageManager {
-  getSessionData: () => Promise<Record<string, unknown> | null | undefined>;
-}
-
 export const toUser = (value: unknown): SdkUser | null =>
   value && typeof value === 'object' ? (value as SdkUser) : null;
 
@@ -22,13 +18,7 @@ export const sdkSignIn = (sdk: ThunderIDContextProps, ...args: unknown[]): Promi
 export const sdkSignUp = (sdk: ThunderIDContextProps, ...args: unknown[]): Promise<unknown> =>
   (sdk.signUp as (...params: unknown[]) => Promise<unknown>)(...args);
 
-export const sdkRecover = (sdk: ThunderIDContextProps, payload: unknown): Promise<unknown> =>
-  (sdk.recover as (params: unknown) => Promise<unknown>)(payload);
-
 export const sdkSignOut = (sdk: ThunderIDContextProps): Promise<unknown> => (sdk.signOut as () => Promise<unknown>)();
-
-export const sdkStorage = async (sdk: ThunderIDContextProps): Promise<SdkStorageManager | null> =>
-  ((await sdk.getStorageManager()) as SdkStorageManager | null) ?? null;
 
 export const asText = (value: unknown): string => {
   if (value === undefined || value === null) return '';

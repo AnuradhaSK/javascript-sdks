@@ -159,6 +159,21 @@ describe('getAuthorizeRequestUrlParams', (): void => {
     expect(params.get(OIDCRequestConstants.Params.STATE)).toBe('instance_0_sign-in-silently_request_1');
   });
 
+  it('should place the random state between the instance prefix and the request index', (): void => {
+    const params: Map<string, string> = getAuthorizeRequestUrlParams(
+      {
+        clientId: 'client123',
+        instanceId: '0',
+        randomState: 'R4nd0m',
+        redirectUri: 'https://app/callback',
+      },
+      {key: pkceKey},
+      {[OIDCRequestConstants.Params.STATE]: 'sign-in-silently'},
+    );
+
+    expect(params.get(OIDCRequestConstants.Params.STATE)).toBe('instance_0_sign-in-silently_R4nd0m_request_1');
+  });
+
   it('should set scope to undefined if none provided', (): void => {
     const params: Map<string, string> = getAuthorizeRequestUrlParams(
       {

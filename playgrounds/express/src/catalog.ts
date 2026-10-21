@@ -92,7 +92,8 @@ const routes: RouteSpec[] = [
   },
   {
     chain: ['handler'],
-    description: 'Reports whether the request carries a session cookie and whether the SDK considers it signed in.',
+    description:
+      'Reports whether the request carries a session cookie and whether the SDK considers it signed in. client.isSignedIn() refreshes an expired access token when it can.',
     group: 'Session',
     id: 'session',
     locked: false,
@@ -155,7 +156,8 @@ const routes: RouteSpec[] = [
   },
   {
     chain: ['protect()', 'handler'],
-    description: 'Any signed-in user. protect() answers 401 when the session cookie is missing or not signed in.',
+    description:
+      'Any signed-in user. protect() refreshes an expired access token when the session has a refresh token, and answers 401 when the session cookie is missing or the session cannot be refreshed.',
     group: 'Protected routes',
     id: 'orders',
     locked: true,

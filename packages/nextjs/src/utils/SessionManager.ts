@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {ThunderIDRuntimeError, CookieConfig} from '@thunderid/node';
-import {SignJWT, jwtVerify, compactVerify, JWTPayload} from 'jose';
+import type {JWTPayload} from 'jose';
+// Subpath imports keep the proxy's bundle free of jose's JWE code, whose CompressionStream use the Edge runtime rejects.
+import {compactVerify} from 'jose/jws/compact/verify';
+import {SignJWT} from 'jose/jwt/sign';
+import {jwtVerify} from 'jose/jwt/verify';
 import {getLoggedOutSessions} from './loggedOutSessions';
 import {DEFAULT_SESSION_COOKIE_EXPIRY_TIME} from '../constants/sessionConstants';
 

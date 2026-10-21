@@ -10,6 +10,9 @@
     "lib": ["DOM", "ESNext"],
     "module": "ESNext",
     "moduleResolution": "node",
+    "paths": {
+      "jose/*": ["./node_modules/jose/dist/types/*"]
+    },
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "sourceMap": true,

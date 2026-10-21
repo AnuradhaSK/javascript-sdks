@@ -28,6 +28,10 @@ export interface FormControlProps {
    */
   helperText?: string;
   /**
+   * id of the helper text element, so the field it describes can reference it with `aria-describedby`
+   */
+  helperTextId?: string;
+  /**
    * Custom alignment for helper text (default: left, center for OTP)
    */
   helperTextAlign?: FormControlHelperTextAlign;
@@ -49,6 +53,7 @@ const FormControl: FC<FormControlProps> = ({
   children,
   error,
   helperText,
+  helperTextId,
   className,
   id,
   helperTextAlign = 'left',
@@ -62,6 +67,7 @@ const FormControl: FC<FormControlProps> = ({
       {children}
       {(error || helperText) && (
         <Typography
+          id={helperTextId}
           variant="caption"
           color={error ? 'error' : 'textSecondary'}
           className={cx(withVendorCSSClassPrefix(bem('form-control', 'helper-text')), styles['helperText'], {

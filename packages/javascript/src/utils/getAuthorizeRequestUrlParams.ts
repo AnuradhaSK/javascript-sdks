@@ -12,7 +12,7 @@ import {ExtendedAuthorizeRequestUrlParams} from '../models/oauth-request';
  * This utility ensures the `openid` scope is always included, handles both string and array forms of the `scope` parameter,
  * and supports PKCE and custom parameters. Throws if a code challenge is provided without a code challenge method.
  *
- * @param options - The main options for the authorization request, including redirectUri, clientId, scope, responseMode, codeChallenge, codeChallengeMethod, and prompt.
+ * @param options - The main options for the authorization request, including redirectUri, clientId, scope, responseMode, codeChallenge, codeChallengeMethod, prompt, and randomState (a value generated from random bytes that makes the `state` unique to this request).
  * @param pkceOptions - PKCE options, including the PKCE key for state correlation.
  * @param customParams - Optional custom parameters to include in the request (excluding the `state` param, which is handled separately).
  * @returns A Map of key-value pairs representing the authorization request URL parameters.
@@ -42,6 +42,7 @@ const getAuthorizeRequestUrlParams = (
     codeChallengeMethod?: string;
     instanceId?: string;
     prompt?: string;
+    randomState?: string;
     redirectUri: string;
     responseMode?: string;
     scopes?: string;
@@ -102,6 +103,12 @@ const getAuthorizeRequestUrlParams = (
   // example a silent sign-in) for the page that handles the callback.
   if (options.instanceId) {
     customStateValue = AUTH_INSTANCE_PREFIX + options.instanceId + (customState ? `_${customState}` : '');
+  }
+
+  // The random part goes after the routing prefix and before the request index, so the callback
+  // can still be routed and correlated while the full value cannot be predicted.
+  if (options.randomState) {
+    customStateValue = customStateValue ? `${customStateValue}_${options.randomState}` : options.randomState;
   }
 
   authorizeRequestParams.set(

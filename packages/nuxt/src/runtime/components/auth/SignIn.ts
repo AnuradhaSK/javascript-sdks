@@ -300,14 +300,17 @@ const SignIn: Component = defineComponent({
 
       const effectiveApplicationId: string | null | undefined = applicationId || urlParams.applicationId;
 
+      // Reported through `error` (state, event and render props) only: the flow is started from a watcher, where a
+      // thrown error would go unhandled.
       if (!urlParams.executionId && !effectiveApplicationId) {
-        const err: ThunderIDRuntimeError = new ThunderIDRuntimeError(
-          'Either executionId or applicationId is required for authentication',
-          'SIGN_IN_ERROR',
-          'nuxt',
+        setError(
+          new ThunderIDRuntimeError(
+            'Either executionId or applicationId is required for authentication',
+            'SIGN_IN_ERROR',
+            'nuxt',
+          ),
         );
-        setError(err);
-        throw err;
+        return;
       }
 
       try {

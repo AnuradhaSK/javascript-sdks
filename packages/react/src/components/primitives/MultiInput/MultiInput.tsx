@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {withVendorCSSClassPrefix, bem} from '@thunderid/browser';
-import {CSSProperties, FC, KeyboardEvent, ReactElement, ReactNode, useCallback, useState} from 'react';
+import {CSSProperties, FC, KeyboardEvent, ReactElement, ReactNode, useCallback, useId, useState} from 'react';
 import useStyles from './MultiInput.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
 import {cx} from '../../../styles/emotion';
@@ -105,6 +105,9 @@ const MultiInput: FC<MultiInputProps> = ({
   style = {},
 }: MultiInputProps) => {
   const {theme, colorScheme}: ReturnType<typeof useTheme> = useTheme();
+  const inputId: string = useId();
+  // The inner field renders its own helper text with `${inputId}-helper-text`, so this one needs a distinct id.
+  const helperTextId: string | undefined = error || helperText ? `${inputId}-description` : undefined;
   const canAddMore: boolean = !maxFields || values.length < maxFields;
   const canRemove: boolean = values.length > minFields;
   const styles: Record<string, string> = useStyles(theme, colorScheme, !!disabled, !!error, canAddMore, canRemove);
@@ -162,9 +165,11 @@ const MultiInput: FC<MultiInputProps> = ({
       const finalEndIcon: ReactNode = attachedEndIcon || endIcon;
 
       const commonProps: Record<string, unknown> = {
+        'aria-describedby': helperTextId,
         disabled,
         endIcon: finalEndIcon,
         error,
+        id: inputId,
         onChange: handleInputChange,
         onEndIconClick,
         onKeyDown: handleKeyDown,
@@ -188,7 +193,7 @@ const MultiInput: FC<MultiInputProps> = ({
           return <TextField {...commonProps} type={type} />;
       }
     },
-    [placeholder, disabled, startIcon, endIcon, error, fieldType, type],
+    [placeholder, disabled, startIcon, endIcon, error, fieldType, type, inputId, helperTextId],
   );
 
   // State for the current input value
@@ -205,11 +210,12 @@ const MultiInput: FC<MultiInputProps> = ({
     <FormControl
       error={error}
       helperText={helperText}
+      helperTextId={helperTextId}
       className={cx(withVendorCSSClassPrefix(bem('multi-input')), className)}
       style={style}
     >
       {label && (
-        <InputLabel required={required} error={!!error}>
+        <InputLabel htmlFor={inputId} required={required} error={!!error}>
           {label}
         </InputLabel>
       )}

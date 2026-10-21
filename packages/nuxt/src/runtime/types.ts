@@ -18,7 +18,12 @@ import type {JWTPayload} from 'jose';
  * Configuration for the ThunderID Nuxt module.
  * Extends `AuthClientConfig` from `@thunderid/node` for 1:1 SDK parity.
  */
-export interface ThunderIDNuxtConfig extends AuthClientConfig {
+export interface ThunderIDNuxtConfig extends Omit<AuthClientConfig, 'baseUrl'> {
+  /**
+   * Base URL of the ThunderID server. Optional here because `NUXT_PUBLIC_THUNDERID_BASE_URL` can supply it, and the
+   * server refuses to initialize when neither does.
+   */
+  baseUrl?: string;
   /**
    * OpenID Connect back-channel logout. When enabled, the module serves
    * `POST /api/auth/backchannel-logout` (or `path`), which ThunderID calls when a session this
@@ -134,6 +139,10 @@ export interface ThunderIDSSRData {
 export interface ThunderIDAuthState {
   isLoading: boolean;
   isSignedIn: boolean;
+  /** Organization the session acts within, from the session's `organizationId`. */
+  organizationId?: string;
+  /** Space-separated scopes granted to the session, from the session's `scopes`. */
+  scopes?: string;
   user: User | null;
 }
 

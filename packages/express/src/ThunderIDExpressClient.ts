@@ -58,7 +58,7 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
   public override async signIn(
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction,
+    next?: express.NextFunction,
     signInConfig?: Record<string, string | boolean>,
   ): Promise<TokenResponse> {
     if (hasErrorInURL(req.originalUrl)) {
@@ -88,8 +88,8 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
         sameSite: (sc?.sameSite ?? CookieConfig.defaultSameSite) as any,
         secure: sc?.secure ?? CookieConfig.defaultSecure,
       });
+      // The redirect is the response, so the request ends here rather than going on to later routes.
       res.redirect(url);
-      if (typeof next === 'function') next();
     };
 
     const authResponse: TokenResponse = (await super.signIn(

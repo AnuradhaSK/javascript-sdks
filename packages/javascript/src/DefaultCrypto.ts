@@ -1,7 +1,11 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import * as jose from 'jose';
+import type {CryptoKey, JWK} from 'jose';
+// Subpath imports keep jose's JWE code, whose CompressionStream use the Edge runtime rejects, out of the bundle.
+import * as base64url from 'jose/base64url';
+import {importJWK} from 'jose/key/import';
+import {jwtVerify} from 'jose/jwt/verify';
 import {Crypto, JWKInterface} from './models/crypto';
 
 /**
@@ -10,12 +14,12 @@ import {Crypto, JWKInterface} from './models/crypto';
  */
 export class DefaultCrypto implements Crypto<Uint8Array> {
   public base64URLDecode(value: string): string {
-    const decodedArray: Uint8Array = jose.base64url.decode(value);
+    const decodedArray: Uint8Array = base64url.decode(value);
     return new TextDecoder().decode(decodedArray);
   }
 
   public base64URLEncode(value: Uint8Array): string {
-    return jose.base64url.encode(value);
+    return base64url.encode(value);
   }
 
   public generateRandomBytes(length: number): Uint8Array {
@@ -40,9 +44,9 @@ export class DefaultCrypto implements Crypto<Uint8Array> {
     clockTolerance?: number,
     validateJwtIssuer = true,
   ): Promise<boolean> {
-    const key: jose.CryptoKey | Uint8Array = await jose.importJWK(jwk as jose.JWK);
+    const key: CryptoKey | Uint8Array = await importJWK(jwk as JWK);
 
-    await jose.jwtVerify(idToken, key, {
+    await jwtVerify(idToken, key, {
       algorithms,
       audience: [clientId],
       clockTolerance,

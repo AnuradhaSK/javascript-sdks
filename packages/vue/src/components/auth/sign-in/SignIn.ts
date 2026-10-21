@@ -246,7 +246,7 @@ const SignIn: Component = defineComponent({
           'vue',
         );
         setError(err);
-        throw err;
+        return;
       }
 
       try {

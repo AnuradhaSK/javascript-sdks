@@ -15,7 +15,13 @@ import {
 // and useState from '#app'.  We stub all three so the tests run in pure Node.
 
 let _navigateToTarget: string | undefined;
-let _authState = {isSignedIn: false, user: null as Record<string, unknown> | null, isLoading: false};
+let _authState = {
+  isSignedIn: false,
+  user: null as Record<string, unknown> | null,
+  isLoading: false,
+  organizationId: undefined as string | undefined,
+  scopes: undefined as string | undefined,
+};
 
 vi.mock('#app', () => {
   const navigateTo = vi.fn(async (url: string) => {
@@ -46,7 +52,7 @@ const makeTo = (fullPath = '/dashboard') => ({fullPath});
 
 beforeEach(() => {
   _navigateToTarget = undefined;
-  _authState = {isSignedIn: false, user: null, isLoading: false};
+  _authState = {isSignedIn: false, user: null, isLoading: false, organizationId: undefined, scopes: undefined};
 });
 
 describe('defineThunderIDMiddleware', () => {
@@ -73,7 +79,13 @@ describe('defineThunderIDMiddleware', () => {
 
   describe('authenticated user', () => {
     beforeEach(() => {
-      _authState = {isSignedIn: true, user: {organizationId: 'org1', scopes: 'openid profile'}, isLoading: false};
+      _authState = {
+        isSignedIn: true,
+        user: {sub: 'user1'},
+        isLoading: false,
+        organizationId: 'org1',
+        scopes: 'openid profile',
+      };
     });
 
     it('allows access when signed in', async () => {
@@ -89,6 +101,17 @@ describe('defineThunderIDMiddleware', () => {
       expect(_navigateToTarget).toBeUndefined();
     });
 
+    it('reads the scopes granted to the session, not a scopes field on the user', async () => {
+      _authState.user = {scopes: 'admin'};
+      _authState.scopes = 'openid profile';
+
+      await (defineThunderIDMiddleware({requireScopes: ['openid', 'profile']}) as Function)(makeTo('/a'), makeTo('/'));
+      expect(_navigateToTarget).toBeUndefined();
+
+      await (defineThunderIDMiddleware({requireScopes: ['admin']}) as Function)(makeTo('/a'), makeTo('/'));
+      expect(_navigateToTarget).toBeDefined();
+    });
+
     it('redirects when a required scope is missing', async () => {
       const middleware = defineThunderIDMiddleware({requireScopes: ['admin']});
       await (middleware as Function)(makeTo('/admin'), makeTo('/'));
@@ -101,8 +124,21 @@ describe('defineThunderIDMiddleware', () => {
       expect(_navigateToTarget).toBeUndefined();
     });
 
+    it('reads the organization of the session, not an organizationId field on the user', async () => {
+      _authState.user = {organizationId: 'org-from-user'};
+      _authState.organizationId = undefined;
+      await (defineThunderIDMiddleware({requireOrganization: true}) as Function)(makeTo('/o'), makeTo('/'));
+      expect(_navigateToTarget).toBeDefined();
+
+      _navigateToTarget = undefined;
+      _authState.user = {sub: 'user1'};
+      _authState.organizationId = 'org1';
+      await (defineThunderIDMiddleware({requireOrganization: true}) as Function)(makeTo('/o'), makeTo('/'));
+      expect(_navigateToTarget).toBeUndefined();
+    });
+
     it('redirects when requireOrganization is true but organizationId is absent', async () => {
-      _authState.user = {email: 'user@example.com'}; // no organizationId
+      _authState.organizationId = undefined;
       const middleware = defineThunderIDMiddleware({requireOrganization: true});
       await (middleware as Function)(makeTo('/org-page'), makeTo('/'));
       expect(_navigateToTarget).toBeDefined();

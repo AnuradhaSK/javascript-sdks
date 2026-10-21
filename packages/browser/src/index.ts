@@ -59,7 +59,7 @@ export type {ResolvedLogo, ResolvedLogoKind} from './utils/resolveLogoUri';
 
 // Theme
 export {detectThemeMode, createClassObserver, createMediaQueryListener} from './theme/themeDetection';
-export type {BrowserThemeDetection} from './theme/themeDetection';
+export type {BrowserThemeDetection, MediaQueryListener} from './theme/themeDetection';
 export {default as getActiveTheme} from './theme/getActiveTheme';
 export {default as normalizeBorderRadius} from './theme/normalizeBorderRadius';
 

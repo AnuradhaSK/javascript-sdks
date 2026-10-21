@@ -128,7 +128,8 @@ app.get('/api/id-token', protect(unauthenticated), async (req: Request, res: Res
 // #endregion
 
 // #region refresh
-// Not behind protect(): a session whose access token expired is exactly the one to refresh.
+// Not behind protect(), which would already have refreshed an expired access token: this route
+// calls client.refreshAccessToken() on the session as it is.
 app.post('/api/token/refresh', async (req: Request, res: Response) => {
   const sessionId = sessionOf(req);
   if (!sessionId) {

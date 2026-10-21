@@ -47,9 +47,9 @@ export interface ThunderIDClient<T> {
 
   /**
    * Gets the client configuration.
-   * @returns The client configuration.
+   * @returns A promise that resolves to the client configuration.
    */
-  getConfiguration(): T;
+  getConfiguration(): Promise<T>;
 
   /**
    * Gets user information from the session.

@@ -4,7 +4,10 @@
 import {Crypto, JWKInterface} from '@thunderid/javascript';
 import base64url from 'base64url';
 import sha256 from 'fast-sha256';
-import * as jose from 'jose';
+import type {CryptoKey} from 'jose';
+// Subpath imports keep jose's JWE code, whose CompressionStream use the Edge runtime rejects, out of the bundle.
+import {importJWK} from 'jose/key/import';
+import {jwtVerify} from 'jose/jwt/verify';
 import randombytes from 'secure-random-bytes';
 
 /**
@@ -37,16 +40,14 @@ class NodeCryptoUtils implements Crypto<Buffer | string> {
     subject: string,
     clockTolerance?: number,
   ): Promise<boolean> {
-    const key: jose.CryptoKey | Uint8Array = await jose.importJWK(jwk);
-    return jose
-      .jwtVerify(idToken, key, {
-        algorithms,
-        audience: [clientId],
-        clockTolerance,
-        issuer,
-        subject,
-      })
-      .then(() => Promise.resolve(true));
+    const key: CryptoKey | Uint8Array = await importJWK(jwk);
+    return jwtVerify(idToken, key, {
+      algorithms,
+      audience: [clientId],
+      clockTolerance,
+      issuer,
+      subject,
+    }).then(() => Promise.resolve(true));
   }
 }
 

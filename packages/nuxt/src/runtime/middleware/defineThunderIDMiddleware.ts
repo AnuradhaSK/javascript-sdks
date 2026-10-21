@@ -62,14 +62,12 @@ export function defineThunderIDMiddleware(
       return navigateTo(`${redirectTo}?returnTo=${returnTo}`, {external: true});
     }
 
-    const user: Record<string, unknown> | null = authState.value.user as Record<string, unknown> | null;
-
-    if (requireOrganization && !user?.organizationId) {
+    if (requireOrganization && !authState.value.organizationId) {
       return navigateTo(redirectTo, {external: true});
     }
 
     if (requireScopes.length > 0) {
-      const sessionScopes: string[] = String(user?.scopes ?? '').split(' ');
+      const sessionScopes: string[] = (authState.value.scopes ?? '').split(' ');
       const hasAllScopes: boolean = requireScopes.every((s: string) => sessionScopes.includes(s));
       if (!hasAllScopes) {
         return navigateTo(redirectTo, {external: true});

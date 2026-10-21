@@ -38,15 +38,14 @@ pnpm --filter @thunderid/playground-react dev
 Open http://localhost:5173. After changing SDK source, rebuild that package (for example
 `pnpm --filter @thunderid/react build`) and reload.
 
-| Variable                                                                | Purpose                                                                                           |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `VITE_THUNDERID_BASE_URL`                                               | ThunderID server. Defaults to `https://localhost:8090`.                                           |
-| `VITE_THUNDERID_CLIENT_ID`                                              | Client ID of the SPA application. Required for sign-in.                                           |
-| `VITE_THUNDERID_APPLICATION_ID`                                         | Application ID. Needed by `<SignIn />`, `<SignUp />`, `<Recovery />` and their checks.            |
-| `VITE_THUNDERID_AFTER_SIGN_IN_URL`, `VITE_THUNDERID_AFTER_SIGN_OUT_URL` | Redirect targets. Default to the app origin.                                                      |
-| `VITE_THUNDERID_SCOPES`                                                 | Space separated scopes. Defaults to `openid profile email`.                                       |
-| `VITE_THUNDERID_STORAGE`                                                | `sessionStorage`, `localStorage`, or `browserMemory`. Unset uses the SDK default.                 |
-| `VITE_PLAYGROUND_EXPRESS_URL`                                           | Where the SDK switcher sends you for the Express playground. Defaults to `http://localhost:3000`. |
+| Variable                                                                | Purpose                                                                                |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `VITE_THUNDERID_BASE_URL`                                               | ThunderID server. Defaults to `https://localhost:8090`.                                |
+| `VITE_THUNDERID_CLIENT_ID`                                              | Client ID of the SPA application. Required for sign-in.                                |
+| `VITE_THUNDERID_APPLICATION_ID`                                         | Application ID. Needed by `<SignIn />`, `<SignUp />`, `<Recovery />` and their checks. |
+| `VITE_THUNDERID_AFTER_SIGN_IN_URL`, `VITE_THUNDERID_AFTER_SIGN_OUT_URL` | Redirect targets. Default to the app origin.                                           |
+| `VITE_THUNDERID_SCOPES`                                                 | Space separated scopes. Defaults to `openid profile email`.                            |
+| `VITE_THUNDERID_STORAGE`                                                | `sessionStorage`, `localStorage`, or `browserMemory`. Unset uses the SDK default.      |
 
 Without a server or a client ID the app still runs: checks that need one fail with the reason.
 
@@ -67,4 +66,5 @@ The playground reports these instead of faking them:
   start/finish/error) would let apps and this log subscribe directly.
 - No manual token refresh or access token expiry on the context. The session card reads expiry from
   `getStorageManager().getSessionData()`, and "Renew silently" uses `signInSilently()`.
-- `user`, `signIn`, `signOut`, `signUp`, `recover`, and `getStorageManager` are typed as `any`; see `src/lib/sdk.ts`.
+- `user`, `signIn`, `signOut`, and `signUp` are typed as `any` (`@thunderid/nextjs` implements the same context with
+  different shapes); see `src/lib/sdk.ts`.

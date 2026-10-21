@@ -14,7 +14,7 @@ import {
 } from '@nuxt/kit';
 import type {Nuxt} from '@nuxt/schema';
 import {VendorConstants} from '@thunderid/node';
-import {defu} from 'defu';
+import {createDefu} from 'defu';
 import NuxtAPIRoutes from './runtime/constants/NuxtAPIRoutes';
 import type {ThunderIDNuxtConfig, ThunderIDSessionPayload, ThunderIDSSRData} from './runtime/types';
 import getEnabledResourcePickers from './runtime/utils/getEnabledResourcePickers';
@@ -22,6 +22,18 @@ import getEnabledResourcePickers from './runtime/utils/getEnabledResourcePickers
 type ViteUserConfig = Parameters<Parameters<typeof extendViteConfig>[0]>[0];
 
 const PACKAGE_NAME = '@thunderid/nuxt';
+
+// `defu` concatenates arrays, which would add the default scopes to the scopes the application lists. A list given at a
+// higher layer replaces the one below it instead.
+const defu: ReturnType<typeof createDefu> = createDefu(
+  (object: Record<string, unknown>, key: string | number | symbol, value: unknown): boolean => {
+    if (Array.isArray(value)) {
+      object[key as string] = value;
+      return true;
+    }
+    return false;
+  },
+);
 
 interface ServerRoute {
   handler: string;
@@ -57,6 +69,9 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       {
         afterSignInUrl: '/',
         afterSignOutUrl: '/',
+        // An empty string keeps the key in the built runtime config, so NUXT_PUBLIC_THUNDERID_BASE_URL can still set it
+        // at runtime when nuxt.config has none.
+        baseUrl: '',
         scopes: ['openid', 'profile'],
         vendor: VendorConstants.VENDOR_PREFIX,
       },
@@ -283,19 +298,21 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     // ── Auth callback ────────────────────────────────────────────────────────
     addComponent({filePath: resolve('./runtime/components/auth/Callback'), name: 'Callback'});
 
-    // Tell Vite to pre-bundle the CJS-only packages that @thunderid/browser,
-    // @thunderid/javascript, and @thunderid/vue carry as external dependencies.
+    // Tell Vite to pre-bundle @thunderid/browser, @thunderid/javascript, and @thunderid/vue, and the CJS-only packages
+    // they carry as external dependencies.
     // Without this, Vite serves them raw from disk via @fs URLs and fails with
     // "Export 'X' is not defined in module" errors when installed from npm.
     // This is only needed for the client Vite build; Nitro handles the server.
     extendViteConfig(
       (viteConfig: ViteUserConfig) => {
+        // The application depends on @thunderid/nuxt only, so each package is resolved through the package that
+        // depends on it (Vite's nested `a > b` syntax) rather than from the application root.
         const deps: string[] = [
-          '@thunderid/browser',
-          '@thunderid/javascript',
-          '@thunderid/vue',
-          'base64url',
-          'fast-sha256',
+          `${PACKAGE_NAME} > @thunderid/browser`,
+          `${PACKAGE_NAME} > @thunderid/browser > @thunderid/javascript`,
+          `${PACKAGE_NAME} > @thunderid/vue`,
+          `${PACKAGE_NAME} > @thunderid/browser > base64url`,
+          `${PACKAGE_NAME} > @thunderid/browser > fast-sha256`,
         ];
 
         const existingInclude: string[] = viteConfig.optimizeDeps?.include! ?? [];
