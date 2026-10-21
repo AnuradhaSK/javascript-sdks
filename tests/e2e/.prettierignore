@@ -1,3 +1,6 @@
 # Go-template + YAML hybrids (ThunderID's declarative /import format) — not valid YAML on their
 # own, only once the {{ }} placeholders are rendered server-side.
 thunderid-config/**/*.yaml
+
+# Quickstarts fetched from thunder-id/samples, formatted by that repository.
+.samples/

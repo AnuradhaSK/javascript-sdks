@@ -5,8 +5,11 @@
 pnpm + Turborepo monorepo of TypeScript SDKs under `packages/`: a framework-agnostic core
 (`@thunderid/javascript`), a browser layer (`@thunderid/browser`), a server layer (`@thunderid/node`), and
 framework SDKs built on top of those (`react`, `vue`, `nuxt`, `nextjs`, `express`, `react-router`,
-`tanstack-router`). `samples/<framework>/quickstart` directories contain standalone demo apps — not part of
-any published package.
+`tanstack-router`). The per-framework quickstarts live in
+[thunder-id/samples](https://github.com/thunder-id/samples) and depend on the published packages; the E2E
+suite fetches them into `tests/e2e/.samples` and wires them to this workspace's builds
+(`tests/e2e/scripts/prepare-samples.ts`). `samples/integrations/` holds integration samples that are not
+part of any published package.
 
 ## SDK development specification
 
@@ -112,5 +115,7 @@ packages/
   express/          Express middleware
   react-router/     React Router integration
   tanstack-router/  TanStack Router integration
-samples/            Standalone quickstart demo apps, one per framework
+playgrounds/        Playground apps that exercise the SDKs from source (not published)
+samples/            Integration samples (quickstarts live in thunder-id/samples)
+tests/e2e/          Playwright suite driving the quickstarts against a real ThunderID server
 ```

@@ -1,6 +1,6 @@
 packages:
   - packages/*
-  - samples/*/*
+  - playgrounds/*
   - samples/integrations/*/*
   - tests/*
 
@@ -14,9 +14,9 @@ allowBuilds:
 
 overrides:
   # JUSTIFICATION: Fixes GHSA-v422-hmwv-36x6 — body-parser silently disables its size limit on an
-  # invalid `limit` value, allowing a DoS. Transitive via samples/express/quickstart's `express`
-  # dependency (express > body-parser). express@4's own body-parser range (~1.20.5) already
-  # permits 1.20.6; remove once a fresh install picks it up without the override.
+  # invalid `limit` value, allowing a DoS. Transitive via packages/express's `express`
+  # devDependency (express > body-parser). express's own body-parser range already permits
+  # 1.20.6; remove once a fresh install picks it up without the override.
   body-parser: 1.20.6
   # JUSTIFICATION: Fixes GHSA-x5fp-wj9c-mxmx (array-limit bypass via bracket-key comma parsing) /
   # GHSA-4mjr-xmp4-gh2g (DoS via attacker-controlled isBuffer). Transitive via body-parser's own
@@ -41,7 +41,7 @@ overrides:
   # JUSTIFICATION: Fixes GHSA-j22f-vq7h-c4qm / GHSA-mcm9-63f2-9j32 / GHSA-x5rw-q4pp-hg5g — devalue
   # `stringify`/`uneval` serializing shared memory, quadratic expansion of repeated primitive
   # strings in `uneval`, and an unhandled rejection from `stringifyAsync`. Transitive via
-  # packages/nuxt and samples/nuxt/quickstart's `nuxt` and `@nuxt/nitro-server`. Added 2026-10-02;
+  # packages/nuxt's `nuxt` and `@nuxt/nitro-server`. Added 2026-10-02;
   # remove once nuxt's own lockfile entry resolves devalue >=5.9.3 without the override.
   devalue: 5.9.4
   # JUSTIFICATION: Fixes GHSA-52cp-r559-cp3m / GHSA-5p4m-2wfm-xmqj — js-yaml quadratic CPU
@@ -60,8 +60,8 @@ overrides:
   nanoid@5: 5.1.16
   # JUSTIFICATION: Fixes GHSA-qx2v-qp2m-jg93 (XSS via unescaped `</style>` in stringify output),
   # GHSA-6g55-p6wh-862q / GHSA-r28c-9q8g-f849 / GHSA-fxqj-rqcc-2cmp (arbitrary file read via
-  # attacker-controlled `sourceMappingURL`). Transitive via packages/nextjs and
-  # samples/nextjs/quickstart's `next` dependency, which still bundles `postcss@8.4.31` internally
+  # attacker-controlled `sourceMappingURL`). Transitive via packages/nextjs's `next` dependency,
+  # which still bundles `postcss@8.4.31` internally
   # even on the latest 15.5.x release — this is a genuine upstream lag, not a stale lockfile; keep
   # the override until Next.js bumps its own postcss pin (https://github.com/vercel/next.js).
   postcss: 8.5.23
@@ -99,7 +99,7 @@ overrides:
   # JUSTIFICATION: Fixes 5 node-tar advisories (GHSA-w8wr-v893-vjvp, GHSA-23hp-3jrh-7fpw,
   # GHSA-8x88-c5mf-7j5w, GHSA-gvwx-54wh-qm9j, GHSA-r292-9mhp-454m) — PAX path/NUL-byte parsing
   # crashes, an unbounded-decompression DoS, and a mapHas/filesFilter stack-overflow DoS. Transitive
-  # via packages/nuxt and samples/nuxt/quickstart's SSR build tooling
+  # via packages/nuxt's SSR build tooling
   # (`nuxt` > `@nuxt/nitro-server` > `nitropack` > `@vercel/nft` > `@mapbox/node-pre-gyp` > `tar`).
   # `@mapbox/node-pre-gyp`@latest already depends on `tar: ^7.4.0`, which permits 7.5.21 — this pin
   # can likely be dropped once nitropack/@vercel/nft's own lockfile entries are refreshed.
@@ -111,10 +111,10 @@ auditConfig:
     # only when running on Windows with the dev/serve command exposed on the network; it does not
     # affect `vite build`/`vitest run` output. Transitive via `vitest` > `vite` > `esbuild`
     # (pulled into every package that runs vitest). The only patched line is 0.28.x, and
-    # overriding to it breaks samples/vue/quickstart's production build: esbuild 0.28 dropped
-    # object-destructuring transform support for the sample's configured legacy browser targets
-    # (chrome87/edge88/firefox78/safari14). Revisit once esbuild backports the fix to 0.27.x or
-    # the sample's target list is modernized.
+    # overriding to it broke the Vue quickstart's production build (the quickstart now lives in
+    # thunder-id/samples): esbuild 0.28 dropped object-destructuring transform support for its
+    # configured legacy browser targets (chrome87/edge88/firefox78/safari14). Revisit whether the
+    # override now holds for the packages alone, or once esbuild backports the fix to 0.27.x.
     - GHSA-g7r4-m6w7-qqqr
     # JUSTIFICATION: GHSA-86w9-cpqp-85rv — node-forge accepts extra nested DigestAlgorithm elements
     # during RSA PKCS#1 v1.5 signature verification. No patched release exists (1.4.0 is the
@@ -134,7 +134,7 @@ auditConfig:
     # GHSA-v5rq-49vh-5v5c (`@simple-git/argv-parser`) — simple-git's unsafe-operations guard can be
     # bypassed (`trailer.<token>.cmd`, config includes, long-option abbreviations, `VISUAL`), but
     # only when untrusted values reach `SimpleGitOptions.config` or the arguments passed to git.
-    # Transitive via packages/nuxt and samples/nuxt/quickstart's `nuxt` > `@nuxt/devtools` >
+    # Transitive via packages/nuxt's `nuxt` > `@nuxt/devtools` >
     # `simple-git`, where devtools (a dev-time tool) only runs `branch()`, `revparse(['--short',
     # 'HEAD'])` and `status()` with fixed arguments on the project's own checkout. The patched
     # 4.x line cannot be forced with an override: it drops the default export that

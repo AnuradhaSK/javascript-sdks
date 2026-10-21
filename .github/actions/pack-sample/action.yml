@@ -6,18 +6,16 @@ description: >
 
 inputs:
   sdk:
-    description: SDK slug matching the samples/ subdirectory (e.g. react, browser, node)
+    description: SDK slug used to name the zip file (e.g. better-auth)
     required: true
   version:
     description: Version being released (e.g. 1.2.3), used to name the zip file
     required: true
   path:
     description: >
-      Sample app directory, relative to the repo root. Defaults to samples/<sdk>/quickstart;
-      pass this for a sample that doesn't follow that convention (e.g. an integration sample
-      under samples/integrations/<sdk>/<framework>).
-    required: false
-    default: ''
+      Sample app directory, relative to the repo root (e.g. samples/integrations/<sdk>/<framework>).
+      The quickstarts live in thunder-id/samples, which releases them itself.
+    required: true
 
 outputs:
   archive:
@@ -41,7 +39,7 @@ runs:
         PACK_DIR="$(mktemp -d)"
         trap 'rm -rf "$PACK_DIR"' EXIT
 
-        cd "${SAMPLE_PATH:-samples/${SDK}/quickstart}"
+        cd "${SAMPLE_PATH}"
         pnpm pack --pack-destination "${PACK_DIR}"
         cd "${DEST_DIR}"
 

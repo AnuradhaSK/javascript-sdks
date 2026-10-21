@@ -5,7 +5,7 @@ import thunderIdPlugin from '@thunderid/eslint-plugin';
 
 export default [
   {
-    ignores: ['dist/**', 'build/**', 'node_modules/**', 'coverage/**'],
+    ignores: ['dist/**', 'build/**', 'node_modules/**', 'coverage/**', 'tests/e2e/.samples/**'],
   },
   ...thunderIdPlugin.configs.typescript,
   {

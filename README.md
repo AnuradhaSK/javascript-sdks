@@ -18,6 +18,16 @@ JavaScript SDKs for ThunderID. Provides authentication and user management for b
 | [`@thunderid/tanstack-router`](packages/tanstack-router) | ![npm](https://img.shields.io/npm/v/@thunderid/tanstack-router) | TanStack Router integration |
 | [`@thunderid/better-auth`](packages/better-auth) | ![npm](https://img.shields.io/npm/v/@thunderid/better-auth) | Better Auth provider helper |
 
+## Playgrounds
+
+Apps under [`playgrounds/`](playgrounds) exercise the SDKs from the source in this workspace. Build the SDKs with
+`pnpm build`, then start one:
+
+| Playground | Run | What it shows |
+|---|---|---|
+| [Express](playgrounds/express) | `pnpm --filter @thunderid/playground-express dev` | API explorer for the `@thunderid/express` handlers and protected routes, with an SDK trace |
+| [React](playgrounds/react) | `pnpm --filter @thunderid/playground-react dev` | Capability checks, a component explorer for the `@thunderid/react` components, and live hooks and tokens |
+
 ## Contributing
 
 Please refer to the [Contributing Guide](https://thunderid.dev/community/overview) for the different ways to contribute to this project and the relevant guidelines.

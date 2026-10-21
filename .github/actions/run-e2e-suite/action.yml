@@ -1,7 +1,8 @@
 name: Run E2E Suite
 description: >
-  Installs and starts a local ThunderID release, imports the sample apps' OAuth2 clients, starts
-  all six sample apps against the workspace's own SDK packages, and runs the Playwright E2E suite
+  Installs and starts a local ThunderID release, imports the sample apps' OAuth2 clients, fetches
+  the quickstarts from thunder-id/samples, starts all six against the workspace's own SDK packages,
+  and runs the Playwright E2E suite
   against them. Shared by pr-builder.yml's label-gated `e2e` job and nightly.yml's scheduled
   run against the latest ThunderID release — the two differ only in trigger, not in what they run.
   Requires the repo to already be checked out (a local composite action can't check itself out).
@@ -44,9 +45,15 @@ runs:
 
     - name: 🔨 Build SDK Packages
       shell: bash
-      # Sample apps consume workspace:* SDK packages — this is what actually puts the PR's
-      # changes under test.
+      # prepare-samples.ts packs these builds into the sample apps — this is what actually puts
+      # the PR's changes under test.
       run: pnpm build
+
+    - name: 📥 Fetch Sample Apps
+      shell: bash
+      # Copies each quickstart from thunder-id/samples into tests/e2e/.samples and pins its
+      # @thunderid/* dependencies to tarballs of the packages built above.
+      run: node tests/e2e/scripts/prepare-samples.ts
 
     - name: 🚀 Install, Set up, and Start ThunderID (Latest, via npx)
       id: install
@@ -211,12 +218,10 @@ runs:
       shell: bash
       # Each app needs its own OAuth2 client wired in before it starts (see the OAuth2 clients
       # imported above). The apps' own `prepare-dev.cjs --flow=redirect` helper looks like the
-      # natural fit for nextjs/nuxt but isn't: it rewrites the sample's checked-in package.json
-      # (workspace:* -> latest, defeating the point of testing this PR's own SDK changes) and
-      # blanks any value matching its own placeholders — including the literal string
-      # `https://localhost:8090`, which is also our real server URL. Writing each .env directly
-      # sidesteps both; variable names come from each app's own scripts/prepare-dev.cjs
-      # (native-flow-only vars for nextjs/nuxt are omitted).
+      # natural fit for nextjs/nuxt but isn't: it blanks any value matching its own placeholders,
+      # including the literal string `https://localhost:8090`, which is also our real server URL.
+      # Writing each .env directly sidesteps that; variable names come from each app's own
+      # scripts/prepare-dev.cjs (native-flow-only vars for nextjs/nuxt are omitted).
       run: |
         NEXTJS_SECRET=$(openssl rand -base64 32)
         NUXT_SECRET=$(openssl rand -base64 32)
@@ -226,32 +231,32 @@ runs:
           printf '%s\n' "$@" > "$file"
         }
 
-        write_env samples/browser/quickstart/.env \
+        write_env tests/e2e/.samples/quickstarts/browser/.env \
           "VITE_THUNDERID_BASE_URL=https://localhost:8090" \
           "VITE_THUNDERID_CLIENT_ID=JS_SDK_E2E_BROWSER"
 
-        write_env samples/react/quickstart/.env \
+        write_env tests/e2e/.samples/quickstarts/react/.env \
           "VITE_THUNDERID_BASE_URL=https://localhost:8090" \
           "VITE_THUNDERID_CLIENT_ID=JS_SDK_E2E_REACT"
 
-        write_env samples/vue/quickstart/.env \
+        write_env tests/e2e/.samples/quickstarts/vue/.env \
           "VITE_THUNDERID_BASE_URL=https://localhost:8090" \
           "VITE_THUNDERID_CLIENT_ID=JS_SDK_E2E_VUE"
 
-        write_env samples/express/quickstart/.env \
+        write_env tests/e2e/.samples/quickstarts/express/.env \
           "THUNDERID_BASE_URL=https://localhost:8090" \
           "THUNDERID_CLIENT_ID=JS_SDK_E2E_EXPRESS" \
           "THUNDERID_CLIENT_SECRET=e2e-express-secret" \
           "NODE_TLS_REJECT_UNAUTHORIZED=0"
 
-        write_env samples/nextjs/quickstart/.env \
+        write_env tests/e2e/.samples/quickstarts/nextjs/.env \
           "NEXT_PUBLIC_THUNDERID_BASE_URL=https://localhost:8090" \
           "NEXT_PUBLIC_THUNDERID_CLIENT_ID=JS_SDK_E2E_NEXTJS" \
           "THUNDERID_CLIENT_SECRET=e2e-nextjs-secret" \
           "THUNDERID_SECRET=${NEXTJS_SECRET}" \
           "NODE_TLS_REJECT_UNAUTHORIZED=0"
 
-        write_env samples/nuxt/quickstart/.env \
+        write_env tests/e2e/.samples/quickstarts/nuxt/.env \
           "NUXT_PUBLIC_THUNDERID_BASE_URL=https://localhost:8090" \
           "NUXT_PUBLIC_THUNDERID_CLIENT_ID=JS_SDK_E2E_NUXT" \
           "THUNDERID_CLIENT_SECRET=e2e-nuxt-secret" \
@@ -261,12 +266,12 @@ runs:
     - name: 🚀 Start Sample Apps
       shell: bash
       run: |
-        ( cd samples/browser/quickstart && pnpm exec vite --port 5173 & )
-        ( cd samples/react/quickstart && pnpm exec vite --port 5174 & )
-        ( cd samples/vue/quickstart && pnpm exec vite --port 5175 & )
-        ( cd samples/nextjs/quickstart && pnpm exec next dev -p 3001 & )
-        ( cd samples/nuxt/quickstart && pnpm exec nuxt dev --port 3002 & )
-        ( cd samples/express/quickstart && pnpm exec node --env-file-if-exists=.env index.mjs & )
+        ( cd tests/e2e/.samples/quickstarts/browser && pnpm exec vite --port 5173 & )
+        ( cd tests/e2e/.samples/quickstarts/react && pnpm exec vite --port 5174 & )
+        ( cd tests/e2e/.samples/quickstarts/vue && pnpm exec vite --port 5175 & )
+        ( cd tests/e2e/.samples/quickstarts/nextjs && pnpm exec next dev -p 3001 & )
+        ( cd tests/e2e/.samples/quickstarts/nuxt && pnpm exec nuxt dev --port 3002 & )
+        ( cd tests/e2e/.samples/quickstarts/express && pnpm exec node --env-file-if-exists=.env index.mjs & )
         for url in http://localhost:5173 http://localhost:5174 http://localhost:5175 http://localhost:3000 http://localhost:3001 http://localhost:3002; do
           ready=0
           for i in $(seq 1 60); do
@@ -299,7 +304,7 @@ runs:
         NEXTJS_APP_URL: http://localhost:3001
         NUXT_APP_URL: http://localhost:3002
         EXPRESS_APP_URL: http://localhost:3000
-        # node/quickstart has no page to drive — client-credentials.spec.ts spawns it directly
+        # quickstarts/node has no page to drive — client-credentials.spec.ts spawns it directly
         # with `env: process.env`, so its credentials just need to be here, not a .env file.
         THUNDERID_BASE_URL: https://localhost:8090
         THUNDERID_CLIENT_ID: JS_SDK_E2E_NODE

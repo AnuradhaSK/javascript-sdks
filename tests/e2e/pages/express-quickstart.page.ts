@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * express/quickstart Page Object — server-rendered Express app + @thunderid/express, cookie
+ * quickstarts/express Page Object — server-rendered Express app + @thunderid/express, cookie
  * session. No client SDK, plain server-rendered markup (a native <details> dropdown), so its own
- * selectors: see samples/express/quickstart/lib/layout.mjs.
+ * selectors: see thunder-id/samples quickstarts/express/lib/layout.mjs.
  */
 
 import {Page, expect} from '@playwright/test';
@@ -55,7 +55,7 @@ export class ExpressQuickstartPage extends GateLoginPage {
   }
 
   /** Reads the raw access token JWT rendered across the three .token-part--* spans — see
-   * samples/express/quickstart/index.mjs's /token handler. */
+   * thunder-id/samples quickstarts/express/index.mjs's /token handler. */
   async getDisplayedAccessToken(): Promise<string> {
     const raw = this.page.locator('.token-raw');
     await raw.waitFor({state: 'visible', timeout: Timeouts.ELEMENT_VISIBILITY});

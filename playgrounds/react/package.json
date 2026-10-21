@@ -1,0 +1,35 @@
+{
+  "name": "@thunderid/playground-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Playground for exercising every @thunderid/react capability against a local ThunderID server.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx,.cjs,.mjs",
+    "lint:fix": "eslint . --fix --ext .js,.jsx,.ts,.tsx,.cjs,.mjs",
+    "format:check": "prettier --check --cache .",
+    "format:fix": "prettier --write --cache ."
+  },
+  "dependencies": {
+    "@thunderid/browser": "workspace:*",
+    "@thunderid/react": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@thunderid/eslint-plugin": "catalog:",
+    "@thunderid/prettier-config": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "^4.5.2",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "vite": "^6.3.5"
+  }
+}
