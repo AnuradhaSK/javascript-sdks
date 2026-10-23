@@ -15,6 +15,9 @@ import {
   FlowMetadataResponse,
   Preferences,
   logger,
+  CONSENT_INVALID_KEY_PREFIX,
+  CONSENT_MODIFIED_KEY_PREFIX,
+  getConsentElementDecision,
 } from '@thunderid/browser';
 import {FC, ReactElement, useState, useEffect, useRef, ReactNode} from 'react';
 // eslint-disable-next-line import/no-named-as-default
@@ -23,6 +26,7 @@ import useThunderID from '../../../contexts/ThunderID/useThunderID';
 import {useOAuthCallback} from '../../../hooks/auth/useOAuthCallback';
 import useTranslation from '../../../hooks/useTranslation';
 import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
+import isConsentApprovalBlocked from '../../../utils/isConsentApprovalBlocked';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
 import {handlePasskeyAuthentication, handlePasskeyRegistration} from '../../../utils/passkey';
 
@@ -778,6 +782,12 @@ const SignIn: FC<SignInProps> = ({
           isDeny = true;
         }
 
+        // Approval waits while an approved authorization detail shows a value that cannot be submitted
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        if (!isDeny && isConsentApprovalBlocked(purposes, processedInputs)) {
+          return;
+        }
+
         // An explicit denial carries a reason too, so the server never has to infer one
         const reason: string | undefined = consentReason ?? (isDeny ? ConsentConstants.REASON_USER_DENIED : undefined);
 
@@ -793,10 +803,9 @@ const SignIn: FC<SignInProps> = ({
               })),
               ...(p.optional || []).map((e: any) => {
                 const key = `__consent_opt__${p.purposeId}__${e.name}`;
-                return {
-                  approved: !isDeny && processedInputs[key] === 'true',
-                  name: e.name,
-                };
+                const approved: boolean = !isDeny && processedInputs[key] === 'true';
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+                return getConsentElementDecision(p.purposeId, e, approved, processedInputs);
               }),
             ],
             purposeName: p.purposeName,
@@ -806,7 +815,11 @@ const SignIn: FC<SignInProps> = ({
 
         // Cleanup temporary consent tracking fields from inputs
         Object.keys(processedInputs).forEach((key: string) => {
-          if (key.startsWith('__consent_opt__')) {
+          if (
+            key.startsWith('__consent_opt__') ||
+            key.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
+            key.startsWith(CONSENT_INVALID_KEY_PREFIX)
+          ) {
             delete processedInputs[key];
           }
         });

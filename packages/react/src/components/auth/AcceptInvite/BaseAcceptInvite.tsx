@@ -8,6 +8,9 @@ import {
   FlowMetadataResponse,
   Preferences,
   buildValidatorFromRules,
+  CONSENT_INVALID_KEY_PREFIX,
+  CONSENT_MODIFIED_KEY_PREFIX,
+  getConsentElementDecision,
 } from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import useStyles from './BaseAcceptInvite.styles';
@@ -20,6 +23,7 @@ import {useOAuthCallback} from '../../../hooks/auth/useOAuthCallback';
 import useTranslation from '../../../hooks/useTranslation';
 import {cx} from '../../../styles/emotion';
 import {normalizeFlowResponse, extractErrorMessage} from '../../../utils/flowTransformer';
+import isConsentApprovalBlocked from '../../../utils/isConsentApprovalBlocked';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
 import AlertPrimitive from '../../primitives/Alert/Alert';
 import Button from '../../primitives/Button/Button';
@@ -553,6 +557,11 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
             const raw: any = currentAdditionalData['consentPrompt'];
             const purposes: any[] = typeof raw === 'string' ? JSON.parse(raw) : raw.purposes || raw;
             const isDeny = component?.variant?.toLowerCase() !== 'primary';
+            // Approval waits while an approved authorization detail shows a value that cannot be submitted
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+            if (!isDeny && isConsentApprovalBlocked(purposes, inputs)) {
+              return;
+            }
             const decisions = {
               approved: !isDeny,
               ...(isDeny ? {reason: ConsentConstants.REASON_USER_DENIED} : {}),
@@ -563,14 +572,22 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
                   ...(p.essential || []).map((e: any) => ({approved: !isDeny, name: e.name})),
                   ...(p.optional || []).map((e: any) => {
                     const key = `__consent_opt__${p.purposeId}__${e.name}`;
-                    return {approved: !isDeny && inputs[key] === 'true', name: e.name};
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+                    return getConsentElementDecision(p.purposeId, e, !isDeny && inputs[key] === 'true', inputs);
                   }),
                 ],
               })),
             };
             inputs.consent_decisions = JSON.stringify(decisions);
             Object.keys(inputs).forEach((k: string) => {
-              if (k.startsWith('__consent_opt__')) delete inputs[k];
+              if (
+                k.startsWith('__consent_opt__') ||
+                k.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
+                k.startsWith(CONSENT_INVALID_KEY_PREFIX)
+              ) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                delete inputs[k];
+              }
             });
           } catch {
             // Leave inputs as-is if consent building fails

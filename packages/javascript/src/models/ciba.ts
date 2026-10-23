@@ -1,6 +1,8 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import type {AuthorizationDetail} from './oauth-request';
+
 /**
  * Options for initiating a CIBA backchannel authentication request (CIBA Core 1.0 §7.1).
  * Exactly one of loginHint, loginHintToken, or idTokenHint must be provided.
@@ -41,6 +43,12 @@ export interface CIBAInitiateOptions {
    * authentication context the authorization server is requested to use.
    */
   acrValues?: string;
+
+  /**
+   * RFC 9396 authorization details to request, sent JSON-encoded as the authorization_details
+   * parameter. Takes precedence over the authorizationDetails configuration.
+   */
+  authorizationDetails?: AuthorizationDetail[];
 }
 
 /**
