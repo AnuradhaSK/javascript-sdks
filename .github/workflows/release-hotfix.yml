@@ -1,0 +1,315 @@
+# Hotfix release workflow for maintenance branches.
+#
+# A maintenance branch (e.g. `1.0.3-hotfix`) is cut from an older release, so the regular
+# bump-based release would collide with versions already published from main. Instead, this
+# publishes an explicit prerelease version (e.g. 1.0.3-hotfix.1) from that branch under a
+# non-`latest` dist-tag, so `npm install @thunderid/<pkg>` keeps resolving to the mainline release.
+
+name: 🩹 Hotfix Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Maintenance branch to release from (e.g. 1.0.3-hotfix)'
+        required: true
+        type: string
+
+      version:
+        description: 'Exact prerelease version to publish (e.g. 1.0.3-hotfix.1)'
+        required: true
+        type: string
+
+      dist_tag:
+        description: 'npm dist-tag (anything except `latest`)'
+        required: true
+        type: string
+        default: 'hotfix'
+
+      sdk_better_auth:
+        description: '@thunderid/better-auth'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_browser:
+        description: '@thunderid/browser'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_express:
+        description: '@thunderid/express'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_javascript:
+        description: '@thunderid/javascript'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_nextjs:
+        description: '@thunderid/nextjs'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_node:
+        description: '@thunderid/node'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_nuxt:
+        description: '@thunderid/nuxt'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_react:
+        description: '@thunderid/react'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_react_router:
+        description: '@thunderid/react-router'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_tanstack_router:
+        description: '@thunderid/tanstack-router'
+        required: false
+        type: boolean
+        default: false
+
+      sdk_vue:
+        description: '@thunderid/vue'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  # IMPORTANT: DO NOT REMOVE. `id-token` is required for OIDC publishing.
+  id-token: write
+
+concurrency:
+  group: hotfix-release-${{ inputs.branch }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_GIT_USER_NAME: "thunderid[bot]"
+  RELEASE_GIT_USER_EMAIL: "thunderid[bot]@users.noreply.thunderid.dev"
+  NODE_VERSION: "lts/*"
+  BRANCH: ${{ inputs.branch }}
+  VERSION: ${{ inputs.version }}
+  DIST_TAG: ${{ inputs.dist_tag }}
+
+jobs:
+  release:
+    name: 🩹 Release ${{ inputs.version }} from ${{ inputs.branch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 🛡️ Guard Branch
+        run: |
+          if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "${{ github.event.repository.default_branch }}" ]; then
+            echo "❌ Hotfix releases must come from a maintenance branch, not the default branch."
+            exit 1
+          fi
+
+      - name: 📥 Checkout Code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.branch }}
+          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+
+      - name: ✅ Validate Inputs
+        id: validate
+        env:
+          SDK_BETTER_AUTH: ${{ inputs.sdk_better_auth }}
+          SDK_JAVASCRIPT: ${{ inputs.sdk_javascript }}
+          SDK_NODE: ${{ inputs.sdk_node }}
+          SDK_BROWSER: ${{ inputs.sdk_browser }}
+          SDK_EXPRESS: ${{ inputs.sdk_express }}
+          SDK_REACT: ${{ inputs.sdk_react }}
+          SDK_VUE: ${{ inputs.sdk_vue }}
+          SDK_TANSTACK_ROUTER: ${{ inputs.sdk_tanstack_router }}
+          SDK_REACT_ROUTER: ${{ inputs.sdk_react_router }}
+          SDK_NEXTJS: ${{ inputs.sdk_nextjs }}
+          SDK_NUXT: ${{ inputs.sdk_nuxt }}
+        run: |
+          set -euo pipefail
+
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$ ]]; then
+            echo "❌ '$VERSION' is not a prerelease version (expected e.g. 1.0.3-hotfix.1)."
+            exit 1
+          fi
+
+          if [ "$DIST_TAG" = "latest" ] || ! [[ "$DIST_TAG" =~ ^[a-z][a-z0-9-]*$ ]]; then
+            echo "❌ Invalid dist-tag '$DIST_TAG'. It must not be 'latest'."
+            exit 1
+          fi
+
+          # Dependency order: a package is always published after the SDKs it depends on.
+          packages=""
+          [ "$SDK_BETTER_AUTH" = "true" ] && packages="$packages better-auth"
+          [ "$SDK_JAVASCRIPT" = "true" ] && packages="$packages javascript"
+          [ "$SDK_NODE" = "true" ] && packages="$packages node"
+          [ "$SDK_BROWSER" = "true" ] && packages="$packages browser"
+          [ "$SDK_EXPRESS" = "true" ] && packages="$packages express"
+          [ "$SDK_REACT" = "true" ] && packages="$packages react"
+          [ "$SDK_VUE" = "true" ] && packages="$packages vue"
+          [ "$SDK_TANSTACK_ROUTER" = "true" ] && packages="$packages tanstack-router"
+          [ "$SDK_REACT_ROUTER" = "true" ] && packages="$packages react-router"
+          [ "$SDK_NEXTJS" = "true" ] && packages="$packages nextjs"
+          [ "$SDK_NUXT" = "true" ] && packages="$packages nuxt"
+          packages="${packages# }"
+
+          if [ -z "$packages" ]; then
+            echo "❌ Select at least one SDK to release."
+            exit 1
+          fi
+
+          for pkg in $packages; do
+            if [ ! -f "packages/$pkg/package.json" ]; then
+              echo "❌ @thunderid/$pkg does not exist on $BRANCH."
+              exit 1
+            fi
+            # Run npm outside the workspace; the root `devEngines` makes npm refuse to run here.
+            published=$(cd "$RUNNER_TEMP" && npm view "@thunderid/$pkg@$VERSION" version 2>/dev/null || true)
+            if [ -n "$published" ]; then
+              echo "❌ @thunderid/$pkg@$VERSION is already published to npm."
+              exit 1
+            fi
+            if git ls-remote --exit-code --tags origin "refs/tags/sdk/$pkg/v$VERSION" > /dev/null; then
+              echo "❌ Tag sdk/$pkg/v$VERSION already exists."
+              exit 1
+            fi
+          done
+
+          echo "Releasing $VERSION from $BRANCH (dist-tag: $DIST_TAG) for: $packages"
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+
+      - name: 📦 Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: latest
+
+      - name: ⚙️ Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: 📦 Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🏷️ Set Version & Pin Internal Dependencies
+        env:
+          PACKAGES: ${{ steps.validate.outputs.packages }}
+        run: |
+          # `workspace:^` would publish as `^<version>`, and a caret range on a prerelease also
+          # matches the newer mainline releases. Pin to `workspace:*` so each hotfix package
+          # depends on the exact sibling versions from the maintenance branch.
+          node <<'EOF'
+          const fs = require('fs');
+
+          for (const pkg of process.env.PACKAGES.split(' ')) {
+            const file = `packages/${pkg}/package.json`;
+            const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+
+            manifest.version = process.env.VERSION;
+
+            for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
+              for (const [name, spec] of Object.entries(manifest[field] ?? {})) {
+                if (spec.startsWith('workspace:')) {
+                  manifest[field][name] = 'workspace:*';
+                }
+              }
+            }
+
+            fs.writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`);
+            console.log(`${manifest.name} -> ${manifest.version}`);
+          }
+          EOF
+
+          # Keep the lockfile in sync with the rewritten specifiers so the branch stays installable.
+          pnpm install --lockfile-only
+
+      - name: 🔨 Build & Typecheck
+        env:
+          PACKAGES: ${{ steps.validate.outputs.packages }}
+        run: |
+          filters=""
+          for pkg in $PACKAGES; do filters="$filters --filter=@thunderid/$pkg"; done
+          pnpm turbo run build typecheck $filters
+
+      - name: 📦 Publish to npm
+        env:
+          PACKAGES: ${{ steps.validate.outputs.packages }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          for pkg in $PACKAGES; do
+            echo "📤 Publishing @thunderid/$pkg@$VERSION"
+            (cd "packages/$pkg" && pnpm publish --no-git-checks --access public --provenance --tag "$DIST_TAG")
+          done
+
+      - name: 📤 Commit, Tag & Push
+        env:
+          PACKAGES: ${{ steps.validate.outputs.packages }}
+        run: |
+          set -euo pipefail
+          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
+          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
+
+          for pkg in $PACKAGES; do git add "packages/$pkg/package.json"; done
+          git add pnpm-lock.yaml
+          git diff --cached --quiet || git commit -m "[Hotfix Release] $VERSION ($PACKAGES)"
+          git push origin "HEAD:refs/heads/$BRANCH"
+
+          for pkg in $PACKAGES; do
+            git tag "sdk/$pkg/v$VERSION"
+            git push origin "sdk/$pkg/v$VERSION"
+          done
+
+      - name: 🚀 Create GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+          PACKAGES: ${{ steps.validate.outputs.packages }}
+        run: |
+          set -euo pipefail
+          base_version="${VERSION%%-*}"
+
+          for pkg in $PACKAGES; do
+            case "$pkg" in
+              better-auth) title="Better Auth" ;;
+              javascript) title="JavaScript" ;;
+              browser) title="Browser" ;;
+              node) title="Node" ;;
+              express) title="Express" ;;
+              react) title="React" ;;
+              vue) title="Vue" ;;
+              react-router) title="React Router" ;;
+              tanstack-router) title="TanStack Router" ;;
+              nextjs) title="Next.js" ;;
+              nuxt) title="Nuxt" ;;
+            esac
+
+            notes_args=(--generate-notes)
+            if git ls-remote --exit-code --tags origin "refs/tags/sdk/$pkg/v$base_version" > /dev/null; then
+              notes_args+=(--notes-start-tag "sdk/$pkg/v$base_version")
+            fi
+
+            gh release create "sdk/$pkg/v$VERSION" \
+              --title "ThunderID $title SDK v$VERSION" \
+              --prerelease \
+              --latest=false \
+              "${notes_args[@]}"
+          done
