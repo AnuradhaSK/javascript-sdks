@@ -18,7 +18,7 @@
     "@thunderid/browser": "workspace:*",
     "@thunderid/nextjs": "workspace:*",
     "@thunderid/react": "workspace:*",
-    "next": "15.5.25",
+    "next": "15.5.28",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
