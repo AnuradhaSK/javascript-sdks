@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {AttributeSchema} from '../api/getUsersMeMeta';
+import {AttributeSchema} from '../api/account/getUsersMeMeta';
 
 /**
  * Whether the signed-in user's type allows them to set the given credential for themselves.

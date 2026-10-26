@@ -3,7 +3,7 @@
 
 import {type Component, type VNode, defineComponent, h} from 'vue';
 import BaseAuthFlowSelect from './BaseAuthFlowSelect';
-import useFetchAuthFlows from '../../../composables/useFetchAuthFlows';
+import useFetchAuthFlows from '../../../composables/auth/useFetchAuthFlows';
 import {commonSelectProps, type CommonSelectProps} from '../Select/ResourceSelect';
 
 type AuthFlowSelectProps = CommonSelectProps;

@@ -9,8 +9,8 @@
  * "Sign in" CTA, and a `UserDropdown` trigger carrying either `data-testid=
  * "thunderid-user-dropdown-trigger"` (react and, since it wraps react, nextjs) or the vendor-
  * prefixed `user-dropdown__trigger` class (vue and, since it wraps vue, nuxt) — see
- * packages/react/src/components/presentation/UserDropdown/BaseUserDropdown.tsx and
- * packages/vue/src/components/presentation/user-dropdown/BaseUserDropdown.ts. One Page Object
+ * packages/react/src/components/account/UserDropdown/BaseUserDropdown.tsx and
+ * packages/vue/src/components/account/user-dropdown/BaseUserDropdown.ts. One Page Object
  * covers all four apps; only the base URL differs (see fixtures/sample-apps).
  */
 

@@ -23,8 +23,8 @@ import {
   watch,
 } from 'vue';
 import Select from './Select';
+import useInfiniteOptions from '../../../composables/management/useInfiniteOptions';
 import useI18n from '../../../composables/useI18n';
-import useInfiniteOptions from '../../../composables/useInfiniteOptions';
 
 const NO_PAGES: FetchSelectPage = () => Promise.resolve({nextOffset: null, options: []});
 

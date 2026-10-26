@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {describe, expect, it} from 'vitest';
-import {AttributeSchema} from '../../api/getUsersMeMeta';
+import {AttributeSchema} from '../../api/account/getUsersMeMeta';
 import resolveChangeCredentialPolicy from '../resolveChangeCredentialPolicy';
 
 const schemaWith = (name: string, regex?: string): Record<string, AttributeSchema> =>

@@ -24,7 +24,7 @@ import {
   AuthClientConfig,
   resolveResourceEndpoint,
 } from '@thunderid/browser';
-import getUsersMe from './api/getUsersMe';
+import getUsersMe from './api/account/getUsersMe';
 import {ThunderIDVueConfig} from './models/config';
 
 /**

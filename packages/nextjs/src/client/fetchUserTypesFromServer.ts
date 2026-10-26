@@ -3,7 +3,7 @@
 
 import type {FetchUserTypes, SelectPage, SelectPageRequest} from '@thunderid/node';
 import loadPageFromAction from './loadPageFromAction';
-import getUserTypesAction from '../server/actions/getUserTypesAction';
+import getUserTypesAction from '../server/actions/management/getUserTypesAction';
 
 /**
  * The loader behind `UserTypeSelect`: loads user types through {@link getUserTypesAction} with the signed-in

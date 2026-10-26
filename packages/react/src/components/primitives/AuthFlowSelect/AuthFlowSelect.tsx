@@ -3,7 +3,7 @@
 
 import {FC} from 'react';
 import BaseAuthFlowSelect, {BaseAuthFlowSelectProps} from './BaseAuthFlowSelect';
-import useFetchAuthFlows from '../../../hooks/useFetchAuthFlows';
+import useFetchAuthFlows from '../../../hooks/auth/useFetchAuthFlows';
 
 export type AuthFlowSelectProps = Omit<BaseAuthFlowSelectProps, 'fetchAuthFlows'>;
 

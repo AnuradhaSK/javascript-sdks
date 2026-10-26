@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {describe, expect, it} from 'vitest';
-import {AttributeSchema} from '../../api/getUsersMeMeta';
+import {AttributeSchema} from '../../api/account/getUsersMeMeta';
 import supportsCredential from '../supportsCredential';
 
 describe('supportsCredential', (): void => {

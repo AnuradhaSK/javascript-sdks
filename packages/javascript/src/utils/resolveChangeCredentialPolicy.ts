@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {PasswordPolicy} from './evaluatePasswordPolicy';
-import {AttributeSchema} from '../api/getUsersMeMeta';
+import {AttributeSchema} from '../api/account/getUsersMeMeta';
 
 /**
  * Resolves the rules a change-credential form should enforce for the given credential.

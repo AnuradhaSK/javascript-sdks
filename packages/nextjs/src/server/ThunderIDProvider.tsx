@@ -17,23 +17,24 @@ import {
 } from '@thunderid/node';
 import {ThunderIDProviderProps} from '@thunderid/react';
 import {FC, PropsWithChildren, ReactElement} from 'react';
+import getUserAction from './actions/account/getUserAction';
+import getUserProfileAction from './actions/account/getUserProfileAction';
+import getUserSchemaAction from './actions/account/getUserSchemaAction';
+import updateUserProfileAction from './actions/account/updateUserProfileAction';
+import handleOAuthCallbackAction from './actions/auth/handleOAuthCallbackAction';
+import signInAction from './actions/auth/signInAction';
+import signOutAction from './actions/auth/signOutAction';
+import signUpAction from './actions/auth/signUpAction';
 import clearSession from './actions/clearSession';
 import getSessionId from './actions/getSessionId';
 import getSessionPayload from './actions/getSessionPayload';
-import getUserAction from './actions/getUserAction';
-import getUserProfileAction from './actions/getUserProfileAction';
-import getUserSchemaAction from './actions/getUserSchemaAction';
-import handleOAuthCallbackAction from './actions/handleOAuthCallbackAction';
 import isSignedIn from './actions/isSignedIn';
 import refreshToken from './actions/refreshToken';
-import signInAction from './actions/signInAction';
-import signOutAction from './actions/signOutAction';
-import signUpAction from './actions/signUpAction';
-import updateUserProfileAction from './actions/updateUserProfileAction';
 import getClient from './getClient';
 import ThunderIDClientProvider from '../client/contexts/ThunderID/ThunderIDProvider.js';
 import {ThunderIDNextConfig} from '../models/config';
 import logger from '../utils/logger';
+import {pickManagementEndpoints} from '../utils/managementCollections';
 import {SessionTokenPayload} from '../utils/SessionManager';
 
 /**
@@ -203,6 +204,7 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
       organizationHandle={config?.organizationHandle}
       applicationId={config?.applicationId}
       baseUrl={config?.baseUrl}
+      endpoints={pickManagementEndpoints(config?.endpoints)}
       initialMeta={flowMeta}
       signIn={signInAction}
       clearSession={clearSession}

@@ -30,7 +30,7 @@ import Alert from '../../primitives/Alert';
 import Card from '../../primitives/Card';
 import Spinner from '../../primitives/Spinner';
 import Typography from '../../primitives/Typography';
-import {renderSignUpComponents} from '../sign-in/AuthOptionFactory';
+import {renderSignUpComponents} from '../flow/AuthOptionFactory';
 
 const logger: ReturnType<typeof createVueLogger> = createVueLogger('BaseSignUp');
 

@@ -18,7 +18,7 @@ import type {
 } from '@thunderid/browser';
 import {FC, useEffect, useMemo, useRef} from 'react';
 import Select, {SelectProps} from './Select';
-import useInfiniteOptions from '../../../hooks/useInfiniteOptions';
+import useInfiniteOptions from '../../../hooks/management/useInfiniteOptions';
 import useTranslation from '../../../hooks/useTranslation';
 import {cx} from '../../../styles/emotion';
 

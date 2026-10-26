@@ -56,7 +56,7 @@ vi.mock('../../../ThunderIDReactClient', () => ({
   }),
 }));
 
-vi.mock('../../../api/getUsersMe', () => ({
+vi.mock('../../../api/account/getUsersMe', () => ({
   default: (): Promise<UserProfileResponse> => mocks.getUsersMe(),
 }));
 

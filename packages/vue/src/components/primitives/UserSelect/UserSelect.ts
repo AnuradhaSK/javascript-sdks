@@ -4,7 +4,7 @@
 import type {UserSelectOptionMapping} from '@thunderid/browser';
 import {type Component, type PropType, type VNode, defineComponent, h} from 'vue';
 import BaseUserSelect from './BaseUserSelect';
-import useFetchUsers from '../../../composables/useFetchUsers';
+import useFetchUsers from '../../../composables/management/useFetchUsers';
 import {commonSelectProps, type CommonSelectProps} from '../Select/ResourceSelect';
 
 type UserSelectProps = CommonSelectProps &

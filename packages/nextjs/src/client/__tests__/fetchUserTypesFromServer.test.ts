@@ -3,10 +3,10 @@
 
 import {ThunderIDError} from '@thunderid/node';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import getUserTypesAction from '../../server/actions/getUserTypesAction';
+import getUserTypesAction from '../../server/actions/management/getUserTypesAction';
 import fetchUserTypesFromServer from '../fetchUserTypesFromServer';
 
-vi.mock('../../server/actions/getUserTypesAction', () => ({default: vi.fn()}));
+vi.mock('../../server/actions/management/getUserTypesAction', () => ({default: vi.fn()}));
 
 const request = {component: {} as never, limit: 30, offset: 60, signal: new AbortController().signal};
 

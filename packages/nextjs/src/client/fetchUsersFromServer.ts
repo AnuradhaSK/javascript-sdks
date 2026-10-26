@@ -3,7 +3,7 @@
 
 import type {FetchUsers, SelectPage, SelectPageRequest} from '@thunderid/node';
 import loadPageFromAction from './loadPageFromAction';
-import getUsersAction from '../server/actions/getUsersAction';
+import getUsersAction from '../server/actions/management/getUsersAction';
 
 /**
  * The loader behind `UserSelect`: loads users through {@link getUsersAction} with the signed-in user's server-held session.

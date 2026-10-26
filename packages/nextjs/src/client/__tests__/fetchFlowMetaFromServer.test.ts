@@ -3,10 +3,10 @@
 
 import {ThunderIDAPIError, ThunderIDRuntimeError} from '@thunderid/node';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import getFlowMetaAction from '../../server/actions/getFlowMetaAction';
+import getFlowMetaAction from '../../server/actions/auth/getFlowMetaAction';
 import fetchFlowMetaFromServer from '../fetchFlowMetaFromServer';
 
-vi.mock('../../server/actions/getFlowMetaAction', () => ({default: vi.fn()}));
+vi.mock('../../server/actions/auth/getFlowMetaAction', () => ({default: vi.fn()}));
 
 describe('fetchFlowMetaFromServer', () => {
   beforeEach(() => {
