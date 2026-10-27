@@ -27,7 +27,7 @@ const getRoles = async ({limit, offset, ...config}: GetRolesConfig): Promise<Rol
     failureMessage: 'Failed to fetch roles',
     method: 'GET',
     operation: 'getRoles',
-    query: {limit, offset},
+    query: {include: 'display', limit, offset},
   });
 
 export default getRoles;

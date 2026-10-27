@@ -7,6 +7,9 @@ import {
   BaseAgentCreate,
   BaseAgentDetails,
   BaseAgentList,
+  BaseApplicationCreate,
+  BaseApplicationDetails,
+  BaseApplicationList,
   BaseGroupCreate,
   BaseGroupList,
   type BaseGroupMembersRenderProps,
@@ -18,6 +21,7 @@ import {
   BaseUserDetails,
   BaseUserList,
   type BasicAgent,
+  type BasicApplication,
   type Group,
   type ManagedUser,
   type RoleSummary,
@@ -27,6 +31,8 @@ import {
   RESOURCE_SERVER_NAMES,
   SAMPLE_AGENT,
   SAMPLE_AGENTS,
+  SAMPLE_APPLICATION,
+  SAMPLE_APPLICATIONS,
   SAMPLE_GROUPS,
   SAMPLE_MEMBERSHIPS,
   SAMPLE_PERMISSIONS,
@@ -38,6 +44,8 @@ import {GroupMembersStory, Paged, RoleAssignmentsStory, SampleSearch} from './Ad
 import {
   AgentCard,
   AgentForm,
+  ApplicationCard,
+  ApplicationForm,
   IdentityGrid,
   ListGrid,
   Mui,
@@ -153,6 +161,63 @@ const CODE: Record<string, () => Snippet> = {
     otherImports: [MUI_CARD],
   }),
   agentlist: () => listSnippet('AgentList', 'agents'),
+  applicationcreate: () => ({
+    imports: ['ApplicationCreate'],
+    jsx: `<ApplicationCreate onCreated={(application) => navigate(application.id)}>
+  {({values, grantTypeOptions, handleInputChange, handleGrantTypesChange, handleSubmit, isValid, isSubmitting, clientSecret, onSecretDismiss}) =>
+    clientSecret ? (
+      <Alert severity="warning" action={<Button onClick={onSecretDismiss}>Done</Button>}>
+        Copy the client secret now: <code>{clientSecret}</code>
+      </Alert>
+    ) : (
+      <Stack spacing={2}>
+        <TextField label="Name" value={values.name} onChange={(e) => handleInputChange('name', e.target.value)} />
+        <TextField label="Redirect URIs" value={values.redirectUris} onChange={(e) => handleInputChange('redirectUris', e.target.value)} />
+        {grantTypeOptions.map((option) => (
+          <FormControlLabel
+            key={option.value}
+            label={option.label}
+            control={
+              <Checkbox
+                checked={values.grantTypes.includes(option.value)}
+                onChange={(e) =>
+                  handleGrantTypesChange(
+                    e.target.checked
+                      ? [...values.grantTypes, option.value]
+                      : values.grantTypes.filter((value) => value !== option.value),
+                  )
+                }
+              />
+            }
+          />
+        ))}
+        <Button variant="contained" disabled={!isValid} loading={isSubmitting} onClick={handleSubmit}>
+          Create application
+        </Button>
+      </Stack>
+    )
+  }
+</ApplicationCreate>`,
+    otherImports: ["import {Alert, Button, Checkbox, FormControlLabel, Stack, TextField} from '@mui/material';"],
+  }),
+  applicationdetails: () => ({
+    imports: ['ApplicationDetails'],
+    jsx: `<ApplicationDetails applicationId={applicationId} deletable secretRegenerable>
+  {({application, oauth, clientSecret, onSecretDismiss, onDelete, onRegenerateSecret}) => (
+    <Card>
+      <CardHeader title={application?.name} subheader={oauth?.clientId} />
+      <CardContent>
+        {clientSecret && <Chip color="warning" label={clientSecret} onDelete={onSecretDismiss} />}
+        {oauth?.redirectUris?.map((uri) => <Chip key={uri} label={uri} />)}
+      </CardContent>
+      {onRegenerateSecret && <Button onClick={onRegenerateSecret}>Regenerate secret</Button>}
+      {onDelete && <Button color="error" onClick={onDelete}>Delete</Button>}
+    </Card>
+  )}
+</ApplicationDetails>`,
+    otherImports: [MUI_CARD],
+  }),
+  applicationlist: () => listSnippet('ApplicationList', 'applications'),
   groupcreate: () => formSnippet('GroupCreate', ['name', 'description']),
   grouplist: () => listSnippet('GroupList', 'groups'),
   groupmembers: () => identitySnippet('GroupMembers', 'groupId', 'members', 'onRemove'),
@@ -334,6 +399,41 @@ const RENDER: Record<string, (args: Args, action: Action) => ReactNode> = {
         valueOf: (agent: BasicAgent, attribute: string) => (attribute === 'name' ? agent.name : undefined),
       },
     ),
+  applicationcreate: (_args: Args, action: Action) => (
+    <Narrow width={480}>
+      <BaseApplicationCreate
+        onSubmit={(application: {name: string}) => action('onSubmit', JSON.stringify(application))}
+        onCancel={() => action('onCancel')}
+      >
+        {ApplicationForm}
+      </BaseApplicationCreate>
+    </Narrow>
+  ),
+  applicationdetails: (_args: Args, action: Action) => (
+    <Narrow width={480}>
+      <BaseApplicationDetails
+        application={SAMPLE_APPLICATION}
+        onDelete={() => action('onDelete', SAMPLE_APPLICATION.id)}
+        onRegenerateSecret={() => action('onRegenerateSecret', SAMPLE_APPLICATION.id)}
+      >
+        {ApplicationCard}
+      </BaseApplicationDetails>
+    </Narrow>
+  ),
+  applicationlist: (args: Args, action: Action) =>
+    pagedList<BasicApplication>(args, action, SAMPLE_APPLICATIONS, (state: PagedListState<BasicApplication>) => (
+      <BaseApplicationList
+        applications={state.rows}
+        totalResults={state.total}
+        limit={state.limit}
+        offset={state.offset}
+        onPageChange={state.onPageChange}
+        onSelect={state.onSelect}
+        selectedApplicationId={state.selectedId}
+      >
+        {state.grid}
+      </BaseApplicationList>
+    )),
   groupcreate: (_args: Args, action: Action) => (
     <Narrow width={480}>
       <BaseGroupCreate

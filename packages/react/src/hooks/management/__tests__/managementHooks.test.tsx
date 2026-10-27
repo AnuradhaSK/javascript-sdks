@@ -2,16 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {act, cleanup, renderHook, waitFor} from '@testing-library/react';
-import {createResourceInvalidator, ApiFetcher} from '@thunderid/browser';
+import {
+  Application,
+  ApplicationListResponse,
+  ApplicationQueryKeys,
+  ApiFetcher,
+  CreateApplicationRequest,
+  ManagedUserListResponse,
+  UpdateApplicationRequest,
+  UserQueryKeys,
+  createApplication,
+  createResourceInvalidator,
+  deleteAgent,
+  getApplication,
+  getApplications,
+  getOrganizationUnitUsers,
+  getUsers,
+  updateApplication,
+} from '@thunderid/browser';
 import {ReactElement, ReactNode} from 'react';
 import {afterEach, describe, expect, it, vi, type Mock} from 'vitest';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../contexts/ThunderID/ThunderIDContext';
-import useDeleteAgent from '../agents/useDeleteAgent';
-import useCreateApplication from '../applications/useCreateApplication';
-import useGetApplication from '../applications/useGetApplication';
-import useGetApplications from '../applications/useGetApplications';
-import useUpdateApplication from '../applications/useUpdateApplication';
-import useGetUsers from '../users/useGetUsers';
+import useManagementEndpoint, {ManagementEndpoint} from '../useManagementEndpoint';
+import useManagementRequestConfig from '../useManagementRequestConfig';
+import useResourceMutation, {ResourceMutationOptions, ResourceMutationResult} from '../useResourceMutation';
+import useResourceQuery, {ResourceQueryOptions, ResourceQueryResult} from '../useResourceQuery';
 
 type FetcherMock = Mock<ApiFetcher>;
 
@@ -49,16 +64,85 @@ const createWrapper = ({
   return Wrapper;
 };
 
+interface UpdateApplicationVariables {
+  applicationId: string;
+  data: UpdateApplicationRequest;
+}
+
+// The admin components call the management API functions through the generic query layer this way.
+const useApplications = (limit?: number): ResourceQueryResult<ApplicationListResponse> => {
+  const endpoint: ManagementEndpoint = useManagementEndpoint('applications');
+
+  return useResourceQuery([ApplicationQueryKeys.APPLICATIONS, {limit}], (fetcher: ApiFetcher) =>
+    getApplications({...endpoint, fetcher, limit}),
+  );
+};
+
+const useApplication = (applicationId: string | undefined): ResourceQueryResult<Application> => {
+  const endpoint: ManagementEndpoint = useManagementEndpoint('applications');
+
+  return useResourceQuery(
+    [ApplicationQueryKeys.APPLICATION, applicationId],
+    (fetcher: ApiFetcher) => getApplication({...endpoint, applicationId: applicationId!, fetcher}),
+    {enabled: Boolean(applicationId)},
+  );
+};
+
+const useUsers = (options?: ResourceQueryOptions): ResourceQueryResult<ManagedUserListResponse> => {
+  const endpoint: ManagementEndpoint = useManagementEndpoint('users');
+
+  return useResourceQuery(
+    [UserQueryKeys.USERS, {}],
+    (fetcher: ApiFetcher) => getUsers({...endpoint, fetcher}),
+    options,
+  );
+};
+
+const useUpdateApplication = (
+  options?: ResourceMutationOptions<Application, UpdateApplicationVariables>,
+): ResourceMutationResult<Application, UpdateApplicationVariables> => {
+  const endpoint: ManagementEndpoint = useManagementEndpoint('applications');
+
+  return useResourceMutation(
+    ({applicationId, data}: UpdateApplicationVariables, fetcher: ApiFetcher) =>
+      updateApplication({...endpoint, applicationId, fetcher, payload: data}),
+    ({applicationId}: UpdateApplicationVariables) => [
+      [ApplicationQueryKeys.APPLICATION, applicationId],
+      [ApplicationQueryKeys.APPLICATIONS],
+    ],
+    options,
+  );
+};
+
+const useDeleteAgent = (options?: ResourceMutationOptions<void, string>): ResourceMutationResult<void, string> => {
+  const endpoint: ManagementEndpoint = useManagementEndpoint('agents');
+
+  return useResourceMutation(
+    (agentId: string, fetcher: ApiFetcher) => deleteAgent({...endpoint, agentId, fetcher}),
+    () => [],
+    options,
+  );
+};
+
+const useCreateApplication = (): ResourceMutationResult<Application, CreateApplicationRequest> => {
+  const endpoint: ManagementEndpoint = useManagementEndpoint('applications');
+
+  return useResourceMutation(
+    (payload: CreateApplicationRequest, fetcher: ApiFetcher) => createApplication({...endpoint, fetcher, payload}),
+    () => [[ApplicationQueryKeys.APPLICATIONS]],
+  );
+};
+
 afterEach(() => {
   cleanup();
 });
 
-describe('management query hooks', () => {
+describe('useResourceQuery with the management API functions', () => {
   it('loads data through the provider fetcher', async () => {
     const page = {applications: [{id: 'app-1', name: 'App'}], count: 1, totalResults: 1};
     const fetcher: FetcherMock = createFetcher(page);
 
-    const {result} = renderHook(() => useGetApplications({limit: 10}), {wrapper: createWrapper({fetcher})});
+    const {result} = renderHook(() => useApplications(10), {wrapper: createWrapper({fetcher})});
 
     expect(result.current.isLoading).toBe(true);
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -67,11 +151,11 @@ describe('management query hooks', () => {
     expect(fetcher.mock.calls[0][0]).toBe(`${baseUrl}/applications?limit=10`);
   });
 
-  it('prefers a per-hook fetcher over the provider fetcher', async () => {
+  it('prefers a per-query fetcher over the provider fetcher', async () => {
     const providerFetcher: FetcherMock = createFetcher();
     const hookFetcher: FetcherMock = createFetcher({count: 0, startIndex: 1, totalResults: 0, users: []});
 
-    const {result} = renderHook(() => useGetUsers({}, {fetcher: hookFetcher}), {
+    const {result} = renderHook(() => useUsers({fetcher: hookFetcher}), {
       wrapper: createWrapper({fetcher: providerFetcher}),
     });
 
@@ -83,7 +167,7 @@ describe('management query hooks', () => {
   it('targets the endpoints override when the provider sets one', async () => {
     const fetcher: FetcherMock = createFetcher({id: 'app-1'});
 
-    const {result} = renderHook(() => useGetApplication('app-1'), {
+    const {result} = renderHook(() => useApplication('app-1'), {
       wrapper: createWrapper({endpoints: {applications: 'https://rs.example.com/applications'}, fetcher}),
     });
 
@@ -94,7 +178,7 @@ describe('management query hooks', () => {
   it('exposes a failed request as an error with a distinct code', async () => {
     const fetcher: FetcherMock = createFetcher({}, 404);
 
-    const {result} = renderHook(() => useGetApplication('missing'), {wrapper: createWrapper({fetcher})});
+    const {result} = renderHook(() => useApplication('missing'), {wrapper: createWrapper({fetcher})});
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toMatchObject({code: 'getApplication-NotFoundError-001'});
@@ -104,14 +188,14 @@ describe('management query hooks', () => {
   it('does not fetch a single resource until its identifier is known', () => {
     const fetcher: FetcherMock = createFetcher();
 
-    const {result} = renderHook(() => useGetApplication(undefined), {wrapper: createWrapper({fetcher})});
+    const {result} = renderHook(() => useApplication(undefined), {wrapper: createWrapper({fetcher})});
 
     expect(result.current.isLoading).toBe(false);
     expect(fetcher).not.toHaveBeenCalled();
   });
 });
 
-describe('management mutation hooks', () => {
+describe('useResourceMutation with the management API functions', () => {
   it('refetches matching queries after a successful mutation and calls onSuccess', async () => {
     const fetcher: FetcherMock = createFetcher({applications: [], count: 0, id: 'app-1', totalResults: 0});
     const onSuccess: Mock = vi.fn();
@@ -119,9 +203,9 @@ describe('management mutation hooks', () => {
 
     const {result} = renderHook(
       () => ({
-        detail: useGetApplication('app-1'),
-        list: useGetApplications(),
-        otherDetail: useGetApplication('app-2'),
+        detail: useApplication('app-1'),
+        list: useApplications(),
+        otherDetail: useApplication('app-2'),
         update: useUpdateApplication({onSuccess}),
       }),
       {wrapper},
@@ -176,5 +260,58 @@ describe('management mutation hooks', () => {
 
     expect(result.current.data).toEqual({id: 'new', name: 'App'});
     expect(fetcher.mock.calls[0][1]).toMatchObject({body: '{"name":"App"}', method: 'POST'});
+  });
+});
+
+describe('useManagementRequestConfig', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('hands the API functions the provider base URL and fetcher', async () => {
+    const fetcher: FetcherMock = createFetcher({applications: [], count: 0, totalResults: 0});
+    const {result} = renderHook(() => useManagementRequestConfig('applications'), {wrapper: createWrapper({fetcher})});
+
+    expect(result.current).toEqual({baseUrl, fetcher, url: undefined});
+
+    await getApplications(result.current);
+
+    expect(fetcher).toHaveBeenCalledWith(`${baseUrl}/applications`, expect.objectContaining({method: 'GET'}));
+  });
+
+  it('targets the endpoints override for its collection', () => {
+    const {result} = renderHook(() => useManagementRequestConfig('applications'), {
+      wrapper: createWrapper({
+        endpoints: {applications: 'https://mgmt.example.com/api/applications'},
+        fetcher: createFetcher(),
+      }),
+    });
+
+    expect(result.current.url).toBe('https://mgmt.example.com/api/applications');
+  });
+
+  it('addresses the newer management collections through their endpoints overrides', async () => {
+    const fetcher: FetcherMock = createFetcher({organizationUnits: []});
+    const {result} = renderHook(() => useManagementRequestConfig('organizationUnits'), {
+      wrapper: createWrapper({endpoints: {organizationUnits: 'https://mgmt.example.com/ous'}, fetcher}),
+    });
+
+    await getOrganizationUnitUsers({...result.current, path: 'engineering/platform'});
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://mgmt.example.com/ous/tree/engineering/platform/users?include=display',
+      expect.objectContaining({method: 'GET'}),
+    );
+  });
+
+  it('keeps the same config across renders so it can sit in a dependency list', () => {
+    const {result, rerender} = renderHook(() => useManagementRequestConfig('applications'), {
+      wrapper: createWrapper({fetcher: createFetcher()}),
+    });
+    const first = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(first);
   });
 });

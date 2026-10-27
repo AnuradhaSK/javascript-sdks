@@ -12,14 +12,55 @@ import type {ResourceEndpointConfig, ResourceEndpointKey} from '@thunderid/javas
  * their `endpoints` override key, with the path each one has under `baseUrl`.
  */
 export const MANAGEMENT_COLLECTIONS: Readonly<
-  Record<Extract<ResourceEndpointKey, 'agents' | 'agentTypes' | 'groups' | 'roles' | 'users' | 'userTypes'>, string>
+  Record<
+    Extract<
+      ResourceEndpointKey,
+      | 'agents'
+      | 'agentTypes'
+      | 'applications'
+      | 'configurationVersions'
+      | 'connections'
+      | 'design'
+      | 'export'
+      | 'flows'
+      | 'gateways'
+      | 'groups'
+      | 'i18n'
+      | 'import'
+      | 'notificationTemplates'
+      | 'organizationUnits'
+      | 'resourceServers'
+      | 'roles'
+      | 'secrets'
+      | 'serverConfig'
+      | 'users'
+      | 'userTypes'
+      | 'variables'
+    >,
+    string
+  >
 > = {
   agentTypes: 'agent-types',
   agents: 'agents',
+  applications: 'applications',
+  configurationVersions: 'configuration-versions',
+  connections: 'connections',
+  design: 'design',
+  export: 'export',
+  flows: 'flows',
+  gateways: 'gateways',
   groups: 'groups',
+  i18n: 'i18n',
+  import: 'import',
+  notificationTemplates: 'notification-templates',
+  organizationUnits: 'organization-units',
+  resourceServers: 'resource-servers',
   roles: 'roles',
+  secrets: 'secrets',
+  serverConfig: 'server-config',
   userTypes: 'user-types',
   users: 'users',
+  variables: 'variables',
 };
 
 export type ManagementCollectionKey = keyof typeof MANAGEMENT_COLLECTIONS;

@@ -93,6 +93,11 @@ export interface UpdateAgentRequest {
   allowedUserTypes?: string[];
   attributes?: Record<string, unknown>;
   authFlowId?: string;
+  /**
+   * Whether the agent acts on behalf of a signed-in user. The server does not store it, so a full
+   * update sends it for the agent to be held to the delegated grant rules.
+   */
+  delegated?: boolean;
   description?: string;
   inboundAuthConfig?: AgentInboundAuthConfig[];
   isRegistrationFlowEnabled?: boolean;

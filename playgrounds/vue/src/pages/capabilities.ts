@@ -785,7 +785,7 @@ export const CAPABILITIES: Capability[] = [
     section: 'Management',
   },
   {
-    api: 'getUserTypes() · useGetUserTypes()',
+    api: 'getUserTypes()',
     id: 'userTypes',
     name: 'User types',
     run: async (context: CapabilityContext) => {

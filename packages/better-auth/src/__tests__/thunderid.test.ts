@@ -15,7 +15,7 @@ describe('thunderid', () => {
     });
 
     expect(config.providerId).toBe('thunderid');
-    expect(config.accountIssuer).toBe('https://thunderid.example.com');
+    expect(config.requireIdTokenVerification).toBe(true);
     expect(config.discoveryUrl).toBe('https://thunderid.example.com/.well-known/openid-configuration');
     expect(config.scopes).toEqual(['openid', 'profile', 'email']);
     expect(config.clientId).toBe('thunderid-client-id');
@@ -30,7 +30,6 @@ describe('thunderid', () => {
       issuer: 'https://thunderid.example.com/',
     });
 
-    expect(config.accountIssuer).toBe('https://thunderid.example.com');
     expect(config.discoveryUrl).toBe('https://thunderid.example.com/.well-known/openid-configuration');
   });
 

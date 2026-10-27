@@ -1,16 +1,22 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {
+  AgentQueryKeys,
+  GroupQueryKeys,
+  RoleQueryKeys,
+  deleteAgent,
+  getAgent,
+  getAgentGroups,
+  getAgentRoles,
+  toManagementErrorMessage,
+} from '@thunderid/browser';
 import type {Agent, AgentRoleListResponse, MembershipGroupListResponse, Preferences} from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import BaseAgentDetails from './BaseAgentDetails';
-import useDeleteAgent from '../../../composables/management/agents/useDeleteAgent';
-import useGetAgent from '../../../composables/management/agents/useGetAgent';
-import useGetAgentGroups from '../../../composables/management/agents/useGetAgentGroups';
-import useGetAgentRoles from '../../../composables/management/agents/useGetAgentRoles';
-import type {ResourceMutationResult} from '../../../composables/management/useResourceMutation';
-import type {ResourceQueryResult} from '../../../composables/management/useResourceQuery';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 
 type AgentDetailsProps = Readonly<{
@@ -46,12 +52,28 @@ const AgentDetails: Component = defineComponent({
   emits: ['deleted'],
   setup(props: AgentDetailsProps, {emit, slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
-    const agent: ResourceQueryResult<Agent> = useGetAgent(() => props.agentId);
-    const groups: ResourceQueryResult<MembershipGroupListResponse> = useGetAgentGroups(() => props.agentId, {
-      limit: 100,
-    });
-    const roles: ResourceQueryResult<AgentRoleListResponse> = useGetAgentRoles(() => props.agentId, {limit: 100});
-    const deletion: ResourceMutationResult<void, string> = useDeleteAgent({onSuccess: (): void => emit('deleted')});
+    const endpoint: ManagementEndpoint = useManagementEndpoint('agents');
+    const hasAgentId = (): boolean => Boolean(props.agentId);
+    const agent: ResourceQueryResult<Agent> = useResourceQuery(
+      () => [AgentQueryKeys.AGENT, props.agentId],
+      (fetcher) => getAgent({...endpoint, agentId: props.agentId, fetcher}),
+      {enabled: hasAgentId},
+    );
+    const groups: ResourceQueryResult<MembershipGroupListResponse> = useResourceQuery(
+      () => [GroupQueryKeys.MEMBERSHIPS, 'agent', props.agentId, {limit: 100}],
+      (fetcher) => getAgentGroups({...endpoint, agentId: props.agentId, fetcher, limit: 100}),
+      {enabled: hasAgentId},
+    );
+    const roles: ResourceQueryResult<AgentRoleListResponse> = useResourceQuery(
+      () => [RoleQueryKeys.ROLE_ASSIGNMENTS, 'agent', props.agentId, {limit: 100}],
+      (fetcher) => getAgentRoles({...endpoint, agentId: props.agentId, fetcher, limit: 100}),
+      {enabled: hasAgentId},
+    );
+    const deletion: ResourceMutationResult<void, string> = useResourceMutation(
+      (agentId: string, fetcher) => deleteAgent({...endpoint, agentId, fetcher}),
+      () => [[AgentQueryKeys.AGENTS]],
+      {onSuccess: (): void => emit('deleted')},
+    );
 
     return (): VNode =>
       h(

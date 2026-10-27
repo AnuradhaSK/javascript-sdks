@@ -3,12 +3,12 @@
 A Vite app that exercises every capability of `@thunderid/react` against a local ThunderID server. It links the SDK
 packages from this workspace (`workspace:*`), so it always runs the code you are changing. It is not published.
 
-| Page                        | What it does                                                                                                                                                                                                                                     |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Overview (`#/`)             | Capability checks driven by the real SDK API (run one or run all, pass/fail with a reason, filters), a session card with an access token countdown, the provider configuration with the resolved management endpoints, and a live SDK event log. |
-| Components (`#/components`) | A component explorer: a searchable tree of the SDK components and their stories (including the admin components, `DataTable`, and `Attribution`), a viewport, theme, and grid toolbar, and Controls, Code, Actions, and Accessibility panels.    |
-| Hooks (`#/hooks`)           | Live values of `useThunderID`, `useUser`, `useI18n`, `useTranslation`, `useTheme`, `useFlow`, `useGrantedPermissions`, the management query hooks, and the group and role mutation hooks.                                                        |
-| Tokens (`#/tokens`)         | The access and ID tokens held by the SDK, decoded locally, with expiry and claim notes.                                                                                                                                                          |
+| Page                        | What it does                                                                                                                                                                                                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview (`#/`)             | Capability checks driven by the real SDK API (run one or run all, pass/fail with a reason, filters), a session card with an access token countdown, the provider configuration with the resolved management endpoints, and a live SDK event log.                             |
+| Components (`#/components`) | A component explorer: a searchable tree of the SDK components and their stories (including the admin components, `DataTable`, and `Attribution`), a viewport, theme, and grid toolbar, and Controls, Code, Actions, and Accessibility panels.                                |
+| Hooks (`#/hooks`)           | Live values of `useThunderID`, `useUser`, `useI18n`, `useTranslation`, `useTheme`, `useFlow`, `useGrantedPermissions`, and the management API functions (`getGroups()`, `createGroup()`, ...) called with `useManagementRequestConfig`, reads and the group and role writes. |
+| Tokens (`#/tokens`)         | The access and ID tokens held by the SDK, decoded locally, with expiry and claim notes.                                                                                                                                                                                      |
 
 ## Set up a local ThunderID server
 
@@ -105,11 +105,10 @@ The playground reports these instead of faking them:
   management URL. The playground mirrors the paths in `src/lib/management.ts`.
 - `@thunderid/react` does not re-export `resolveResourceEndpoint`, `ThunderIDAPIError`, `getUserTypes`, or
   `toManagementErrorMessage`; the playground imports them from `@thunderid/browser`.
-- The authenticated fetcher the management hooks use (`createAuthenticatedFetcher`) is internal, and
-  `useThunderID().http.fetcher` is only set when the app passes one, so code calling the core management functions
-  directly has to build its own (the checks attach `getAccessToken()` as a bearer token).
-- `refetch()` on the ID-scoped hooks (`useGetGroup`, `useGetRole`, `useGetGroupMembers`, ...) ignores a missing ID: with
-  `undefined` it requests the collection URL and returns the list as if it were one item. The Hooks page disables Fetch
-  until an ID is set.
+- The capability checks build their own token fetcher (they attach `getAccessToken()` as a bearer token); the Hooks page
+  uses `useManagementRequestConfig(collection)`, which supplies the SDK's authenticated fetcher.
+- The management data hooks (`useGetGroups`, `useCreateGroup`, ...) are internal to the SDK's own components. The Hooks
+  page calls the API functions through a small local data layer (`src/lib/useApiQuery.ts` and
+  `src/lib/useApiMutation.ts`) in their place, and disables Fetch on the ID-scoped calls until an ID is set.
 - `useGrantedPermissions()` reads the token once per sign-in; it does not update after a token refresh that changes
   scopes.

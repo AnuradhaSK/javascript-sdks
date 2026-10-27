@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {UserQueryKeys, createUser, getUserTypes, toManagementErrorMessage} from '@thunderid/browser';
 import type {
   CreateManagedUserRequest,
   ManagedUser,
@@ -21,10 +21,9 @@ import {
 } from 'vue';
 import BaseUserCreate, {type UserCreateSubmission} from './BaseUserCreate';
 import {DEFAULT_USER_CREATE_FIELDS, type UserCreateField} from './userCreateFields';
-import type {ResourceMutationResult} from '../../../composables/management/useResourceMutation';
-import type {ResourceQueryResult} from '../../../composables/management/useResourceQuery';
-import useCreateUser from '../../../composables/management/users/useCreateUser';
-import useGetUserTypes from '../../../composables/management/users/useGetUserTypes';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import InviteUser from '../../auth/invite-user/InviteUser';
 import {type AdminFormProps, adminFormProps} from '../shared/adminFormProps';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
@@ -75,13 +74,18 @@ const UserCreate: Component = defineComponent({
   setup(props: UserCreateProps, {emit, slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
     const resolvedOuId: ComputedRef<string | undefined> = useDefaultOuId(() => props.ouId);
-    const userTypes: ResourceQueryResult<ManagedUserTypeListResponse> = useGetUserTypes(
-      {limit: 100},
+    const userTypesEndpoint: ManagementEndpoint = useManagementEndpoint('userTypes');
+    const usersEndpoint: ManagementEndpoint = useManagementEndpoint('users');
+    const userTypes: ResourceQueryResult<ManagedUserTypeListResponse> = useResourceQuery(
+      () => [UserQueryKeys.USER_TYPES, {limit: 100}],
+      (fetcher) => getUserTypes({...userTypesEndpoint, fetcher, limit: 100}),
       {enabled: () => props.mode === 'api'},
     );
-    const creation: ResourceMutationResult<ManagedUser, CreateManagedUserRequest> = useCreateUser({
-      onSuccess: (user: ManagedUser): void => emit('created', user),
-    });
+    const creation: ResourceMutationResult<ManagedUser, CreateManagedUserRequest> = useResourceMutation(
+      (payload: CreateManagedUserRequest, fetcher) => createUser({...usersEndpoint, fetcher, payload}),
+      () => [[UserQueryKeys.USERS]],
+      {onSuccess: (user: ManagedUser): void => emit('created', user)},
+    );
 
     const options: ComputedRef<SelectOption[]> = computed(() =>
       (userTypes.data.value?.types ?? []).map((userType: ManagedUserType) => ({

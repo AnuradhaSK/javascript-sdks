@@ -1,9 +1,16 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {ManagedUser, MembershipGroup} from '@thunderid/browser';
+import type {Application, ManagedUser, MembershipGroup} from '@thunderid/browser';
 import {
   type AdminListRenderProps,
+  ApplicationCreate,
+  type ApplicationCreateSubmission,
+  ApplicationDetails,
+  BaseApplicationCreate,
+  type BaseApplicationCreateRenderProps,
+  BaseApplicationDetails,
+  type BaseApplicationDetailsRenderProps,
   BaseGroupCreate,
   type BaseGroupCreateRenderProps,
   BaseUserDetails,
@@ -14,7 +21,7 @@ import {
   UserList,
 } from '@thunderid/vue';
 import {Component, defineComponent, h, PropType, Ref, ref, VNode} from 'vue';
-import {groupForm, PrimeTheme, userCard, userTable} from './PrimeRenderers';
+import {applicationCard, applicationForm, groupForm, PrimeTheme, userCard, userTable} from './PrimeRenderers';
 import {bool, num, quoted, SOURCE_CONTROL, str} from './storyKit';
 import type {Action, Args, ComponentDef} from './types';
 import {narrow} from './widgets';
@@ -42,6 +49,27 @@ const SAMPLE_MEMBERSHIPS: MembershipGroup[] = [
   {id: 'grp_eng', name: 'Engineering', ouId: OU},
   {id: 'grp_sec', name: 'Security', ouId: OU},
 ];
+
+const SAMPLE_APPLICATION: Application = {
+  id: 'app_portal',
+  inboundAuthConfig: [
+    {
+      config: {
+        clientId: 'portal-web',
+        grantTypes: ['authorization_code', 'refresh_token'],
+        redirectUris: ['https://portal.acme.io/callback'],
+        responseTypes: ['code'],
+      },
+      type: 'oauth2',
+    },
+  ],
+  name: 'Customer portal',
+  ouId: OU,
+  template: 'browser',
+};
+
+/** A secret shown in the "secret shown once" stories. Sample only, never a real credential. */
+const SAMPLE_SECRET = 'sample-secret-5f1c9e2a';
 
 const isLive = (args: Args): boolean => str(args, 'source') === 'live';
 
@@ -129,6 +157,51 @@ const CARD_TEMPLATE = `<UserDetails :user-id="userId" deletable>
     </Card>
   </template>
 </UserDetails>`;
+
+const APPLICATION_FORM_TEMPLATE = `<ApplicationCreate @created="(application) => router.push(application.id)">
+  <template
+    #default="{values, grantTypeOptions, handleInputChange, handleGrantTypesChange, handleSubmit, isValid, clientSecret, onSecretDismiss}"
+  >
+    <template v-if="clientSecret">
+      <Message severity="warn">Copy the client secret now. It will not be shown again.</Message>
+      <Password :model-value="clientSecret" readonly toggle-mask :feedback="false" />
+      <Button label="Done" @click="onSecretDismiss" />
+    </template>
+    <template v-else>
+      <InputText :model-value="values.name" @update:model-value="(value) => handleInputChange('name', value)" />
+      <InputText
+        :model-value="values.redirectUris"
+        @update:model-value="(value) => handleInputChange('redirectUris', value)"
+      />
+      <MultiSelect
+        :model-value="values.grantTypes"
+        :options="grantTypeOptions"
+        option-label="label"
+        option-value="value"
+        @update:model-value="handleGrantTypesChange"
+      />
+      <Button label="Create application" :disabled="!isValid" @click="handleSubmit" />
+    </template>
+  </template>
+</ApplicationCreate>`;
+
+const APPLICATION_CARD_TEMPLATE = `<ApplicationDetails :application-id="applicationId" deletable secret-regenerable>
+  <template #default="{application, oauth, clientSecret, onSecretDismiss, onRegenerateSecret, onDelete}">
+    <Card>
+      <template #title>{{ application?.name }}</template>
+      <template #subtitle>{{ oauth?.clientId }}</template>
+      <template #content>
+        <Password v-if="clientSecret" :model-value="clientSecret" readonly toggle-mask :feedback="false" />
+        <Button v-if="clientSecret" label="Done" @click="onSecretDismiss" />
+        <Chip v-for="uri in oauth?.redirectUris ?? []" :key="uri" :label="uri" />
+      </template>
+      <template #footer>
+        <Button v-if="onRegenerateSecret" label="Regenerate secret" text @click="onRegenerateSecret" />
+        <Button v-if="onDelete" label="Delete" severity="danger" text @click="onDelete" />
+      </template>
+    </Card>
+  </template>
+</ApplicationDetails>`;
 
 /**
  * Stories that replace an admin component's default UI through its default scoped slot, here with
@@ -286,6 +359,128 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
       {id: 'base', name: 'Sample user'},
       {args: {deletable: false}, id: 'readonly', name: 'Without delete'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs userId)'},
+    ],
+  },
+  {
+    code: () => ({
+      imports: ['ApplicationCreate'],
+      otherImports: [
+        "import Button from 'primevue/button';",
+        "import InputText from 'primevue/inputtext';",
+        "import Message from 'primevue/message';",
+        "import MultiSelect from 'primevue/multiselect';",
+        "import Password from 'primevue/password';",
+      ],
+      template: APPLICATION_FORM_TEMPLATE,
+    }),
+    controls: [
+      SOURCE_CONTROL,
+      {control: 'bool', description: 'Base only: isSubmitting.', name: 'isSubmitting', type: 'boolean'},
+      {control: 'text', description: 'Base only: error.', name: 'error', type: 'string | null'},
+      {control: 'bool', description: 'Base only: passes clientSecret.', name: 'showSecret', type: 'boolean'},
+    ],
+    defaults: {error: '', isSubmitting: false, showSecret: false, source: 'base'},
+    group: 'Custom rendering',
+    id: 'custom-applicationcreate-form',
+    live: true,
+    name: 'ApplicationCreate → PrimeVue form',
+    render: (args: Args, action: Action): VNode =>
+      themed(
+        480,
+        isLive(args)
+          ? h(
+              ApplicationCreate,
+              {
+                onCancel: (): void => action('cancel'),
+                onCreated: (application: {id: string}): void => action('created', quoted(application.id)),
+              },
+              {default: (state: BaseApplicationCreateRenderProps) => applicationForm(state)},
+            )
+          : h(
+              BaseApplicationCreate,
+              {
+                clientSecret: bool(args, 'showSecret') ? SAMPLE_SECRET : null,
+                error: str(args, 'error') || null,
+                isSubmitting: bool(args, 'isSubmitting'),
+                onCancel: (): void => action('cancel'),
+                onSecretDismiss: (): void => action('secret-dismiss'),
+                onSubmit: (application: ApplicationCreateSubmission): void =>
+                  action('submit', JSON.stringify(application)),
+              },
+              {default: (state: BaseApplicationCreateRenderProps) => applicationForm(state)},
+            ),
+      ),
+    stories: [
+      {id: 'base', name: 'Sample'},
+      {args: {showSecret: true}, id: 'secret', name: 'Client secret shown once'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs sign-in)'},
+    ],
+  },
+  {
+    code: () => ({
+      imports: ['ApplicationDetails'],
+      otherImports: [
+        "import Button from 'primevue/button';",
+        "import Card from 'primevue/card';",
+        "import Chip from 'primevue/chip';",
+        "import Password from 'primevue/password';",
+      ],
+      template: APPLICATION_CARD_TEMPLATE,
+    }),
+    controls: [
+      SOURCE_CONTROL,
+      {control: 'text', description: 'Live only: the application to load.', name: 'applicationId', type: 'string'},
+      {control: 'bool', description: 'Passes onDelete.', name: 'deletable', type: 'boolean'},
+      {control: 'bool', description: 'Passes onRegenerateSecret.', name: 'secretRegenerable', type: 'boolean'},
+      {control: 'bool', description: 'Base only: passes clientSecret.', name: 'showSecret', type: 'boolean'},
+    ],
+    defaults: {applicationId: '', deletable: true, secretRegenerable: true, showSecret: false, source: 'base'},
+    group: 'Custom rendering',
+    id: 'custom-applicationdetails-card',
+    live: true,
+    name: 'ApplicationDetails → PrimeVue card',
+    render: (args: Args, action: Action): VNode => {
+      if (isLive(args) && !str(args, 'applicationId')) {
+        return narrow(
+          420,
+          h('p', 'Set applicationId in Controls to an ID from your server (copy one from the ApplicationList story).'),
+        );
+      }
+
+      return themed(
+        480,
+        isLive(args)
+          ? h(
+              ApplicationDetails,
+              {
+                applicationId: str(args, 'applicationId'),
+                deletable: bool(args, 'deletable'),
+                onDeleted: (): void => action('deleted'),
+                secretRegenerable: bool(args, 'secretRegenerable'),
+              },
+              {default: (state: BaseApplicationDetailsRenderProps) => applicationCard(state)},
+            )
+          : h(
+              BaseApplicationDetails,
+              {
+                application: SAMPLE_APPLICATION,
+                clientSecret: bool(args, 'showSecret') ? SAMPLE_SECRET : null,
+                onDelete: bool(args, 'deletable')
+                  ? (): void => action('delete', quoted(SAMPLE_APPLICATION.id))
+                  : undefined,
+                onRegenerateSecret: bool(args, 'secretRegenerable')
+                  ? (): void => action('regenerate-secret', quoted(SAMPLE_APPLICATION.id))
+                  : undefined,
+                onSecretDismiss: (): void => action('secret-dismiss'),
+              },
+              {default: (state: BaseApplicationDetailsRenderProps) => applicationCard(state)},
+            ),
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Sample application'},
+      {args: {showSecret: true}, id: 'secret', name: 'Regenerated secret'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs applicationId)'},
     ],
   },
 ];

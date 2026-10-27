@@ -2,36 +2,136 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AccountLifecycleOptions,
+  AccountLifecycleResult,
+  AdministrationOptions,
   Agent,
   AgentListResponse,
   AgentRoleListResponse,
+  AgentTypeDetails,
   AgentTypeListResponse,
   ApiFetcher,
   ApiFilteringParams,
+  Application,
+  ApplicationListResponse,
+  ApplyGatewayConfigurationRequest,
+  CaptureConfigurationVersionRequest,
+  CimdPreviewResponse,
+  ConfigurationExportRequest,
+  ConfigurationExportResponse,
+  ConfigurationImportRequest,
+  ConfigurationImportResponse,
+  ConfigurationVersion,
+  Connection,
+  ConnectionCategory,
+  ConnectionListResponse,
+  ConnectionMetaResponse,
+  ConnectionRequest,
+  ConnectionSummary,
+  ConnectionType,
+  ConnectionTypeWithUsages,
+  ConnectionUsagesResponse,
+  CreateActionRequest,
   CreateAgentRequest,
+  CreateAgentTypeRequest,
+  CreateApplicationRequest,
   CreateGroupRequest,
   CreateManagedUserRequest,
+  CreateNotificationTemplateRequest,
+  CreateOrganizationUnitRequest,
+  CreateResourceRequest,
+  CreateResourceServerRequest,
   CreateRoleRequest,
+  CreateUserByPathRequest,
+  DeleteImportedConfigurationRequest,
+  DeleteImportedConfigurationResponse,
+  DesignLayout,
+  DesignLayoutListResponse,
+  DesignLayoutRequest,
+  DesignResolveResponse,
+  DesignResolveType,
+  DesignTheme,
+  DesignThemeListResponse,
+  DesignThemeRequest,
+  Gateway,
+  GatewayAppliedConfiguration,
+  GatewayAppliedVersion,
+  GatewayApplyResult,
+  GatewayConfigurationDiff,
+  GatewayRegistration,
   Group,
   GroupListResponse,
   GroupMember,
   GroupMemberListResponse,
+  LanguageListResponse,
+  LanguageTranslationsResponse,
+  ManagedAction,
+  ManagedActionKind,
+  ManagedActionListResponse,
+  ManagedFlowDefinition,
   ManagedFlowListResponse,
+  ManagedFlowRequest,
+  ManagedFlowVersion,
+  ManagedFlowVersionListResponse,
+  ManagedResource,
+  ManagedResourceListResponse,
+  ManagedTranslation,
   ManagedUser,
   ManagedUserListResponse,
   ManagedUserTypeListResponse,
   ManagementRequestConfig,
   MembershipGroupListResponse,
+  NotificationChannel,
+  NotificationTemplate,
+  NotificationTemplateListResponse,
+  OrganizationUnit,
+  OrganizationUnitGroupListResponse,
+  OrganizationUnitListResponse,
+  OrganizationUnitReference,
+  OrganizationUnitRoleListResponse,
+  OrganizationUnitUserListResponse,
+  RegenerateClientSecretResult,
+  RegenerateFlowSecretResult,
+  RegisterGatewayRequest,
+  ResolvedOverlay,
   ResourceEndpointKey,
+  ResourceServer,
+  ResourceServerListResponse,
+  ResourceUsagesResponse,
+  RevertGatewayConfigurationRequest,
   Role,
   RoleAssigneeType,
   RoleAssignmentInput,
   RoleAssignmentListResponse,
   RoleListResponse,
+  Secret,
+  SecretListResponse,
+  SecretRequest,
+  SecretUpdateRequest,
+  ServerConfigLayers,
+  SetTranslationRequest,
+  SetTranslationsRequest,
+  SharingPolicy,
+  SharingPolicyListResponse,
+  SharingPolicyRequest,
+  SharingPolicyUpdateRequest,
+  UpdateActionRequest,
   UpdateAgentRequest,
+  UpdateAgentTypeRequest,
+  UpdateApplicationRequest,
+  UpdateGatewayRequest,
   UpdateGroupRequest,
   UpdateManagedUserRequest,
+  UpdateNotificationTemplateRequest,
+  UpdateOrganizationUnitByPathRequest,
+  UpdateOrganizationUnitRequest,
+  UpdateResourceRequest,
+  UpdateResourceServerRequest,
   UpdateRoleRequest,
+  Variable,
+  VariableListResponse,
+  VariableRequest,
+  VariableUpdateRequest,
 } from '@thunderid/javascript';
 
 /**
@@ -39,7 +139,27 @@ import {
  */
 export type ManagementResourceKey = Extract<
   ResourceEndpointKey,
-  'agents' | 'agentTypes' | 'flows' | 'groups' | 'roles' | 'users' | 'userTypes'
+  | 'agents'
+  | 'agentTypes'
+  | 'applications'
+  | 'configurationVersions'
+  | 'connections'
+  | 'design'
+  | 'export'
+  | 'flows'
+  | 'gateways'
+  | 'groups'
+  | 'i18n'
+  | 'import'
+  | 'notificationTemplates'
+  | 'organizationUnits'
+  | 'resourceServers'
+  | 'roles'
+  | 'secrets'
+  | 'serverConfig'
+  | 'users'
+  | 'userTypes'
+  | 'variables'
 >;
 
 /**
@@ -69,6 +189,22 @@ export interface ManagementCallOptions {
 export type ManagementListOptions = ManagementCallOptions & Pick<ApiFilteringParams, 'limit' | 'offset'>;
 
 /**
+ * Options for a paginated, filterable listing of variables or secrets.
+ */
+export type ManagementValueListOptions = ManagementCallOptions & ApiFilteringParams & {names?: string[]};
+
+/**
+ * Options of an account lifecycle operation, such as suspending a user.
+ */
+export type ManagementLifecycleOptions = ManagementCallOptions & AccountLifecycleOptions;
+
+/**
+ * Options of an operation on an action, which belongs to a resource server or, when `resourceId` is given,
+ * to one of its resources.
+ */
+export type ManagementActionOptions = ManagementCallOptions & {resourceId?: string};
+
+/**
  * Member reference accepted when adding or removing group members.
  */
 export type ManagementGroupMemberInput = Pick<GroupMember, 'id' | 'type'>;
@@ -96,7 +232,15 @@ export type ManagementRequestConfigResolver = (
  */
 export interface ThunderIDNodeManagementClient {
   agentTypes: {
+    create(payload: CreateAgentTypeRequest, options?: ManagementCallOptions): Promise<AgentTypeDetails>;
+    delete(agentTypeId: string, options?: ManagementCallOptions): Promise<void>;
+    get(agentTypeId: string, options?: ManagementCallOptions): Promise<AgentTypeDetails>;
     list(options?: ManagementListOptions): Promise<AgentTypeListResponse>;
+    update(
+      agentTypeId: string,
+      payload: UpdateAgentTypeRequest,
+      options?: ManagementCallOptions,
+    ): Promise<AgentTypeDetails>;
   };
   agents: {
     create(payload: CreateAgentRequest, options?: ManagementCallOptions): Promise<Agent>;
@@ -105,10 +249,176 @@ export interface ThunderIDNodeManagementClient {
     list(options?: ManagementCallOptions & ApiFilteringParams): Promise<AgentListResponse>;
     listGroups(agentId: string, options?: ManagementListOptions): Promise<MembershipGroupListResponse>;
     listRoles(agentId: string, options?: ManagementListOptions): Promise<AgentRoleListResponse>;
+    suspend(agentId: string, options?: ManagementLifecycleOptions): Promise<AccountLifecycleResult>;
+    unlock(agentId: string, options?: ManagementLifecycleOptions): Promise<AccountLifecycleResult>;
+    unsuspend(agentId: string, options?: ManagementLifecycleOptions): Promise<AccountLifecycleResult>;
     update(agentId: string, payload: UpdateAgentRequest, options?: ManagementCallOptions): Promise<Agent>;
   };
+  applications: {
+    create(payload: CreateApplicationRequest, options?: ManagementCallOptions): Promise<Application>;
+    createSharingPolicy(
+      applicationId: string,
+      payload: SharingPolicyRequest,
+      options?: ManagementCallOptions,
+    ): Promise<SharingPolicy>;
+    /**
+     * Deletes the application, through the server's deletion flow when `administrationMode` is `flow`.
+     */
+    delete(applicationId: string, options?: ManagementCallOptions & AdministrationOptions): Promise<void>;
+    deleteSharingPolicy(applicationId: string, policyId: string, options?: ManagementCallOptions): Promise<void>;
+    get(applicationId: string, options?: ManagementCallOptions): Promise<Application>;
+    getOverlayRules(applicationId: string, ouId: string, options?: ManagementCallOptions): Promise<ResolvedOverlay>;
+    getSharingPolicy(applicationId: string, policyId: string, options?: ManagementCallOptions): Promise<SharingPolicy>;
+    list(options?: ManagementListOptions): Promise<ApplicationListResponse>;
+    listSharingPolicies(applicationId: string, options?: ManagementListOptions): Promise<SharingPolicyListResponse>;
+    /**
+     * Reads a client ID metadata document through the server. The preview is an endpoint of its own
+     * under `baseUrl`, so a collection `url` passed to the call does not apply.
+     */
+    previewCimdDocument(clientId: string, options?: ManagementCallOptions): Promise<CimdPreviewResponse>;
+    /**
+     * Issues a new client secret. The secret is returned once and cannot be read again.
+     */
+    regenerateClientSecret(
+      applicationId: string,
+      options?: ManagementCallOptions & AdministrationOptions,
+    ): Promise<RegenerateClientSecretResult>;
+    /**
+     * Issues a new flow secret. The secret is returned once and cannot be read again.
+     */
+    regenerateFlowSecret(applicationId: string, options?: ManagementCallOptions): Promise<RegenerateFlowSecretResult>;
+    suspend(applicationId: string, options?: ManagementLifecycleOptions): Promise<AccountLifecycleResult>;
+    unsuspend(applicationId: string, options?: ManagementLifecycleOptions): Promise<AccountLifecycleResult>;
+    update(
+      applicationId: string,
+      payload: UpdateApplicationRequest,
+      options?: ManagementCallOptions,
+    ): Promise<Application>;
+    updateSharingPolicy(
+      applicationId: string,
+      policyId: string,
+      payload: SharingPolicyUpdateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<SharingPolicy>;
+  };
+  /**
+   * Captured configuration versions, and the import and export of declarative resources.
+   */
+  configuration: {
+    captureVersion(
+      payload?: CaptureConfigurationVersionRequest,
+      options?: ManagementCallOptions,
+    ): Promise<ConfigurationVersion>;
+    deleteImported(
+      payload: DeleteImportedConfigurationRequest,
+      options?: ManagementCallOptions,
+    ): Promise<DeleteImportedConfigurationResponse>;
+    export(payload: ConfigurationExportRequest, options?: ManagementCallOptions): Promise<ConfigurationExportResponse>;
+    getVersion(version: string, options?: ManagementCallOptions): Promise<ConfigurationVersion>;
+    import(payload: ConfigurationImportRequest, options?: ManagementCallOptions): Promise<ConfigurationImportResponse>;
+    listVersions(options?: ManagementCallOptions): Promise<ConfigurationVersion[]>;
+  };
+  connections: {
+    create(type: ConnectionType, payload: ConnectionRequest, options?: ManagementCallOptions): Promise<Connection>;
+    delete(type: ConnectionType, connectionId: string, options?: ManagementCallOptions): Promise<void>;
+    get(type: ConnectionType, connectionId: string, options?: ManagementCallOptions): Promise<Connection>;
+    getMeta(options?: ManagementCallOptions & {vendor?: ConnectionType}): Promise<ConnectionMetaResponse>;
+    /**
+     * A page of connections across every type.
+     */
+    list(options?: ManagementListOptions & {category?: ConnectionCategory}): Promise<ConnectionListResponse>;
+    /**
+     * Every connection of one type.
+     */
+    listByType(type: ConnectionType, options?: ManagementCallOptions): Promise<ConnectionSummary[]>;
+    listUsages(
+      type: ConnectionTypeWithUsages,
+      connectionId: string,
+      options?: ManagementCallOptions,
+    ): Promise<ConnectionUsagesResponse>;
+    update(
+      type: ConnectionType,
+      connectionId: string,
+      payload: ConnectionRequest,
+      options?: ManagementCallOptions,
+    ): Promise<Connection>;
+  };
+  design: {
+    createLayout(payload: DesignLayoutRequest, options?: ManagementCallOptions): Promise<DesignLayout>;
+    createTheme(payload: DesignThemeRequest, options?: ManagementCallOptions): Promise<DesignTheme>;
+    deleteLayout(layoutId: string, options?: ManagementCallOptions): Promise<void>;
+    deleteTheme(themeId: string, options?: ManagementCallOptions): Promise<void>;
+    getLayout(layoutId: string, options?: ManagementCallOptions): Promise<DesignLayout>;
+    getTheme(themeId: string, options?: ManagementCallOptions): Promise<DesignTheme>;
+    listLayoutUsages(layoutId: string, options?: ManagementListOptions): Promise<ResourceUsagesResponse>;
+    listLayouts(options?: ManagementListOptions): Promise<DesignLayoutListResponse>;
+    listThemeUsages(themeId: string, options?: ManagementListOptions): Promise<ResourceUsagesResponse>;
+    listThemes(options?: ManagementListOptions): Promise<DesignThemeListResponse>;
+    resolve(type: DesignResolveType, id: string, options?: ManagementCallOptions): Promise<DesignResolveResponse>;
+    updateLayout(
+      layoutId: string,
+      payload: DesignLayoutRequest,
+      options?: ManagementCallOptions,
+    ): Promise<DesignLayout>;
+    updateTheme(themeId: string, payload: DesignThemeRequest, options?: ManagementCallOptions): Promise<DesignTheme>;
+  };
   flows: {
+    create(payload: ManagedFlowRequest, options?: ManagementCallOptions): Promise<ManagedFlowDefinition>;
+    delete(flowId: string, options?: ManagementCallOptions): Promise<void>;
+    get(flowId: string, options?: ManagementCallOptions): Promise<ManagedFlowDefinition>;
+    getVersion(flowId: string, version: number, options?: ManagementCallOptions): Promise<ManagedFlowVersion>;
     list(options?: ManagementListOptions & {flowType?: string}): Promise<ManagedFlowListResponse>;
+    listUsages(flowId: string, options?: ManagementCallOptions): Promise<ResourceUsagesResponse>;
+    listVersions(flowId: string, options?: ManagementCallOptions): Promise<ManagedFlowVersionListResponse>;
+    restoreVersion(flowId: string, version: number, options?: ManagementCallOptions): Promise<ManagedFlowDefinition>;
+    update(
+      flowId: string,
+      payload: ManagedFlowRequest,
+      options?: ManagementCallOptions,
+    ): Promise<ManagedFlowDefinition>;
+  };
+  gateways: {
+    applyConfiguration(
+      gatewayId: string,
+      payload?: ApplyGatewayConfigurationRequest,
+      options?: ManagementCallOptions,
+    ): Promise<GatewayApplyResult>;
+    create(payload: RegisterGatewayRequest, options?: ManagementCallOptions): Promise<GatewayRegistration>;
+    createSecret(gatewayId: string, payload: SecretRequest, options?: ManagementCallOptions): Promise<Secret>;
+    createVariable(gatewayId: string, payload: VariableRequest, options?: ManagementCallOptions): Promise<Variable>;
+    delete(gatewayId: string, options?: ManagementCallOptions): Promise<void>;
+    deleteSecret(gatewayId: string, name: string, options?: ManagementCallOptions): Promise<void>;
+    deleteVariable(gatewayId: string, name: string, options?: ManagementCallOptions): Promise<void>;
+    get(gatewayId: string, options?: ManagementCallOptions): Promise<Gateway>;
+    getAppliedConfiguration(gatewayId: string, options?: ManagementCallOptions): Promise<GatewayAppliedConfiguration>;
+    getAppliedVersion(gatewayId: string, options?: ManagementCallOptions): Promise<GatewayAppliedVersion>;
+    getConfigurationDiff(
+      gatewayId: string,
+      options?: ManagementCallOptions & {version?: string},
+    ): Promise<GatewayConfigurationDiff>;
+    getSecret(gatewayId: string, name: string, options?: ManagementCallOptions): Promise<Secret>;
+    getVariable(gatewayId: string, name: string, options?: ManagementCallOptions): Promise<Variable>;
+    list(options?: ManagementCallOptions): Promise<Gateway[]>;
+    listSecrets(gatewayId: string, options?: ManagementValueListOptions): Promise<SecretListResponse>;
+    listVariables(gatewayId: string, options?: ManagementValueListOptions): Promise<VariableListResponse>;
+    revertConfiguration(
+      gatewayId: string,
+      payload?: RevertGatewayConfigurationRequest,
+      options?: ManagementCallOptions,
+    ): Promise<GatewayApplyResult>;
+    update(gatewayId: string, payload: UpdateGatewayRequest, options?: ManagementCallOptions): Promise<Gateway>;
+    updateSecret(
+      gatewayId: string,
+      name: string,
+      payload: SecretUpdateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<Secret>;
+    updateVariable(
+      gatewayId: string,
+      name: string,
+      payload: VariableUpdateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<Variable>;
   };
   groups: {
     addMembers(groupId: string, members: ManagementGroupMemberInput[], options?: ManagementCallOptions): Promise<Group>;
@@ -123,6 +433,147 @@ export interface ThunderIDNodeManagementClient {
       options?: ManagementCallOptions,
     ): Promise<Group>;
     update(groupId: string, payload: UpdateGroupRequest, options?: ManagementCallOptions): Promise<Group>;
+  };
+  i18n: {
+    deleteTranslation(language: string, namespace: string, key: string, options?: ManagementCallOptions): Promise<void>;
+    deleteTranslations(language: string, options?: ManagementCallOptions): Promise<void>;
+    listLanguages(options?: ManagementCallOptions): Promise<LanguageListResponse>;
+    resolveTranslation(
+      language: string,
+      namespace: string,
+      key: string,
+      options?: ManagementCallOptions,
+    ): Promise<ManagedTranslation>;
+    resolveTranslations(
+      language: string,
+      options?: ManagementCallOptions & {namespace?: string},
+    ): Promise<LanguageTranslationsResponse>;
+    setTranslation(
+      language: string,
+      namespace: string,
+      key: string,
+      payload: SetTranslationRequest,
+      options?: ManagementCallOptions,
+    ): Promise<ManagedTranslation>;
+    setTranslations(
+      language: string,
+      payload: SetTranslationsRequest,
+      options?: ManagementCallOptions,
+    ): Promise<LanguageTranslationsResponse>;
+  };
+  notificationTemplates: {
+    create(
+      channel: NotificationChannel,
+      payload: CreateNotificationTemplateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<NotificationTemplate>;
+    delete(channel: NotificationChannel, templateId: string, options?: ManagementCallOptions): Promise<void>;
+    get(
+      channel: NotificationChannel,
+      templateId: string,
+      options?: ManagementCallOptions,
+    ): Promise<NotificationTemplate>;
+    list(channel: NotificationChannel, options?: ManagementListOptions): Promise<NotificationTemplateListResponse>;
+    update(
+      channel: NotificationChannel,
+      templateId: string,
+      payload: UpdateNotificationTemplateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<NotificationTemplate>;
+  };
+  /**
+   * Organization units. A unit is addressed by its identifier, or by its handle path (`engineering/platform`)
+   * through the `ByPath` operations and an {@link OrganizationUnitReference}.
+   */
+  organizationUnits: {
+    create(payload: CreateOrganizationUnitRequest, options?: ManagementCallOptions): Promise<OrganizationUnit>;
+    delete(ouId: string, options?: ManagementCallOptions): Promise<void>;
+    deleteByPath(path: string, options?: ManagementCallOptions): Promise<void>;
+    get(ouId: string, options?: ManagementCallOptions): Promise<OrganizationUnit>;
+    getByPath(path: string, options?: ManagementCallOptions): Promise<OrganizationUnit>;
+    list(options?: ManagementCallOptions & ApiFilteringParams): Promise<OrganizationUnitListResponse>;
+    listChildren(
+      unit: OrganizationUnitReference,
+      options?: ManagementCallOptions & ApiFilteringParams,
+    ): Promise<OrganizationUnitListResponse>;
+    listGroups(
+      unit: OrganizationUnitReference,
+      options?: ManagementListOptions,
+    ): Promise<OrganizationUnitGroupListResponse>;
+    listRoles(
+      unit: OrganizationUnitReference,
+      options?: ManagementListOptions,
+    ): Promise<OrganizationUnitRoleListResponse>;
+    listUsers(
+      unit: OrganizationUnitReference,
+      options?: ManagementListOptions,
+    ): Promise<OrganizationUnitUserListResponse>;
+    update(
+      ouId: string,
+      payload: UpdateOrganizationUnitRequest,
+      options?: ManagementCallOptions,
+    ): Promise<OrganizationUnit>;
+    updateByPath(
+      path: string,
+      payload: UpdateOrganizationUnitByPathRequest,
+      options?: ManagementCallOptions,
+    ): Promise<OrganizationUnit>;
+  };
+  /**
+   * Resource servers, their resources, and the actions on either.
+   */
+  resourceServers: {
+    create(payload: CreateResourceServerRequest, options?: ManagementCallOptions): Promise<ResourceServer>;
+    createAction(
+      resourceServerId: string,
+      payload: CreateActionRequest,
+      options?: ManagementActionOptions,
+    ): Promise<ManagedAction>;
+    createResource(
+      resourceServerId: string,
+      payload: CreateResourceRequest,
+      options?: ManagementCallOptions,
+    ): Promise<ManagedResource>;
+    delete(resourceServerId: string, options?: ManagementCallOptions): Promise<void>;
+    deleteAction(
+      resourceServerId: string,
+      actionId: string,
+      options?: ManagementActionOptions & AdministrationOptions,
+    ): Promise<void>;
+    deleteResource(resourceServerId: string, resourceId: string, options?: ManagementCallOptions): Promise<void>;
+    get(resourceServerId: string, options?: ManagementCallOptions): Promise<ResourceServer>;
+    getAction(resourceServerId: string, actionId: string, options?: ManagementActionOptions): Promise<ManagedAction>;
+    getResource(
+      resourceServerId: string,
+      resourceId: string,
+      options?: ManagementCallOptions,
+    ): Promise<ManagedResource>;
+    list(options?: ManagementListOptions): Promise<ResourceServerListResponse>;
+    listActions(
+      resourceServerId: string,
+      options?: ManagementListOptions & {kind?: ManagedActionKind; resourceId?: string},
+    ): Promise<ManagedActionListResponse>;
+    listResources(
+      resourceServerId: string,
+      options?: ManagementListOptions & {parentId?: string},
+    ): Promise<ManagedResourceListResponse>;
+    update(
+      resourceServerId: string,
+      payload: UpdateResourceServerRequest,
+      options?: ManagementCallOptions,
+    ): Promise<ResourceServer>;
+    updateAction(
+      resourceServerId: string,
+      actionId: string,
+      payload: UpdateActionRequest,
+      options?: ManagementActionOptions,
+    ): Promise<ManagedAction>;
+    updateResource(
+      resourceServerId: string,
+      resourceId: string,
+      payload: UpdateResourceRequest,
+      options?: ManagementCallOptions,
+    ): Promise<ManagedResource>;
   };
   roles: {
     addAssignments(roleId: string, assignments: RoleAssignmentInput[], options?: ManagementCallOptions): Promise<void>;
@@ -141,15 +592,60 @@ export interface ThunderIDNodeManagementClient {
     ): Promise<void>;
     update(roleId: string, payload: UpdateRoleRequest, options?: ManagementCallOptions): Promise<Role>;
   };
+  /**
+   * Server-level secrets. A secret's value is write-only: it is never returned, and never logged.
+   */
+  secrets: {
+    create(payload: SecretRequest, options?: ManagementCallOptions): Promise<Secret>;
+    delete(name: string, options?: ManagementCallOptions): Promise<void>;
+    get(name: string, options?: ManagementCallOptions): Promise<Secret>;
+    list(options?: ManagementValueListOptions): Promise<SecretListResponse>;
+    update(name: string, payload: SecretUpdateRequest, options?: ManagementCallOptions): Promise<Secret>;
+  };
+  serverConfig: {
+    get<T = unknown>(name: string, options?: ManagementCallOptions): Promise<ServerConfigLayers<T>>;
+    list(options?: ManagementCallOptions): Promise<string[]>;
+    update<T = unknown>(name: string, payload: T, options?: ManagementCallOptions): Promise<ServerConfigLayers<T>>;
+  };
   userTypes: {
     list(options?: ManagementListOptions): Promise<ManagedUserTypeListResponse>;
   };
   users: {
     create(payload: CreateManagedUserRequest, options?: ManagementCallOptions): Promise<ManagedUser>;
+    createByPath(path: string, payload: CreateUserByPathRequest, options?: ManagementCallOptions): Promise<ManagedUser>;
+    createSharingPolicy(
+      userId: string,
+      payload: SharingPolicyRequest,
+      options?: ManagementCallOptions,
+    ): Promise<SharingPolicy>;
     delete(userId: string, options?: ManagementCallOptions): Promise<void>;
+    deleteSharingPolicy(userId: string, policyId: string, options?: ManagementCallOptions): Promise<void>;
     get(userId: string, options?: ManagementCallOptions): Promise<ManagedUser>;
+    getOverlayRules(userId: string, ouId: string, options?: ManagementCallOptions): Promise<ResolvedOverlay>;
+    getSharingPolicy(userId: string, policyId: string, options?: ManagementCallOptions): Promise<SharingPolicy>;
     list(options?: ManagementCallOptions & ApiFilteringParams): Promise<ManagedUserListResponse>;
+    listByPath(path: string, options?: ManagementListOptions): Promise<ManagedUserListResponse>;
     listGroups(userId: string, options?: ManagementListOptions): Promise<MembershipGroupListResponse>;
+    listSharingPolicies(userId: string, options?: ManagementListOptions): Promise<SharingPolicyListResponse>;
+    suspend(userId: string, options?: ManagementLifecycleOptions): Promise<AccountLifecycleResult>;
+    unlock(userId: string, options?: ManagementLifecycleOptions): Promise<AccountLifecycleResult>;
+    unsuspend(userId: string, options?: ManagementLifecycleOptions): Promise<AccountLifecycleResult>;
     update(userId: string, payload: UpdateManagedUserRequest, options?: ManagementCallOptions): Promise<ManagedUser>;
+    updateSharingPolicy(
+      userId: string,
+      policyId: string,
+      payload: SharingPolicyUpdateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<SharingPolicy>;
+  };
+  /**
+   * Server-level variables.
+   */
+  variables: {
+    create(payload: VariableRequest, options?: ManagementCallOptions): Promise<Variable>;
+    delete(name: string, options?: ManagementCallOptions): Promise<void>;
+    get(name: string, options?: ManagementCallOptions): Promise<Variable>;
+    list(options?: ManagementValueListOptions): Promise<VariableListResponse>;
+    update(name: string, payload: VariableUpdateRequest, options?: ManagementCallOptions): Promise<Variable>;
   };
 }

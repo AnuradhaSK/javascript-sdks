@@ -252,7 +252,9 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    *   `{baseUrl}/oauth2/token/.well-known/openid-configuration`. Individual overrides take
    *   precedence over values resolved from the discovery document.
    * - **Resource-server endpoints** (`flowExecute`, `flowMeta`, `usersMe`, `usersMeCredentials`, and the
-   *   management collections `applications`, `users`, `userTypes`, `flows`, `agents`, `agentTypes`, `roles`, `groups`) —
+   *   management collections `applications`, `users`, `userTypes`, `flows`, `agents`, `agentTypes`, `roles`, `groups`,
+   *   `organizationUnits`, `resourceServers`, `connections`, `notificationTemplates`, `design`, `i18n`,
+   *   `serverConfig`, `gateways`, `variables`, `secrets`, `configurationVersions`, `import`, `export`) —
    *   by default derived by concatenating `baseUrl` with a fixed path (e.g. `{baseUrl}/flow/execute`).
    *   These do not participate in OIDC discovery.
    *
@@ -286,7 +288,7 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      */
     agents?: string;
     /**
-     * The agent types collection URL used by the agent type listing operation.
+     * The agent types collection URL used by the agent type management operations.
      * If not provided, defaults to `{baseUrl}/agent-types`.
      */
     agentTypes?: string;
@@ -308,10 +310,33 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      */
     backend?: BackendEndpoints;
     /**
+     * The configuration versions collection URL used by the configuration versions management operations.
+     * A single version is addressed as `{configurationVersions}/{version}`.
+     * If not provided, defaults to `{baseUrl}/configuration-versions`.
+     */
+    configurationVersions?: string;
+    /**
+     * The connections collection URL used by the connections management operations.
+     * The connections of a type are addressed as `{connections}/{type}`, and one of them as `{connections}/{type}/{id}`.
+     * If not provided, defaults to `{baseUrl}/connections`.
+     */
+    connections?: string;
+    /**
+     * The design collection URL used by the theme, layout and design resolution operations.
+     * Themes are addressed as `{design}/themes`, layouts as `{design}/layouts`.
+     * If not provided, defaults to `{baseUrl}/design`.
+     */
+    design?: string;
+    /**
      * The end-session (logout) endpoint URL.
      * If not provided, resolved from the well-known discovery document.
      */
     endSession?: string;
+    /**
+     * The export endpoint URL used by the configuration export operation.
+     * If not provided, defaults to `{baseUrl}/export`.
+     */
+    export?: string;
     /**
      * The flow execution endpoint URL used by the embedded sign-in, sign-up, recovery, and user
      * onboarding flows.
@@ -324,16 +349,35 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      */
     flowMeta?: string;
     /**
-     * The flows collection URL used by the flow listing operation.
+     * The flows collection URL used by the flow management operations.
+     * A single flow is addressed as `{flows}/{id}`.
      * If not provided, defaults to `{baseUrl}/flows`.
      */
     flows?: string;
+    /**
+     * The gateways collection URL used by the gateway management operations.
+     * A single gateway is addressed as `{gateways}/{id}`, and its values as `{gateways}/{id}/variables` and
+     * `{gateways}/{id}/secrets`.
+     * If not provided, defaults to `{baseUrl}/gateways`.
+     */
+    gateways?: string;
     /**
      * The groups collection URL used by the group management operations.
      * A single group is addressed as `{groups}/{id}`, and its members as `{groups}/{id}/members`.
      * If not provided, defaults to `{baseUrl}/groups`.
      */
     groups?: string;
+    /**
+     * The i18n collection URL used by the translation management operations.
+     * Languages are addressed as `{i18n}/languages`.
+     * If not provided, defaults to `{baseUrl}/i18n`.
+     */
+    i18n?: string;
+    /**
+     * The import endpoint URL used by the configuration import operations.
+     * If not provided, defaults to `{baseUrl}/import`.
+     */
+    import?: string;
     /**
      * The introspection endpoint URL.
      * If not provided, resolved from the well-known discovery document.
@@ -344,6 +388,25 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, resolved from the well-known discovery document.
      */
     jwks?: string;
+    /**
+     * The notification templates collection URL used by the notification template operations.
+     * The templates of a channel are addressed as `{notificationTemplates}/{channel}/templates`.
+     * If not provided, defaults to `{baseUrl}/notification-templates`.
+     */
+    notificationTemplates?: string;
+    /**
+     * The organization units collection URL used by the organization unit management operations.
+     * A single organization unit is addressed as `{organizationUnits}/{id}`, or by its handle path as
+     * `{organizationUnits}/tree/{path}`.
+     * If not provided, defaults to `{baseUrl}/organization-units`.
+     */
+    organizationUnits?: string;
+    /**
+     * The resource servers collection URL used by the resource server, resource and action operations.
+     * A single resource server is addressed as `{resourceServers}/{id}`.
+     * If not provided, defaults to `{baseUrl}/resource-servers`.
+     */
+    resourceServers?: string;
     /**
      * The token endpoint URL.
      * If not provided, resolved from the well-known discovery document.
@@ -360,6 +423,18 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, defaults to `{baseUrl}/roles`.
      */
     roles?: string;
+    /**
+     * The secrets collection URL used by the server-level secret operations.
+     * A single secret is addressed as `{secrets}/{name}`.
+     * If not provided, defaults to `{baseUrl}/secrets`.
+     */
+    secrets?: string;
+    /**
+     * The server configuration collection URL used by the server configuration operations.
+     * A single section is addressed as `{serverConfig}/{name}`.
+     * If not provided, defaults to `{baseUrl}/server-config`.
+     */
+    serverConfig?: string;
     /**
      * The users collection URL used by the user management operations.
      * A single user is addressed as `{users}/{id}`.
@@ -387,6 +462,12 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, defaults to `{baseUrl}/user-types`.
      */
     userTypes?: string;
+    /**
+     * The variables collection URL used by the server-level variable operations.
+     * A single variable is addressed as `{variables}/{name}`.
+     * If not provided, defaults to `{baseUrl}/variables`.
+     */
+    variables?: string;
     /**
      * The OpenID Connect discovery document URL.
      * Defaults to `{baseUrl}/oauth2/token/.well-known/openid-configuration`.

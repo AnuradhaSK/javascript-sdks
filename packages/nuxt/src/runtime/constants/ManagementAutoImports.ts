@@ -3,7 +3,7 @@
 
 /**
  * The admin (management) components of `@thunderid/vue` that the module auto-imports when
- * `management` is on. The containers fetch through the management composables, so they need no Nuxt
+ * `management` is on. The containers fetch through the management API functions, so they need no Nuxt
  * wrapper: the module installs the `http.fetcher` they use. The `Base*` variants take their data as
  * props.
  */
@@ -21,6 +21,9 @@ export const MANAGEMENT_COMPONENTS: readonly string[] = [
   'AgentList',
   'AgentCreate',
   'AgentDetails',
+  'ApplicationList',
+  'ApplicationCreate',
+  'ApplicationDetails',
   'BaseUserList',
   'BaseUserCreate',
   'BaseUserDetails',
@@ -34,43 +37,14 @@ export const MANAGEMENT_COMPONENTS: readonly string[] = [
   'BaseAgentList',
   'BaseAgentCreate',
   'BaseAgentDetails',
+  'BaseApplicationList',
+  'BaseApplicationCreate',
+  'BaseApplicationDetails',
 ];
 
 /**
  * The management composables of `@thunderid/vue` that the module auto-imports when `management` is
- * on. Same names as the `@thunderid/react` hooks.
+ * on. `useManagementRequestConfig` hands the management API functions the module's `http.fetcher`,
+ * so an app calls them through the server.
  */
-export const MANAGEMENT_COMPOSABLES: readonly string[] = [
-  'useGetUsers',
-  'useGetUser',
-  'useCreateUser',
-  'useUpdateUser',
-  'useDeleteUser',
-  'useGetUserGroups',
-  'useGetUserTypes',
-  'useGetGroups',
-  'useGetGroup',
-  'useCreateGroup',
-  'useUpdateGroup',
-  'useDeleteGroup',
-  'useGetGroupMembers',
-  'useAddGroupMembers',
-  'useRemoveGroupMembers',
-  'useGetRoles',
-  'useGetRole',
-  'useCreateRole',
-  'useUpdateRole',
-  'useDeleteRole',
-  'useGetRoleAssignments',
-  'useAddRoleAssignments',
-  'useRemoveRoleAssignments',
-  'useGetAgents',
-  'useGetAgent',
-  'useCreateAgent',
-  'useUpdateAgent',
-  'useDeleteAgent',
-  'useGetAgentGroups',
-  'useGetAgentRoles',
-  'useGetAgentTypes',
-  'useGrantedPermissions',
-];
+export const MANAGEMENT_COMPOSABLES: readonly string[] = ['useGrantedPermissions', 'useManagementRequestConfig'];

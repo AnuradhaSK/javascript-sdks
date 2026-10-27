@@ -16,6 +16,8 @@ describe('management collections', () => {
     'https://id.example.com/groups/g-1/members',
     'https://id.example.com/o/roles/r-1/assignments/add',
     'https://id.example.com/agent-types',
+    'https://id.example.com/applications?limit=10&offset=0',
+    'https://id.example.com/applications/app-1',
   ])('allows %s', (target) => {
     expect(matchManagementUrl(target, collections)).toBeInstanceOf(URL);
   });
@@ -45,12 +47,19 @@ describe('management auto-imports', () => {
   it('registers every admin component with its unstyled variant', () => {
     const styled = MANAGEMENT_COMPONENTS.filter((name) => !name.startsWith('Base'));
 
-    expect(styled).toHaveLength(13);
+    expect(styled).toHaveLength(16);
     styled.forEach((name) => expect(MANAGEMENT_COMPONENTS).toContain(`Base${name}`));
   });
 
   it('registers each composable once', () => {
     expect(new Set(MANAGEMENT_COMPOSABLES).size).toBe(MANAGEMENT_COMPOSABLES.length);
     expect(MANAGEMENT_COMPOSABLES).toContain('useGrantedPermissions');
+  });
+
+  // An auto-import of a name the package does not export only fails when an app's build bundles it.
+  it('registers only names that @thunderid/vue exports', async () => {
+    const vue: Record<string, unknown> = await import('@thunderid/vue');
+
+    [...MANAGEMENT_COMPONENTS, ...MANAGEMENT_COMPOSABLES].forEach((name) => expect(vue[name]).toBeDefined());
   });
 });

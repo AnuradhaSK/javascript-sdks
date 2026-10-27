@@ -1,7 +1,20 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {resolveManagedIdentityName, toManagementErrorMessage} from '@thunderid/browser';
+import {
+  AgentQueryKeys,
+  GroupQueryKeys,
+  RoleQueryKeys,
+  UserQueryKeys,
+  addRoleAssignments,
+  getAgents,
+  getGroups,
+  getRoleAssignments,
+  getUsers,
+  removeRoleAssignments,
+  resolveManagedIdentityName,
+  toManagementErrorMessage,
+} from '@thunderid/browser';
 import type {
   AgentListResponse,
   BasicAgent,
@@ -17,16 +30,9 @@ import type {
 } from '@thunderid/browser';
 import {type Component, type PropType, type Ref, type SetupContext, type VNode, defineComponent, h, ref} from 'vue';
 import BaseRoleAssignments from './BaseRoleAssignments';
-import useGetAgents from '../../../composables/management/agents/useGetAgents';
-import useGetGroups from '../../../composables/management/groups/useGetGroups';
-import useAddRoleAssignments, {
-  type RoleAssignmentsVariables,
-} from '../../../composables/management/roles/useAddRoleAssignments';
-import useGetRoleAssignments from '../../../composables/management/roles/useGetRoleAssignments';
-import useRemoveRoleAssignments from '../../../composables/management/roles/useRemoveRoleAssignments';
-import type {ResourceMutationResult} from '../../../composables/management/useResourceMutation';
-import type {ResourceQueryResult} from '../../../composables/management/useResourceQuery';
-import useGetUsers from '../../../composables/management/users/useGetUsers';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import type {IdentityCandidate} from '../shared/IdentityPicker';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 
@@ -39,6 +45,11 @@ type RoleAssignmentsProps = Readonly<{
   roleId: string;
   title: string | undefined;
 }>;
+
+interface RoleAssignmentsVariables {
+  assignments: RoleAssignmentInput[];
+  roleId: string;
+}
 
 /**
  * Lists who a role is assigned to and, unless `editable` is `false`, lets the signed-in user assign it
@@ -70,16 +81,49 @@ const RoleAssignments: Component = defineComponent({
   setup(props: RoleAssignmentsProps, {slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
     const typeFilter: Ref<RoleAssigneeType | null> = ref(null);
-    const assignments: ResourceQueryResult<RoleAssignmentListResponse> = useGetRoleAssignments(
-      () => props.roleId,
-      () => ({limit: 100, type: typeFilter.value ?? undefined}),
+    const rolesEndpoint: ManagementEndpoint = useManagementEndpoint('roles');
+    const usersEndpoint: ManagementEndpoint = useManagementEndpoint('users');
+    const groupsEndpoint: ManagementEndpoint = useManagementEndpoint('groups');
+    const agentsEndpoint: ManagementEndpoint = useManagementEndpoint('agents');
+    const assignments: ResourceQueryResult<RoleAssignmentListResponse> = useResourceQuery(
+      () => [RoleQueryKeys.ROLE_ASSIGNMENTS, props.roleId, {limit: 100, type: typeFilter.value ?? undefined}],
+      (fetcher) =>
+        getRoleAssignments({
+          ...rolesEndpoint,
+          fetcher,
+          limit: 100,
+          roleId: props.roleId,
+          type: typeFilter.value ?? undefined,
+        }),
+      {enabled: () => Boolean(props.roleId)},
     );
     const editable = (): boolean => props.editable;
-    const users: ResourceQueryResult<ManagedUserListResponse> = useGetUsers({limit: 100}, {enabled: editable});
-    const groups: ResourceQueryResult<GroupListResponse> = useGetGroups({limit: 100}, {enabled: editable});
-    const agents: ResourceQueryResult<AgentListResponse> = useGetAgents({limit: 100}, {enabled: editable});
-    const assign: ResourceMutationResult<void, RoleAssignmentsVariables> = useAddRoleAssignments();
-    const unassign: ResourceMutationResult<void, RoleAssignmentsVariables> = useRemoveRoleAssignments();
+    const users: ResourceQueryResult<ManagedUserListResponse> = useResourceQuery(
+      () => [UserQueryKeys.USERS, {limit: 100}],
+      (fetcher) => getUsers({...usersEndpoint, fetcher, limit: 100}),
+      {enabled: editable},
+    );
+    const groups: ResourceQueryResult<GroupListResponse> = useResourceQuery(
+      () => [GroupQueryKeys.GROUPS, {limit: 100}],
+      (fetcher) => getGroups({...groupsEndpoint, fetcher, limit: 100}),
+      {enabled: editable},
+    );
+    const agents: ResourceQueryResult<AgentListResponse> = useResourceQuery(
+      () => [AgentQueryKeys.AGENTS, {limit: 100}],
+      (fetcher) => getAgents({...agentsEndpoint, fetcher, limit: 100}),
+      {enabled: editable},
+    );
+    // Every mounted assignment list is refetched, including the roles listed for an agent.
+    const assign: ResourceMutationResult<void, RoleAssignmentsVariables> = useResourceMutation(
+      ({roleId, assignments: added}: RoleAssignmentsVariables, fetcher) =>
+        addRoleAssignments({...rolesEndpoint, assignments: added, fetcher, roleId}),
+      () => [[RoleQueryKeys.ROLE_ASSIGNMENTS]],
+    );
+    const unassign: ResourceMutationResult<void, RoleAssignmentsVariables> = useResourceMutation(
+      ({roleId, assignments: removed}: RoleAssignmentsVariables, fetcher) =>
+        removeRoleAssignments({...rolesEndpoint, assignments: removed, fetcher, roleId}),
+      () => [[RoleQueryKeys.ROLE_ASSIGNMENTS]],
+    );
 
     return (): VNode => {
       const candidates: Partial<Record<'user' | 'group' | 'agent', IdentityCandidate[]>> = {

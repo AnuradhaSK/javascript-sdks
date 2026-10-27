@@ -1,15 +1,16 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {ResourceQueryResult} from '@thunderid/vue';
 import {Component, defineComponent, h, PropType, VNode} from 'vue';
 import {describeError} from '../../lib/events';
+import type {ApiQuery} from '../../lib/useApiQuery';
 
 const notice = (message: string): VNode => h('div', {class: 'pg-warning', role: 'status'}, message);
 
 /**
- * Runs a live story against the first resource a list composable returns, so the details stories work
- * without typing an ID. An ID set in Controls wins.
+ * Runs a live story against the first resource a list API function returns (called with
+ * useManagementRequestConfig), so the details stories work without typing an ID. An ID set in Controls
+ * wins.
  */
 const FirstResource: Component = defineComponent({
   name: 'FirstResource',
@@ -17,17 +18,17 @@ const FirstResource: Component = defineComponent({
     explicit: {default: '', type: String},
     noun: {required: true, type: String},
     pick: {required: true, type: Function as PropType<(data: unknown) => string | undefined>},
-    query: {required: true, type: Function as PropType<() => ResourceQueryResult<unknown>>},
+    query: {required: true, type: Function as PropType<() => ApiQuery<unknown>>},
     render: {required: true, type: Function as PropType<(id: string) => VNode>},
   },
   setup(props: {
     explicit: string;
     noun: string;
     pick: (data: unknown) => string | undefined;
-    query: () => ResourceQueryResult<unknown>;
+    query: () => ApiQuery<unknown>;
     render: (id: string) => VNode;
   }): () => VNode {
-    const page: ResourceQueryResult<unknown> = props.query();
+    const page: ApiQuery<unknown> = props.query();
 
     return (): VNode => {
       if (props.explicit) return props.render(props.explicit);

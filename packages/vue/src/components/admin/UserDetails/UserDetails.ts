@@ -1,16 +1,21 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
-import type {ManagedUser, MembershipGroupListResponse, Preferences} from '@thunderid/browser';
+import {
+  GroupQueryKeys,
+  UserQueryKeys,
+  deleteUser,
+  getUser,
+  getUserGroups,
+  toManagementErrorMessage,
+  updateUser,
+} from '@thunderid/browser';
+import type {ManagedUser, MembershipGroupListResponse, Preferences, UpdateManagedUserRequest} from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import BaseUserDetails from './BaseUserDetails';
-import type {ResourceMutationResult} from '../../../composables/management/useResourceMutation';
-import type {ResourceQueryResult} from '../../../composables/management/useResourceQuery';
-import useDeleteUser from '../../../composables/management/users/useDeleteUser';
-import useGetUser from '../../../composables/management/users/useGetUser';
-import useGetUserGroups from '../../../composables/management/users/useGetUserGroups';
-import useUpdateUser, {type UpdateUserVariables} from '../../../composables/management/users/useUpdateUser';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 
 type UserDetailsProps = Readonly<{
@@ -21,6 +26,11 @@ type UserDetailsProps = Readonly<{
   preferences: Preferences | undefined;
   userId: string;
 }>;
+
+interface UpdateUserVariables {
+  data: UpdateManagedUserRequest;
+  userId: string;
+}
 
 /**
  * Shows a user and the groups they belong to, and optionally lets the signed-in user edit or delete
@@ -52,12 +62,27 @@ const UserDetails: Component = defineComponent({
   emits: ['deleted'],
   setup(props: UserDetailsProps, {emit, slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
-    const user: ResourceQueryResult<ManagedUser> = useGetUser(() => props.userId);
-    const groups: ResourceQueryResult<MembershipGroupListResponse> = useGetUserGroups(() => props.userId, {
-      limit: 100,
-    });
-    const deletion: ResourceMutationResult<void, string> = useDeleteUser({onSuccess: (): void => emit('deleted')});
-    const update: ResourceMutationResult<ManagedUser, UpdateUserVariables> = useUpdateUser();
+    const endpoint: ManagementEndpoint = useManagementEndpoint('users');
+    const hasUserId = (): boolean => Boolean(props.userId);
+    const user: ResourceQueryResult<ManagedUser> = useResourceQuery(
+      () => [UserQueryKeys.USER, props.userId],
+      (fetcher) => getUser({...endpoint, fetcher, userId: props.userId}),
+      {enabled: hasUserId},
+    );
+    const groups: ResourceQueryResult<MembershipGroupListResponse> = useResourceQuery(
+      () => [GroupQueryKeys.MEMBERSHIPS, 'user', props.userId, {limit: 100}],
+      (fetcher) => getUserGroups({...endpoint, fetcher, limit: 100, userId: props.userId}),
+      {enabled: hasUserId},
+    );
+    const deletion: ResourceMutationResult<void, string> = useResourceMutation(
+      (userId: string, fetcher) => deleteUser({...endpoint, fetcher, userId}),
+      () => [[UserQueryKeys.USERS]],
+      {onSuccess: (): void => emit('deleted')},
+    );
+    const update: ResourceMutationResult<ManagedUser, UpdateUserVariables> = useResourceMutation(
+      ({userId, data}: UpdateUserVariables, fetcher) => updateUser({...endpoint, fetcher, payload: data, userId}),
+      ({userId}: UpdateUserVariables) => [[UserQueryKeys.USER, userId], [UserQueryKeys.USERS]],
+    );
 
     return (): VNode => {
       const current: ManagedUser | undefined = user.data.value;

@@ -1,11 +1,22 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage, ManagedUser, ManagedUserType, SelectOption} from '@thunderid/browser';
+import {
+  CreateManagedUserRequest,
+  ManagedUser,
+  ManagedUserType,
+  ManagedUserTypeListResponse,
+  SelectOption,
+  UserQueryKeys,
+  createUser,
+  getUserTypes,
+  toManagementErrorMessage,
+} from '@thunderid/browser';
 import {FC, ReactElement, useMemo} from 'react';
 import BaseUserCreate, {BaseUserCreateProps, UserCreateSubmission} from './BaseUserCreate';
-import useCreateUser from '../../../hooks/management/users/useCreateUser';
-import useGetUserTypes from '../../../hooks/management/users/useGetUserTypes';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceMutation, {ResourceMutationResult} from '../../../hooks/management/useResourceMutation';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
 import InviteUser, {InviteUserProps} from '../../auth/InviteUser/InviteUser';
 import useDefaultOuId from '../shared/useDefaultOuId';
@@ -54,8 +65,18 @@ const UserCreate: FC<UserCreateProps> = ({
 }: UserCreateProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
   const resolvedOuId: string | undefined = useDefaultOuId(ouId);
-  const {data: userTypes} = useGetUserTypes({limit: 100}, {enabled: mode === 'api'});
-  const {error, isLoading, mutate} = useCreateUser({onSuccess: onCreated});
+  const usersEndpoint: ManagementEndpoint = useManagementEndpoint('users');
+  const userTypesEndpoint: ManagementEndpoint = useManagementEndpoint('userTypes');
+  const {data: userTypes}: ResourceQueryResult<ManagedUserTypeListResponse> = useResourceQuery(
+    [UserQueryKeys.USER_TYPES, {limit: 100}],
+    (fetcher) => getUserTypes({...userTypesEndpoint, fetcher, limit: 100}),
+    {enabled: mode === 'api'},
+  );
+  const {error, isLoading, mutate}: ResourceMutationResult<ManagedUser, CreateManagedUserRequest> = useResourceMutation(
+    (payload: CreateManagedUserRequest, fetcher) => createUser({...usersEndpoint, fetcher, payload}),
+    () => [[UserQueryKeys.USERS]],
+    {onSuccess: onCreated},
+  );
 
   const options: SelectOption[] = useMemo(
     () =>

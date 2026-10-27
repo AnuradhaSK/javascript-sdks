@@ -100,7 +100,12 @@ describe('ThunderIDNodeClient management()', () => {
       name: 'users.listGroups',
       url: `${BASE_URL}/users/u1/groups?limit=5`,
     },
-    {call: () => admin.userTypes.list(), method: 'GET', name: 'userTypes.list', url: `${BASE_URL}/user-types`},
+    {
+      call: () => admin.userTypes.list(),
+      method: 'GET',
+      name: 'userTypes.list',
+      url: `${BASE_URL}/user-types?include=display`,
+    },
     {
       call: () => admin.groups.list({limit: 2, offset: 4}),
       method: 'GET',
@@ -148,8 +153,13 @@ describe('ThunderIDNodeClient management()', () => {
       name: 'groups.removeMembers',
       url: `${BASE_URL}/groups/g1/members/remove`,
     },
-    {call: () => admin.roles.list({limit: 1}), method: 'GET', name: 'roles.list', url: `${BASE_URL}/roles?limit=1`},
-    {call: () => admin.roles.get('r1'), method: 'GET', name: 'roles.get', url: `${BASE_URL}/roles/r1`},
+    {
+      call: () => admin.roles.list({limit: 1}),
+      method: 'GET',
+      name: 'roles.list',
+      url: `${BASE_URL}/roles?include=display&limit=1`,
+    },
+    {call: () => admin.roles.get('r1'), method: 'GET', name: 'roles.get', url: `${BASE_URL}/roles/r1?include=display`},
     {
       body: {name: 'Auditor', ouId: 'ou1'},
       call: () => admin.roles.create({name: 'Auditor', ouId: 'ou1'} as never),
@@ -213,6 +223,83 @@ describe('ThunderIDNodeClient management()', () => {
     },
     {call: () => admin.agents.delete('a1'), method: 'DELETE', name: 'agents.delete', url: `${BASE_URL}/agents/a1`},
     {
+      call: () => admin.applications.list({limit: 5, offset: 10}),
+      method: 'GET',
+      name: 'applications.list',
+      url: `${BASE_URL}/applications?limit=5&offset=10`,
+    },
+    {
+      call: () => admin.applications.get('app1'),
+      method: 'GET',
+      name: 'applications.get',
+      url: `${BASE_URL}/applications/app1`,
+    },
+    {
+      body: {name: 'My SPA'},
+      call: () => admin.applications.create({name: 'My SPA'} as never),
+      method: 'POST',
+      name: 'applications.create',
+      url: `${BASE_URL}/applications`,
+    },
+    {
+      body: {name: 'Renamed'},
+      call: () => admin.applications.update('app1', {name: 'Renamed'} as never),
+      method: 'PUT',
+      name: 'applications.update',
+      url: `${BASE_URL}/applications/app1`,
+    },
+    {
+      call: () => admin.applications.delete('app1'),
+      method: 'DELETE',
+      name: 'applications.delete',
+      url: `${BASE_URL}/applications/app1`,
+    },
+    {
+      body: {clientId: 'https://client.example.com/metadata.json'},
+      call: () => admin.applications.previewCimdDocument('https://client.example.com/metadata.json'),
+      method: 'POST',
+      name: 'applications.previewCimdDocument',
+      url: `${BASE_URL}/cimd/preview`,
+    },
+    {
+      call: () => admin.applications.listSharingPolicies('app1', {limit: 3}),
+      method: 'GET',
+      name: 'applications.listSharingPolicies',
+      url: `${BASE_URL}/applications/app1/sharing-policies?limit=3`,
+    },
+    {
+      body: {version: 1},
+      call: () => admin.applications.createSharingPolicy('app1', {version: 1} as never),
+      method: 'POST',
+      name: 'applications.createSharingPolicy',
+      url: `${BASE_URL}/applications/app1/sharing-policies`,
+    },
+    {
+      call: () => admin.applications.getSharingPolicy('app1', 'p1'),
+      method: 'GET',
+      name: 'applications.getSharingPolicy',
+      url: `${BASE_URL}/applications/app1/sharing-policies/p1`,
+    },
+    {
+      body: {version: 2},
+      call: () => admin.applications.updateSharingPolicy('app1', 'p1', {version: 2}),
+      method: 'PUT',
+      name: 'applications.updateSharingPolicy',
+      url: `${BASE_URL}/applications/app1/sharing-policies/p1`,
+    },
+    {
+      call: () => admin.applications.deleteSharingPolicy('app1', 'p1'),
+      method: 'DELETE',
+      name: 'applications.deleteSharingPolicy',
+      url: `${BASE_URL}/applications/app1/sharing-policies/p1`,
+    },
+    {
+      call: () => admin.applications.getOverlayRules('app1', 'ou2'),
+      method: 'GET',
+      name: 'applications.getOverlayRules',
+      url: `${BASE_URL}/applications/app1/overlay-rules?ouId=ou2`,
+    },
+    {
       call: () => admin.agents.listGroups('a1'),
       method: 'GET',
       name: 'agents.listGroups',
@@ -224,12 +311,199 @@ describe('ThunderIDNodeClient management()', () => {
       name: 'agents.listRoles',
       url: `${BASE_URL}/agents/a1/roles?limit=7`,
     },
-    {call: () => admin.agentTypes.list(), method: 'GET', name: 'agentTypes.list', url: `${BASE_URL}/agent-types`},
+    {
+      call: () => admin.agentTypes.list(),
+      method: 'GET',
+      name: 'agentTypes.list',
+      url: `${BASE_URL}/agent-types?include=display`,
+    },
     {
       call: () => admin.flows.list({flowType: 'AUTHENTICATION'}),
       method: 'GET',
       name: 'flows.list',
       url: `${BASE_URL}/flows?flowType=AUTHENTICATION`,
+    },
+    {
+      body: {displayName: 'Default', handle: 'default', ouId: 'ou1', schema: {}},
+      call: () => admin.agentTypes.create({displayName: 'Default', handle: 'default', ouId: 'ou1', schema: {}}),
+      method: 'POST',
+      name: 'agentTypes.create',
+      url: `${BASE_URL}/agent-types`,
+    },
+    {
+      call: () => admin.agentTypes.delete('t1'),
+      method: 'DELETE',
+      name: 'agentTypes.delete',
+      url: `${BASE_URL}/agent-types/t1`,
+    },
+    {
+      call: () => admin.users.listByPath('eng/plat form', {limit: 2}),
+      method: 'GET',
+      name: 'users.listByPath',
+      url: `${BASE_URL}/users/tree/eng/plat%20form?include=display&limit=2`,
+    },
+    {
+      body: {type: 'customer'},
+      call: () => admin.users.createByPath('eng', {type: 'customer'}),
+      method: 'POST',
+      name: 'users.createByPath',
+      url: `${BASE_URL}/users/tree/eng`,
+    },
+    {
+      call: () => admin.users.listSharingPolicies('u1'),
+      method: 'GET',
+      name: 'users.listSharingPolicies',
+      url: `${BASE_URL}/users/u1/sharing-policies`,
+    },
+    {
+      body: {version: 2},
+      call: () => admin.users.updateSharingPolicy('u1', 'p1', {version: 2}),
+      method: 'PUT',
+      name: 'users.updateSharingPolicy',
+      url: `${BASE_URL}/users/u1/sharing-policies/p1`,
+    },
+    {
+      call: () => admin.users.getOverlayRules('u1', 'ou2'),
+      method: 'GET',
+      name: 'users.getOverlayRules',
+      url: `${BASE_URL}/users/u1/overlay-rules?ouId=ou2`,
+    },
+    {
+      call: () => admin.organizationUnits.list({filter: 'handle eq "eng"'}),
+      method: 'GET',
+      name: 'organizationUnits.list',
+      url: `${BASE_URL}/organization-units?filter=handle+eq+%22eng%22`,
+    },
+    {
+      call: () => admin.organizationUnits.getByPath('eng/platform'),
+      method: 'GET',
+      name: 'organizationUnits.getByPath',
+      url: `${BASE_URL}/organization-units/tree/eng/platform`,
+    },
+    {
+      call: () => admin.organizationUnits.listChildren({path: 'eng'}, {limit: 3}),
+      method: 'GET',
+      name: 'organizationUnits.listChildren',
+      url: `${BASE_URL}/organization-units/tree/eng/ous?limit=3`,
+    },
+    {
+      call: () => admin.organizationUnits.listUsers({ouId: 'ou1'}),
+      method: 'GET',
+      name: 'organizationUnits.listUsers',
+      url: `${BASE_URL}/organization-units/ou1/users?include=display`,
+    },
+    {
+      call: () => admin.resourceServers.listActions('rs1', {kind: 'tool', resourceId: 'r1'}),
+      method: 'GET',
+      name: 'resourceServers.listActions',
+      url: `${BASE_URL}/resource-servers/rs1/resources/r1/actions?kind=tool`,
+    },
+    {
+      call: () => admin.resourceServers.deleteAction('rs1', 'a1'),
+      method: 'DELETE',
+      name: 'resourceServers.deleteAction',
+      url: `${BASE_URL}/resource-servers/rs1/actions/a1`,
+    },
+    {
+      call: () => admin.connections.list({category: 'http'}),
+      method: 'GET',
+      name: 'connections.list',
+      url: `${BASE_URL}/connections?category=http`,
+    },
+    {
+      call: () => admin.connections.listByType('google'),
+      method: 'GET',
+      name: 'connections.listByType',
+      url: `${BASE_URL}/connections/google`,
+    },
+    {
+      call: () => admin.connections.listUsages('oidc', 'c1'),
+      method: 'GET',
+      name: 'connections.listUsages',
+      url: `${BASE_URL}/connections/oidc/c1/usages`,
+    },
+    {
+      body: {version: 2},
+      call: () => admin.flows.restoreVersion('f1', 2),
+      method: 'POST',
+      name: 'flows.restoreVersion',
+      url: `${BASE_URL}/flows/f1/restore`,
+    },
+    {
+      call: () => admin.notificationTemplates.get('email', 't1'),
+      method: 'GET',
+      name: 'notificationTemplates.get',
+      url: `${BASE_URL}/notification-templates/email/templates/t1`,
+    },
+    {
+      call: () => admin.design.listThemes({limit: 4}),
+      method: 'GET',
+      name: 'design.listThemes',
+      url: `${BASE_URL}/design/themes?limit=4`,
+    },
+    {
+      call: () => admin.design.resolve('OU', 'ou1'),
+      method: 'GET',
+      name: 'design.resolve',
+      url: `${BASE_URL}/design/resolve?id=ou1&type=OU`,
+    },
+    {
+      body: {value: 'Hi'},
+      call: () => admin.i18n.setTranslation('en-US', 'auth', 'title', {value: 'Hi'}),
+      method: 'POST',
+      name: 'i18n.setTranslation',
+      url: `${BASE_URL}/i18n/languages/en-US/translations/ns/auth/keys/title`,
+    },
+    {
+      call: () => admin.serverConfig.get('flow'),
+      method: 'GET',
+      name: 'serverConfig.get',
+      url: `${BASE_URL}/server-config/flow`,
+    },
+    {
+      call: () => admin.gateways.getConfigurationDiff('gw1', {version: 'latest'}),
+      method: 'GET',
+      name: 'gateways.getConfigurationDiff',
+      url: `${BASE_URL}/gateways/gw1/diff?version=latest`,
+    },
+    {
+      body: {value: 'x'},
+      call: () => admin.gateways.updateSecret('gw1', 'S', {value: 'x'}),
+      method: 'PUT',
+      name: 'gateways.updateSecret',
+      url: `${BASE_URL}/gateways/gw1/secrets/S`,
+    },
+    {
+      call: () => admin.variables.list({names: ['A', 'B']}),
+      method: 'GET',
+      name: 'variables.list',
+      url: `${BASE_URL}/variables?names=A%2CB`,
+    },
+    {
+      call: () => admin.secrets.delete('S'),
+      method: 'DELETE',
+      name: 'secrets.delete',
+      url: `${BASE_URL}/secrets/S`,
+    },
+    {
+      call: () => admin.configuration.listVersions(),
+      method: 'GET',
+      name: 'configuration.listVersions',
+      url: `${BASE_URL}/configuration-versions`,
+    },
+    {
+      body: {roles: ['r1']},
+      call: () => admin.configuration.export({roles: ['r1']}),
+      method: 'POST',
+      name: 'configuration.export',
+      url: `${BASE_URL}/export`,
+    },
+    {
+      body: {resourceKey: 'k', resourceType: 'role'},
+      call: () => admin.configuration.deleteImported({resourceKey: 'k', resourceType: 'role'}),
+      method: 'POST',
+      name: 'configuration.deleteImported',
+      url: `${BASE_URL}/import/delete`,
     },
   ];
 
@@ -265,10 +539,10 @@ describe('ThunderIDNodeClient management()', () => {
     const scoped: ThunderIDNodeManagementClient = overridden.management('session-1');
 
     await scoped.roles.get('r1');
-    expect(lastCall(fetchMock).url).toBe('https://rs.example.com/v2/roles/r1');
+    expect(lastCall(fetchMock).url).toBe('https://rs.example.com/v2/roles/r1?include=display');
 
     await scoped.roles.get('r1', {url: 'https://other.example.com/roles'});
-    expect(lastCall(fetchMock).url).toBe('https://other.example.com/roles/r1');
+    expect(lastCall(fetchMock).url).toBe('https://other.example.com/roles/r1?include=display');
 
     await scoped.groups.get('g1');
     expect(lastCall(fetchMock).url).toBe(`${BASE_URL}/groups/g1?include=display`);
@@ -319,4 +593,108 @@ describe('ThunderIDNodeClient management()', () => {
       expect(String((error as Error).message)).not.toContain(TOKEN);
     },
   );
+
+  it('runs an account lifecycle operation through its flow and reports whether the email was sent', async () => {
+    // The flow configuration, the flow listing, then the flow execution.
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({merged: {userSuspendFlow: {defaultHandle: 'suspend-user'}}}))
+      .mockResolvedValueOnce(jsonResponse({flows: [{flowType: 'ADMINISTRATION', handle: 'suspend-user', id: 'f1'}]}))
+      .mockResolvedValueOnce(jsonResponse({data: {additionalData: {emailSent: 'false'}}, flowStatus: 'COMPLETE'}));
+
+    await expect(admin.users.suspend('u1', {operatorNote: 'Ticket 7'})).resolves.toEqual({emailSent: false});
+
+    const captured: Captured = lastCall(fetchMock);
+    expect(captured.url).toBe(`${BASE_URL}/flow/execute`);
+    expect(captured.headers['Authorization']).toBe(`Bearer ${TOKEN}`);
+    expect(captured.body).toEqual({flowId: 'f1', inputs: {operatorNote: 'Ticket 7', subject: 'u1'}});
+    expect(fetchMock.mock.calls.map(([url]) => url as string)).toEqual([
+      `${BASE_URL}/server-config/flow`,
+      `${BASE_URL}/flows?flowType=ADMINISTRATION&limit=100&offset=0`,
+      `${BASE_URL}/flow/execute`,
+    ]);
+  });
+
+  it('refuses an account lifecycle operation when no flow is configured', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({merged: {}}));
+
+    await expect(admin.agents.unlock('a1')).rejects.toMatchObject({code: 'unlockAgent-NotConfiguredError-001'});
+  });
+
+  it('regenerates an application client secret by reading the application and writing it back', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 'app1',
+          inboundAuthConfig: [{config: {clientId: 'c1'}, type: 'oauth2'}],
+          name: 'My SPA',
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({id: 'app1', name: 'My SPA'}));
+
+    const {clientSecret} = await admin.applications.regenerateClientSecret('app1');
+
+    const captured: Captured = lastCall(fetchMock);
+    expect(captured.method).toBe('PUT');
+    expect(captured.url).toBe(`${BASE_URL}/applications/app1`);
+    expect(captured.headers['Authorization']).toBe(`Bearer ${TOKEN}`);
+    expect(captured.body).toEqual({
+      inboundAuthConfig: [{config: {clientId: 'c1', clientSecret}, type: 'oauth2'}],
+      name: 'My SPA',
+    });
+  });
+
+  it('regenerates an application flow secret by reading the application and writing it back', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({id: 'app1', name: 'My SPA'}))
+      .mockResolvedValueOnce(jsonResponse({id: 'app1', name: 'My SPA'}));
+
+    const {flowSecret} = await admin.applications.regenerateFlowSecret('app1');
+
+    const captured: Captured = lastCall(fetchMock);
+    expect(captured.method).toBe('PUT');
+    expect(captured.url).toBe(`${BASE_URL}/applications/app1`);
+    expect(captured.body).toEqual({flowSecret, name: 'My SPA'});
+  });
+
+  it('suspends an application through its account lifecycle flow', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({merged: {applicationSuspendFlow: {defaultHandle: 'suspend-app'}}}))
+      .mockResolvedValueOnce(jsonResponse({flows: [{flowType: 'ADMINISTRATION', handle: 'suspend-app', id: 'f2'}]}))
+      .mockResolvedValueOnce(jsonResponse({data: {additionalData: {emailSent: 'true'}}, flowStatus: 'COMPLETE'}));
+
+    await expect(admin.applications.suspend('app1', {operatorNote: 'Ticket 9'})).resolves.toEqual({emailSent: true});
+    expect(lastCall(fetchMock).body).toEqual({flowId: 'f2', inputs: {operatorNote: 'Ticket 9', subject: 'app1'}});
+  });
+
+  it('refuses an application lifecycle operation when no flow is configured', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({merged: {}}));
+
+    await expect(admin.applications.unsuspend('app1')).rejects.toMatchObject({
+      code: 'unsuspendApplication-NotConfiguredError-001',
+    });
+  });
+
+  it('refuses a missing application identifier before reading the token or sending anything', async () => {
+    await expect(admin.applications.delete('' as never)).rejects.toMatchObject({
+      code: 'deleteApplication-ValidationError-002',
+    });
+    await expect(admin.applications.getSharingPolicy('app1', undefined as never)).rejects.toMatchObject({
+      code: 'getApplicationSharingPolicy-ValidationError-002',
+    });
+    await expect(admin.applications.regenerateClientSecret(undefined as never)).rejects.toMatchObject({
+      code: 'regenerateClientSecret-ValidationError-002',
+    });
+    expect(getAccessToken).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a missing identifier on the new accessors before sending anything', async () => {
+    await expect(admin.gateways.getSecret('gw1', '' as never)).rejects.toMatchObject({
+      code: 'getGatewaySecret-ValidationError-002',
+    });
+    await expect(admin.connections.get('google', undefined as never)).rejects.toMatchObject({
+      code: 'getConnection-ValidationError-002',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

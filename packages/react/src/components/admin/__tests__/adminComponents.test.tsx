@@ -1,8 +1,8 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {cleanup, fireEvent, render, screen, waitFor, within} from '@testing-library/react';
-import {createResourceInvalidator, ApiFetcher, ManagedUser} from '@thunderid/browser';
+import {act, cleanup, fireEvent, render, screen, waitFor, within} from '@testing-library/react';
+import {createResourceInvalidator, ApiFetcher, Application, ManagedUser} from '@thunderid/browser';
 import {ReactElement, ReactNode} from 'react';
 import {Mock, afterEach, describe, expect, it, vi} from 'vitest';
 import I18nProvider from '../../../contexts/I18n/I18nProvider';
@@ -10,12 +10,22 @@ import ThemeProvider from '../../../contexts/Theme/ThemeProvider';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../contexts/ThunderID/ThunderIDContext';
 import UserContext, {UserContextProps} from '../../../contexts/User/UserContext';
 import BaseAgentCreate from '../AgentCreate/BaseAgentCreate';
+import AgentDetails from '../AgentDetails/AgentDetails';
+import AgentList from '../AgentList/AgentList';
+import ApplicationCreate from '../ApplicationCreate/ApplicationCreate';
+import BaseApplicationCreate, {BaseApplicationCreateRenderProps} from '../ApplicationCreate/BaseApplicationCreate';
+import ApplicationDetails from '../ApplicationDetails/ApplicationDetails';
+import BaseApplicationDetails, {BaseApplicationDetailsRenderProps} from '../ApplicationDetails/BaseApplicationDetails';
+import ApplicationList from '../ApplicationList/ApplicationList';
+import BaseApplicationList from '../ApplicationList/BaseApplicationList';
 import BaseGroupCreate from '../GroupCreate/BaseGroupCreate';
+import GroupCreate from '../GroupCreate/GroupCreate';
+import GroupList from '../GroupList/GroupList';
 import BaseGroupMembers from '../GroupMembers/BaseGroupMembers';
 import GroupMembers from '../GroupMembers/GroupMembers';
-import AgentList from '../AgentList/AgentList';
 import BaseRoleAssignments from '../RoleAssignments/BaseRoleAssignments';
 import RoleAssignments from '../RoleAssignments/RoleAssignments';
+import RoleList from '../RoleList/RoleList';
 import BaseRolePermissions from '../RolePermissions/BaseRolePermissions';
 import RolePermissions from '../RolePermissions/RolePermissions';
 import BaseUserCreate from '../UserCreate/BaseUserCreate';
@@ -52,11 +62,15 @@ const respond = (body: unknown, status = 200): Response =>
 
 const renderWithProviders = (
   ui: ReactElement,
-  {fetcher, ouId}: {fetcher?: ApiFetcher; ouId?: string} = {},
+  {
+    endpoints,
+    fetcher,
+    ouId,
+  }: {endpoints?: ThunderIDContextProps['endpoints']; fetcher?: ApiFetcher; ouId?: string} = {},
 ): ReturnType<typeof render> => {
   const thunderID = {
     baseUrl,
-    endpoints: undefined,
+    endpoints,
     http: {fetcher},
     instanceId: 0,
     invalidator: createResourceInvalidator(),
@@ -400,7 +414,7 @@ describe('RolePermissions', () => {
     renderWithProviders(<RolePermissions roleId="r-1" />, {fetcher});
 
     expect((await screen.findByRole('list', {name: 'rs-1'})).textContent).toContain('system:user:view');
-    expect(fetcher.mock.calls[0][0]).toBe(`${baseUrl}/roles/r-1`);
+    expect(fetcher.mock.calls[0][0]).toBe(`${baseUrl}/roles/r-1?include=display`);
   });
 });
 
@@ -655,5 +669,621 @@ describe('search and filters', () => {
 
     fireEvent.click(screen.getByRole('button', {name: 'Searching username=aiko'}));
     expect(onSearch).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('connected data loading', () => {
+  const emptyPage: Record<string, unknown> = {
+    agents: [],
+    assignments: [],
+    count: 0,
+    groups: [],
+    members: [],
+    roles: [],
+    startIndex: 1,
+    totalResults: 0,
+    users: [],
+  };
+
+  // Answers each management request with a body shaped for the resource it asks for.
+  const createRoutingFetcher = (): FetcherMock =>
+    vi.fn<ApiFetcher>().mockImplementation((url: string, init?: RequestInit) => {
+      const {pathname} = new URL(url);
+
+      if (init?.method === 'DELETE') {
+        return Promise.resolve(respond(null, 204));
+      }
+      if (pathname.endsWith('/members')) {
+        return Promise.resolve(
+          respond({
+            ...emptyPage,
+            count: 1,
+            members: [{display: 'Aiko Tanaka', id: 'u-1', type: 'user'}],
+            totalResults: 1,
+          }),
+        );
+      }
+      if (pathname.endsWith('/assignments')) {
+        return Promise.resolve(
+          respond({...emptyPage, assignments: [{display: 'Deploy bot', id: 'ag-1', type: 'agent'}], count: 1}),
+        );
+      }
+      if (pathname === '/users/u-1') {
+        return Promise.resolve(respond(users[0]));
+      }
+      if (pathname === '/agents/ag-1') {
+        return Promise.resolve(respond({id: 'ag-1', name: 'Deploy bot', ouId: 'ou-1', type: 'default'}));
+      }
+      if (init?.method === 'POST' && pathname === '/groups') {
+        return Promise.resolve(respond({id: 'g-9', name: 'Support', ouId: 'ou-1'}, 201));
+      }
+
+      return Promise.resolve(respond(emptyPage));
+    });
+
+  const requestedPaths = (fetcher: FetcherMock): string[] =>
+    fetcher.mock.calls.map(([url]: [string, RequestInit]) => {
+      const {pathname, search} = new URL(url);
+
+      return `${pathname}${search}`;
+    });
+
+  it('loads groups and roles from their collections', async () => {
+    const fetcher: FetcherMock = createRoutingFetcher();
+
+    renderWithProviders(
+      <>
+        <GroupList limit={10} />
+        <RoleList limit={10} />
+      </>,
+      {fetcher},
+    );
+
+    await waitFor(() =>
+      expect(requestedPaths(fetcher)).toEqual(
+        expect.arrayContaining([
+          '/groups?include=display&limit=10&offset=0',
+          '/roles?include=display&limit=10&offset=0',
+        ]),
+      ),
+    );
+  });
+
+  it('targets the groups endpoint override when the provider sets one', async () => {
+    const fetcher: FetcherMock = createRoutingFetcher();
+
+    renderWithProviders(<GroupMembers groupId="g-1" />, {
+      endpoints: {groups: 'https://rs.example.com/groups'},
+      fetcher,
+    });
+
+    await screen.findByText('Aiko Tanaka');
+    expect(fetcher.mock.calls[0][0]).toBe('https://rs.example.com/groups/g-1/members?include=display&limit=100');
+  });
+
+  it('waits for an identifier before fetching a resource', () => {
+    const fetcher: FetcherMock = createRoutingFetcher();
+
+    renderWithProviders(
+      <>
+        <UserDetails userId="" />
+        <RoleAssignments roleId="" />
+      </>,
+      {fetcher},
+    );
+
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('refetches members, memberships and role assignments after removing a group member', async () => {
+    const fetcher: FetcherMock = createRoutingFetcher();
+
+    renderWithProviders(
+      <>
+        <GroupMembers groupId="g-1" editable />
+        <UserDetails userId="u-1" />
+        <RoleAssignments roleId="r-1" />
+      </>,
+      {fetcher},
+    );
+
+    const remove: HTMLElement = await screen.findByRole('button', {name: 'Remove Aiko Tanaka from the group'});
+    await screen.findByRole('heading', {name: 'Aiko Tanaka'});
+    await screen.findByText('Deploy bot');
+    fetcher.mockClear();
+
+    fireEvent.click(remove);
+
+    await waitFor(() =>
+      expect(requestedPaths(fetcher)).toEqual(
+        expect.arrayContaining([
+          '/groups/g-1/members/remove',
+          '/groups/g-1/members?include=display&limit=100',
+          '/users/u-1/groups?limit=100',
+          '/roles/r-1/assignments?include=display&limit=100',
+        ]),
+      ),
+    );
+    // The user itself is not part of the membership change.
+    expect(requestedPaths(fetcher)).not.toContain('/users/u-1?include=display');
+  });
+
+  it('refetches role assignments and agent roles after unassigning a role', async () => {
+    const fetcher: FetcherMock = createRoutingFetcher();
+
+    renderWithProviders(
+      <>
+        <RoleAssignments roleId="r-1" editable />
+        <AgentDetails agentId="ag-1" />
+      </>,
+      {fetcher},
+    );
+
+    const remove: HTMLElement = await screen.findByRole('button', {name: 'Remove the role from Deploy bot'});
+    await waitFor(() => expect(requestedPaths(fetcher)).toContain('/agents/ag-1/roles?limit=100'));
+    fetcher.mockClear();
+
+    fireEvent.click(remove);
+
+    await waitFor(() =>
+      expect(requestedPaths(fetcher)).toEqual(
+        expect.arrayContaining([
+          '/roles/r-1/assignments/remove',
+          '/roles/r-1/assignments?include=display&limit=100',
+          '/agents/ag-1/roles?limit=100',
+        ]),
+      ),
+    );
+    const removal: [string, RequestInit] = fetcher.mock.calls.find(([url]: [string, RequestInit]) =>
+      url.endsWith('/assignments/remove'),
+    )!;
+    expect(JSON.parse(removal[1].body as string)).toEqual({assignments: [{id: 'ag-1', type: 'agent'}]});
+  });
+
+  it('refreshes user lists after a user is deleted', async () => {
+    const fetcher: FetcherMock = createRoutingFetcher();
+    const onDeleted: Mock = vi.fn();
+
+    renderWithProviders(
+      <>
+        <UserDetails userId="u-1" deletable onDeleted={onDeleted} />
+        <UserList />
+      </>,
+      {fetcher},
+    );
+
+    fireEvent.click(await screen.findByRole('button', {name: 'Delete user'}));
+    await waitFor(() => expect(requestedPaths(fetcher)).toContain('/users?include=display&limit=20&offset=0'));
+    fetcher.mockClear();
+    fireEvent.click(screen.getByRole('button', {name: 'Confirm'}));
+
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
+    expect(fetcher.mock.calls[0]).toEqual([`${baseUrl}/users/u-1`, expect.objectContaining({method: 'DELETE'})]);
+    await waitFor(() => expect(requestedPaths(fetcher)).toContain('/users?include=display&limit=20&offset=0'));
+  });
+
+  it('refreshes group lists after a group is created', async () => {
+    const fetcher: FetcherMock = createRoutingFetcher();
+    const onCreated: Mock = vi.fn();
+
+    renderWithProviders(
+      <>
+        <GroupCreate onCreated={onCreated} />
+        <GroupList />
+      </>,
+      {fetcher, ouId: 'ou-1'},
+    );
+
+    await waitFor(() => expect(requestedPaths(fetcher)).toContain('/groups?include=display&limit=20&offset=0'));
+    fetcher.mockClear();
+    fireEvent.change(document.querySelector('input[name="name"]')!, {target: {value: 'Support'}});
+    fireEvent.click(screen.getByRole('button', {name: 'Create group'}));
+
+    await waitFor(() =>
+      expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({id: 'g-9'}), expect.anything()),
+    );
+    expect(JSON.parse(fetcher.mock.calls[0][1].body as string)).toEqual({name: 'Support', ouId: 'ou-1'});
+    await waitFor(() => expect(requestedPaths(fetcher)).toContain('/groups?include=display&limit=20&offset=0'));
+  });
+});
+
+describe('applications', () => {
+  const application: Application = {
+    description: 'Customer portal',
+    id: 'app-1',
+    inboundAuthConfig: [
+      {
+        config: {
+          clientId: 'portal-client',
+          clientSecret: 'stored-secret',
+          grantTypes: ['authorization_code', 'refresh_token'],
+          redirectUris: ['https://portal.example/callback'],
+          responseTypes: ['code'],
+        },
+        type: 'oauth2',
+      },
+    ],
+    name: 'Portal',
+    ouId: 'ou-1',
+    template: 'browser',
+    url: 'https://portal.example',
+  };
+
+  const createApplicationFetcher = (created: Application = application): FetcherMock =>
+    vi.fn<ApiFetcher>().mockImplementation((url: string, init?: RequestInit) => {
+      const {pathname} = new URL(url);
+
+      if (init?.method === 'DELETE') return Promise.resolve(respond(null, 204));
+      if (init?.method === 'POST') return Promise.resolve(respond(created, 201));
+      if (init?.method === 'PUT') return Promise.resolve(respond(JSON.parse(init.body as string)));
+      if (pathname === '/applications/app-1') return Promise.resolve(respond(application));
+
+      return Promise.resolve(
+        respond({
+          applications: [{clientId: 'portal-client', id: 'app-1', name: 'Portal', template: 'browser'}],
+          count: 1,
+          totalResults: 1,
+        }),
+      );
+    });
+
+  const paths = (fetcher: FetcherMock): string[] =>
+    fetcher.mock.calls.map(([url, init]: [string, RequestInit]) => {
+      const {pathname, search} = new URL(url);
+
+      return `${init?.method ?? 'GET'} ${pathname}${search}`;
+    });
+
+  it('lists applications with their client ID and type', () => {
+    renderWithProviders(
+      <BaseApplicationList
+        applications={[{clientId: 'portal-client', id: 'app-1', name: 'Portal', template: 'browser'}]}
+      />,
+    );
+
+    const table: HTMLElement = screen.getByRole('table', {name: 'Applications'});
+    expect(within(table).getByText('Portal')).toBeTruthy();
+    expect(within(table).getByText('portal-client')).toBeTruthy();
+    expect(within(table).getByText('browser')).toBeTruthy();
+  });
+
+  it('shows a translated status column only when the server reports a status', () => {
+    const {unmount} = renderWithProviders(
+      <BaseApplicationList
+        applications={[
+          {id: 'app-1', name: 'Portal', status: {value: 'ACTIVE'}},
+          {id: 'app-2', name: 'Legacy', status: {value: 'SUSPENDED'}},
+        ]}
+      />,
+    );
+
+    const table: HTMLElement = screen.getByRole('table', {name: 'Applications'});
+    expect(within(table).getByRole('columnheader', {name: 'Status'})).toBeTruthy();
+    expect(within(table).getByText('Active')).toBeTruthy();
+    expect(within(table).getByText('Suspended')).toBeTruthy();
+    unmount();
+
+    renderWithProviders(<BaseApplicationList applications={[{id: 'app-1', name: 'Portal'}]} />);
+    expect(screen.queryByRole('columnheader', {name: 'Status'})).toBeNull();
+  });
+
+  it('hands a custom list the applications and default columns', () => {
+    renderWithProviders(
+      <BaseApplicationList applications={[{id: 'app-1', name: 'Portal'}]} totalResults={9}>
+        {({applications: rows, columns, totalResults}): ReactNode => (
+          <p>{`${rows.map((row) => row.name).join()} ${totalResults} ${columns.map((column) => column.id).join()}`}</p>
+        )}
+      </BaseApplicationList>,
+    );
+
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.getByText('Portal 9 name,clientId,type')).toBeTruthy();
+  });
+
+  it('fetches a page of applications', async () => {
+    const fetcher: FetcherMock = createApplicationFetcher();
+
+    renderWithProviders(<ApplicationList limit={5} />, {fetcher});
+
+    await screen.findByText('portal-client');
+    expect(paths(fetcher)).toEqual(['GET /applications?limit=5&offset=0']);
+  });
+
+  it('needs a redirect URI for the authorization code grant and submits the OAuth basics', () => {
+    const onSubmit: Mock = vi.fn();
+
+    renderWithProviders(<BaseApplicationCreate onSubmit={onSubmit} />);
+    const submit: HTMLButtonElement = screen.getByRole('button', {name: 'Create application'});
+
+    fireEvent.change(document.querySelector('input[name="name"]')!, {target: {value: ' Portal '}});
+    expect(submit.disabled).toBe(true);
+    fireEvent.change(document.querySelector('input[name="redirectUris"]')!, {
+      target: {value: 'https://a.example/cb, https://b.example/cb'},
+    });
+    expect(submit.disabled).toBe(false);
+    fireEvent.click(screen.getByLabelText('Public client (no client secret)'));
+    fireEvent.click(submit);
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      description: undefined,
+      grantTypes: ['authorization_code', 'refresh_token'],
+      logoUrl: undefined,
+      name: 'Portal',
+      publicClient: true,
+      redirectUris: ['https://a.example/cb', 'https://b.example/cb'],
+      url: undefined,
+    });
+  });
+
+  it('refuses the client credentials grant for a public client', () => {
+    renderWithProviders(<BaseApplicationCreate onSubmit={vi.fn()} />);
+
+    fireEvent.change(document.querySelector('input[name="name"]')!, {target: {value: 'Worker'}});
+    fireEvent.click(screen.getByLabelText('Authorization code'));
+    fireEvent.click(screen.getByLabelText('Client credentials'));
+    expect(screen.getByRole('button', {name: 'Create application'}).disabled).toBe(false);
+    fireEvent.click(screen.getByLabelText('Public client (no client secret)'));
+
+    expect(screen.getByRole('button', {name: 'Create application'}).disabled).toBe(true);
+  });
+
+  it('lets a custom create form set values and submit them', () => {
+    const onSubmit: Mock = vi.fn();
+    let form: BaseApplicationCreateRenderProps | undefined;
+
+    renderWithProviders(
+      <BaseApplicationCreate onSubmit={onSubmit}>
+        {(props: BaseApplicationCreateRenderProps): ReactNode => {
+          form = props;
+
+          return <p>{props.grantTypeOptions.map((option) => option.label).join(',')}</p>;
+        }}
+      </BaseApplicationCreate>,
+    );
+
+    expect(screen.getByText('Authorization code,Refresh token,Client credentials')).toBeTruthy();
+    act(() => {
+      form!.handleInputChange('name', 'Daemon');
+      form!.handleGrantTypesChange(['client_credentials']);
+    });
+    expect(form!.isValid).toBe(true);
+    act(() => form!.handleSubmit());
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({grantTypes: ['client_credentials'], name: 'Daemon'}),
+    );
+  });
+
+  it('creates the application and shows the returned client secret once before reporting it', async () => {
+    const fetcher: FetcherMock = createApplicationFetcher({
+      ...application,
+      id: 'app-9',
+      inboundAuthConfig: [{config: {clientSecret: 's3cr3t', grantTypes: [], responseTypes: []}, type: 'oauth2'}],
+    });
+    const onCreated: Mock = vi.fn();
+
+    renderWithProviders(
+      <>
+        <ApplicationCreate onCreated={onCreated} />
+        <ApplicationList />
+      </>,
+      {fetcher, ouId: 'ou-1'},
+    );
+
+    await screen.findByText('portal-client');
+    fetcher.mockClear();
+    fireEvent.change(document.querySelector('input[name="name"]')!, {target: {value: 'Portal'}});
+    fireEvent.change(document.querySelector('input[name="redirectUris"]')!, {target: {value: 'https://p.example/cb'}});
+    fireEvent.click(screen.getByRole('button', {name: 'Create application'}));
+
+    expect(await screen.findByDisplayValue('s3cr3t')).toBeTruthy();
+    expect(onCreated).not.toHaveBeenCalled();
+    const [url, init] = fetcher.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/applications`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      inboundAuthConfig: [
+        {
+          config: {
+            grantTypes: ['authorization_code', 'refresh_token'],
+            publicClient: false,
+            redirectUris: ['https://p.example/cb'],
+            responseTypes: ['code'],
+            tokenEndpointAuthMethod: 'client_secret_basic',
+          },
+          type: 'oauth2',
+        },
+      ],
+      name: 'Portal',
+      ouId: 'ou-1',
+    });
+    // The list refetches after the create.
+    await waitFor(() => expect(paths(fetcher)).toContain('GET /applications?limit=20&offset=0'));
+
+    fireEvent.click(screen.getByRole('button', {name: 'Done'}));
+
+    expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({id: 'app-9'}));
+    expect(screen.queryByDisplayValue('s3cr3t')).toBeNull();
+    expect(document.querySelector<HTMLInputElement>('input[name="name"]')!.value).toBe('');
+  });
+
+  it('shows the details and OAuth configuration without the stored secret, and offers no actions by default', () => {
+    renderWithProviders(<BaseApplicationDetails application={application} />);
+
+    expect(screen.getByRole('heading', {name: 'Portal'})).toBeTruthy();
+    expect(screen.getByRole('list', {name: 'Redirect URIs'}).textContent).toContain('https://portal.example/callback');
+    expect(screen.getByRole('list', {name: 'Grant types'}).textContent).toContain('Authorization code');
+    expect(document.body.innerHTML).not.toContain('stored-secret');
+    expect(screen.queryByRole('button', {name: 'Edit'})).toBeNull();
+    expect(screen.queryByRole('button', {name: 'Delete application'})).toBeNull();
+    expect(screen.queryByRole('button', {name: 'Regenerate client secret'})).toBeNull();
+  });
+
+  it('asks for confirmation before deleting or regenerating the secret', () => {
+    const onDelete: Mock = vi.fn();
+    const onRegenerateSecret: Mock = vi.fn();
+
+    renderWithProviders(
+      <BaseApplicationDetails application={application} onDelete={onDelete} onRegenerateSecret={onRegenerateSecret} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', {name: 'Regenerate client secret'}));
+    expect(onRegenerateSecret).not.toHaveBeenCalled();
+    const regenerate: HTMLElement = screen.getByRole('group', {name: /Regenerate the client secret of Portal/});
+    fireEvent.click(within(regenerate).getByRole('button', {name: 'Confirm'}));
+    expect(onRegenerateSecret).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole('button', {name: 'Delete application'}));
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('group', {name: 'Delete Portal?'})).getByRole('button', {name: 'Confirm'}));
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it('offers no secret regeneration for public clients and no actions for read-only applications', () => {
+    const publicApplication: Application = {
+      ...application,
+      inboundAuthConfig: [{config: {grantTypes: [], publicClient: true, responseTypes: []}, type: 'oauth2'}],
+    };
+    const {unmount} = renderWithProviders(
+      <BaseApplicationDetails application={publicApplication} onRegenerateSecret={vi.fn()} />,
+    );
+
+    expect(screen.queryByRole('button', {name: 'Regenerate client secret'})).toBeNull();
+    unmount();
+
+    renderWithProviders(
+      <BaseApplicationDetails application={{...application, isReadOnly: true}} onDelete={vi.fn()} onUpdate={vi.fn()} />,
+    );
+    expect(screen.queryByRole('button', {name: 'Edit'})).toBeNull();
+    expect(screen.queryByRole('button', {name: 'Delete application'})).toBeNull();
+  });
+
+  it('edits the general fields, redirect URIs and grant types', () => {
+    const onUpdate: Mock = vi.fn();
+
+    renderWithProviders(<BaseApplicationDetails application={application} onUpdate={onUpdate} />);
+    fireEvent.click(screen.getByRole('button', {name: 'Edit'}));
+    fireEvent.change(document.querySelector('input[name="name"]')!, {target: {value: 'Portal 2'}});
+    fireEvent.change(document.querySelector('input[name="redirectUris"]')!, {
+      target: {value: 'https://portal.example/callback, https://portal.example/alt'},
+    });
+    fireEvent.click(screen.getByLabelText('Refresh token'));
+    fireEvent.click(screen.getByRole('button', {name: 'Save changes'}));
+
+    expect(onUpdate).toHaveBeenCalledWith({
+      description: 'Customer portal',
+      grantTypes: ['authorization_code'],
+      logoUrl: undefined,
+      name: 'Portal 2',
+      redirectUris: ['https://portal.example/callback', 'https://portal.example/alt'],
+      url: 'https://portal.example',
+    });
+  });
+
+  it('shows a regenerated secret once and hands custom details only the allowed actions', () => {
+    const onSecretDismiss: Mock = vi.fn();
+    const {unmount} = renderWithProviders(
+      <BaseApplicationDetails application={application} clientSecret="fresh" onSecretDismiss={onSecretDismiss} />,
+    );
+
+    expect(screen.getByDisplayValue('fresh')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', {name: 'Done'}));
+    expect(onSecretDismiss).toHaveBeenCalledOnce();
+    unmount();
+
+    let details: BaseApplicationDetailsRenderProps | undefined;
+    renderWithProviders(
+      <BaseApplicationDetails application={application} onDelete={vi.fn()}>
+        {(props: BaseApplicationDetailsRenderProps): ReactNode => {
+          details = props;
+
+          return <p>{props.oauth?.clientId}</p>;
+        }}
+      </BaseApplicationDetails>,
+    );
+
+    expect(screen.getByText('portal-client')).toBeTruthy();
+    expect(details!.oauth).not.toHaveProperty('clientSecret');
+    expect(details!.onDelete).toBeTypeOf('function');
+    expect(details!.onUpdate).toBeUndefined();
+    expect(details!.onRegenerateSecret).toBeUndefined();
+  });
+
+  it('loads the application and saves an edit as a full update', async () => {
+    const fetcher: FetcherMock = createApplicationFetcher();
+
+    renderWithProviders(<ApplicationDetails applicationId="app-1" editable />, {fetcher});
+
+    fireEvent.click(await screen.findByRole('button', {name: 'Edit'}));
+    expect(paths(fetcher)).toEqual(['GET /applications/app-1']);
+    fireEvent.change(document.querySelector('input[name="name"]')!, {target: {value: 'Portal 2'}});
+    fireEvent.click(screen.getByRole('button', {name: 'Save changes'}));
+
+    await waitFor(() => expect(paths(fetcher)).toContain('PUT /applications/app-1'));
+    const [, init] = fetcher.mock.calls.find(([, request]: [string, RequestInit]) => request?.method === 'PUT')!;
+    const {id, ...rest} = application;
+    void id;
+    expect(JSON.parse(init.body as string)).toEqual({...rest, name: 'Portal 2'});
+    // The application refetches after the update.
+    await waitFor(() => expect(paths(fetcher).filter((path) => path === 'GET /applications/app-1')).toHaveLength(2));
+  });
+
+  it('regenerates the client secret and shows the new one', async () => {
+    const fetcher: FetcherMock = createApplicationFetcher();
+
+    renderWithProviders(<ApplicationDetails applicationId="app-1" secretRegenerable />, {fetcher});
+
+    fireEvent.click(await screen.findByRole('button', {name: 'Regenerate client secret'}));
+    fireEvent.click(screen.getByRole('button', {name: 'Confirm'}));
+
+    const put: [string, RequestInit] = await waitFor(() => {
+      const call = fetcher.mock.calls.find(([, request]: [string, RequestInit]) => request?.method === 'PUT');
+      expect(call).toBeTruthy();
+
+      return call!;
+    });
+    expect(put[0]).toBe(`${baseUrl}/applications/app-1`);
+    const saved: Application = JSON.parse(put[1].body as string) as Application;
+    const secret: string = saved.inboundAuthConfig![0].config.clientSecret!;
+    expect(secret).not.toBe('stored-secret');
+    expect(await screen.findByDisplayValue(secret)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', {name: 'Done'}));
+    expect(screen.queryByDisplayValue(secret)).toBeNull();
+  });
+
+  it('deletes the application and refreshes application lists', async () => {
+    const fetcher: FetcherMock = createApplicationFetcher();
+    const onDeleted: Mock = vi.fn();
+
+    renderWithProviders(
+      <>
+        <ApplicationDetails applicationId="app-1" deletable onDeleted={onDeleted} />
+        <ApplicationList />
+      </>,
+      {fetcher},
+    );
+
+    fireEvent.click(await screen.findByRole('button', {name: 'Delete application'}));
+    await within(screen.getByRole('table', {name: 'Applications'})).findByText('portal-client');
+    fetcher.mockClear();
+    fireEvent.click(screen.getByRole('button', {name: 'Confirm'}));
+
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
+    expect(fetcher.mock.calls[0]).toEqual([
+      `${baseUrl}/applications/app-1`,
+      expect.objectContaining({method: 'DELETE'}),
+    ]);
+    await waitFor(() => expect(paths(fetcher)).toContain('GET /applications?limit=20&offset=0'));
+  });
+
+  it('shows a translated message instead of the server text when the server refuses', async () => {
+    const fetcher: FetcherMock = vi
+      .fn<ApiFetcher>()
+      .mockResolvedValue(respond({code: 'APP-1', message: 'raw server detail'}, 403));
+
+    renderWithProviders(<ApplicationDetails applicationId="app-1" />, {fetcher});
+
+    expect((await screen.findByRole('alert')).textContent).not.toContain('raw server detail');
   });
 });

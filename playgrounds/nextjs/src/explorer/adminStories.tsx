@@ -7,9 +7,15 @@ import {
   AgentCreate,
   AgentDetails,
   AgentList,
+  ApplicationCreate,
+  ApplicationDetails,
+  ApplicationList,
   BaseAgentCreate,
   BaseAgentDetails,
   BaseAgentList,
+  BaseApplicationCreate,
+  BaseApplicationDetails,
+  BaseApplicationList,
   BaseGroupCreate,
   BaseGroupList,
   BaseGroupMembers,
@@ -33,7 +39,9 @@ import {
 } from '@thunderid/nextjs';
 import {Attribution} from '@thunderid/react';
 import type {
+  Application,
   BasicAgent,
+  BasicApplication,
   Group,
   GroupMember,
   ManagedUser,
@@ -97,6 +105,31 @@ const SAMPLE_AGENTS: BasicAgent[] = [
   {description: 'Reconciles invoices', id: 'agt_ledger', name: 'Ledger', ouId: OU, type: 'worker'},
 ];
 
+const SAMPLE_APPLICATIONS: BasicApplication[] = [
+  {clientId: 'console_spa', id: 'app_console', name: 'Console', template: 'browser'},
+  {clientId: 'billing_svc', id: 'app_billing', name: 'Billing service', template: 'm2m'},
+];
+
+const SAMPLE_APPLICATION: Application = {
+  description: 'Admin console',
+  id: 'app_console',
+  inboundAuthConfig: [
+    {
+      config: {
+        clientId: 'console_spa',
+        grantTypes: ['authorization_code', 'refresh_token'],
+        redirectUris: ['https://console.acme.io/callback'],
+        responseTypes: ['code'],
+      },
+      type: 'oauth2',
+    },
+  ],
+  name: 'Console',
+  ouId: OU,
+  template: 'browser',
+  url: 'https://console.acme.io',
+};
+
 const SAMPLE_TYPES = [
   {label: 'Customer', value: 'customer'},
   {label: 'Employee', value: 'employee'},
@@ -138,6 +171,13 @@ const DELETABLE: PropControl = {
   control: 'bool',
   description: 'Shows the delete action (live only).',
   name: 'deletable',
+  type: 'boolean',
+};
+
+const SECRET_REGENERABLE: PropControl = {
+  control: 'bool',
+  description: 'Shows the regenerate client secret action (live only).',
+  name: 'secretRegenerable',
   type: 'boolean',
 };
 
@@ -581,6 +621,96 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
         />
       ) : (
         <NeedsId name="agentId" from="AgentList" />
+      ),
+  }),
+  admin({
+    baseExtra: listBaseExtra('applications'),
+    controls: [TITLE, LIMIT],
+    defaults: {limit: 20, title: ''},
+    id: 'ApplicationList',
+    liveExtra: ['onSelect={(application) => setApplicationId(application.id)}'],
+    name: 'ApplicationList',
+    renderBase: (args: Args, action: Action) => (
+      <SelectableList>
+        {(selected: string | undefined, select: (rowId: string) => void) => (
+          <BaseApplicationList
+            title={text(args, 'title')}
+            limit={num(args, 'limit') || undefined}
+            offset={0}
+            totalResults={SAMPLE_APPLICATIONS.length}
+            applications={SAMPLE_APPLICATIONS}
+            selectedApplicationId={selected}
+            onSelect={(application: BasicApplication) => {
+              select(application.id);
+              action('onSelect', application.id);
+            }}
+          />
+        )}
+      </SelectableList>
+    ),
+    renderLive: (args: Args, action: Action) => (
+      <ApplicationList
+        title={text(args, 'title')}
+        limit={num(args, 'limit') || undefined}
+        onSelect={(application: BasicApplication) => action('onSelect', application.id)}
+      />
+    ),
+  }),
+  admin({
+    baseExtra: ['onSubmit={handleSubmit}', 'clientSecret={createdSecret}', 'onSecretDismiss={clearSecret}'],
+    controls: [TITLE],
+    defaults: {title: ''},
+    id: 'ApplicationCreate',
+    liveExtra: ['onCreated={handleCreated}'],
+    name: 'ApplicationCreate',
+    renderBase: (args: Args, action: Action) => (
+      <BaseApplicationCreate
+        title={text(args, 'title')}
+        onSubmit={(application: {name: string}) => action('onSubmit', `name "${application.name}"`)}
+        onCancel={() => action('onCancel')}
+      />
+    ),
+    renderLive: (args: Args, action: Action) => (
+      <ApplicationCreate
+        title={text(args, 'title')}
+        onCreated={(application: {id: string}) => action('onCreated', application.id)}
+        onCancel={() => action('onCancel')}
+      />
+    ),
+  }),
+  admin({
+    baseExtra: [
+      'application={application}',
+      'onUpdate={handleUpdate}',
+      'onDelete={handleDelete}',
+      'onRegenerateSecret={handleRegenerate}',
+    ],
+    controls: [idControl('applicationId', 'ApplicationList'), EDITABLE, DELETABLE, SECRET_REGENERABLE],
+    defaults: {applicationId: '', deletable: false, editable: false, secretRegenerable: false},
+    id: 'ApplicationDetails',
+    liveExtra: ['onDeleted={handleDeleted}'],
+    liveOnly: ['applicationId', 'editable', 'deletable', 'secretRegenerable'],
+    name: 'ApplicationDetails',
+    renderBase: (_args: Args, action: Action) => (
+      <BaseApplicationDetails
+        application={SAMPLE_APPLICATION}
+        onUpdate={(changes: {name: string}) => action('onUpdate', `name "${changes.name}"`)}
+        onDelete={() => action('onDelete')}
+        onRegenerateSecret={() => action('onRegenerateSecret')}
+      />
+    ),
+    renderLive: (args: Args, action: Action) =>
+      str(args, 'applicationId') ? (
+        <ApplicationDetails
+          key={str(args, 'applicationId')}
+          applicationId={str(args, 'applicationId')}
+          editable={bool(args, 'editable')}
+          deletable={bool(args, 'deletable')}
+          secretRegenerable={bool(args, 'secretRegenerable')}
+          onDeleted={() => action('onDeleted')}
+        />
+      ) : (
+        <NeedsId name="applicationId" from="ApplicationList" />
       ),
   }),
   {

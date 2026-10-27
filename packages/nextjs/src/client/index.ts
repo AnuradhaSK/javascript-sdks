@@ -89,6 +89,15 @@ export type {AgentCreateProps} from './components/admin/AgentCreate/AgentCreate'
 export {default as AgentDetails} from './components/admin/AgentDetails/AgentDetails';
 export type {AgentDetailsProps} from './components/admin/AgentDetails/AgentDetails';
 
+export {default as ApplicationList} from './components/admin/ApplicationList/ApplicationList';
+export type {ApplicationListProps} from './components/admin/ApplicationList/ApplicationList';
+
+export {default as ApplicationCreate} from './components/admin/ApplicationCreate/ApplicationCreate';
+export type {ApplicationCreateProps} from './components/admin/ApplicationCreate/ApplicationCreate';
+
+export {default as ApplicationDetails} from './components/admin/ApplicationDetails/ApplicationDetails';
+export type {ApplicationDetailsProps} from './components/admin/ApplicationDetails/ApplicationDetails';
+
 export {default as useGrantedPermissions} from './hooks/management/useGrantedPermissions';
 
 export * from './admin';

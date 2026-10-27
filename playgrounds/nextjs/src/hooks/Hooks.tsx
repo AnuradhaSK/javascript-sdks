@@ -4,39 +4,45 @@
 'use client';
 
 import {
-  ResourceMutationResult,
-  ResourceQueryResult,
-  useAddGroupMembers,
-  useAddRoleAssignments,
-  useCreateGroup,
-  useCreateRole,
-  useDeleteGroup,
-  useDeleteRole,
-  useGetAgentGroups,
-  useGetAgentRoles,
-  useGetAgents,
-  useGetAgentTypes,
-  useGetGroup,
-  useGetGroupMembers,
-  useGetGroups,
-  useGetRole,
-  useGetRoleAssignments,
-  useGetRoles,
-  useGetUserGroups,
-  useGetUserTypes,
-  useGrantedPermissions,
-  useRemoveGroupMembers,
-  useRemoveRoleAssignments,
-  useThunderID,
-  useUpdateGroup,
-  useUpdateRole,
-} from '@thunderid/nextjs';
+  addGroupMembers,
+  addRoleAssignments,
+  createGroup,
+  createRole,
+  deleteGroup,
+  deleteRole,
+  getAgentGroups,
+  getAgentRoles,
+  getAgents,
+  getAgentTypes,
+  getGroup,
+  getGroupMembers,
+  getGroups,
+  getRole,
+  getRoleAssignments,
+  getRoles,
+  getUserGroups,
+  getUserTypes,
+  removeGroupMembers,
+  removeRoleAssignments,
+  updateGroup,
+  updateRole,
+  type CreateGroupRequest,
+  type CreateRoleRequest,
+  type ManagementRequestConfig,
+  type RoleAssignmentInput,
+  type UpdateGroupRequest,
+  type UpdateRoleRequest,
+} from '@thunderid/browser';
+import {useGrantedPermissions, useManagementRequestConfig, useThunderID} from '@thunderid/nextjs';
 import {useGrantedPermissions as useReactGrantedPermissions, useUser} from '@thunderid/react';
 import {ChangeEvent, ReactElement, ReactNode, useState} from 'react';
 import {describeError, logEvent} from '../lib/events';
+import requireId from '../lib/requireId';
 import {useServerSession} from '../lib/session';
+import useApiMutation, {type ApiMutation} from '../lib/useApiMutation';
+import useApiQuery, {type ApiQuery} from '../lib/useApiQuery';
 
-type Query = Pick<ResourceQueryResult<unknown>, 'data' | 'error' | 'isLoading'> & {refetch?: () => Promise<unknown>};
+type Query = Pick<ApiQuery<unknown>, 'data' | 'error' | 'isLoading'> & {refetch?: () => Promise<unknown>};
 
 const stateOf = (query: Query): [string, string] => {
   if (query.isLoading) return ['Loading', ''];
@@ -46,7 +52,7 @@ const stateOf = (query: Query): [string, string] => {
   return ['OK', 'ok'];
 };
 
-/** One hook: its call, what it returned, and a refetch button. */
+/** One call: its signature, what it returned, and a refetch button. */
 const HookCard = ({
   children = null,
   name,
@@ -110,7 +116,9 @@ const IdInput = ({
   </label>
 );
 
-type AnyMutation = Pick<ResourceMutationResult<unknown, never>, 'error' | 'isLoading'>;
+type Members = {id: string; type: 'user'}[];
+
+type AnyMutation = Pick<ApiMutation<never, unknown>, 'error' | 'isLoading'>;
 
 const MutationRow = ({label, mutation}: {label: string; mutation: AnyMutation}): ReactElement => (
   <>
@@ -120,9 +128,10 @@ const MutationRow = ({label, mutation}: {label: string; mutation: AnyMutation}):
 );
 
 /**
- * The management hooks and `useGrantedPermissions` from @thunderid/nextjs. Every request goes
- * through the SDK's management server action, so each card works only with a session; without one
- * the server action answers HTTP 401 and the card shows it.
+ * The management API functions, called with `useManagementRequestConfig` from @thunderid/nextjs through
+ * the playground's own data layer (lib/useApiQuery.ts and lib/useApiMutation.ts), and `useGrantedPermissions`. The config's
+ * fetcher sends every request through the SDK's management server action, so each card works only with
+ * a session; without one the server action answers HTTP 401 and the card shows it.
  */
 const Hooks = (): ReactElement => {
   const sdk = useThunderID();
@@ -141,12 +150,19 @@ const Hooks = (): ReactElement => {
   const [createdGroup, setCreatedGroup] = useState<string | null>(null);
   const [createdRole, setCreatedRole] = useState<string | null>(null);
 
-  // Lists, which also supply the default identifiers for the single-resource hooks.
-  const groups = useGetGroups({limit: 5});
-  const roles = useGetRoles({limit: 5});
-  const agents = useGetAgents({limit: 5});
-  const userTypes = useGetUserTypes({limit: 10});
-  const agentTypes = useGetAgentTypes({limit: 10});
+  const groupsConfig: ManagementRequestConfig = useManagementRequestConfig('groups');
+  const rolesConfig: ManagementRequestConfig = useManagementRequestConfig('roles');
+  const usersConfig: ManagementRequestConfig = useManagementRequestConfig('users');
+  const agentsConfig: ManagementRequestConfig = useManagementRequestConfig('agents');
+  const userTypesConfig: ManagementRequestConfig = useManagementRequestConfig('userTypes');
+  const agentTypesConfig: ManagementRequestConfig = useManagementRequestConfig('agentTypes');
+
+  // Lists, which also supply the default identifiers for the single-resource calls.
+  const groups = useApiQuery(() => getGroups({...groupsConfig, limit: 5}));
+  const roles = useApiQuery(() => getRoles({...rolesConfig, limit: 5}));
+  const agents = useApiQuery(() => getAgents({...agentsConfig, limit: 5}));
+  const userTypes = useApiQuery(() => getUserTypes({...userTypesConfig, limit: 10}));
+  const agentTypes = useApiQuery(() => getAgentTypes({...agentTypesConfig, limit: 10}));
 
   const firstGroup: string | undefined = groups.data?.groups[0]?.id;
   const firstRole: string | undefined = roles.data?.roles[0]?.id;
@@ -156,36 +172,86 @@ const Hooks = (): ReactElement => {
   const agentId: string | undefined = agentInput || firstAgent;
   const userId: string | undefined = userInput || (typeof sub === 'string' ? sub : undefined);
 
-  const group = useGetGroup(groupId);
-  const members = useGetGroupMembers(groupId, {limit: 5});
-  const role = useGetRole(roleId);
-  const assignments = useGetRoleAssignments(roleId, {limit: 5});
-  const userGroups = useGetUserGroups(userId);
-  const agentGroups = useGetAgentGroups(agentId);
-  const agentRoles = useGetAgentRoles(agentId);
+  // The ID-scoped calls wait for an ID and run again when it changes.
+  const byGroup: {enabled: boolean; key?: string} = {enabled: !!groupId, key: groupId};
+  const byRole: {enabled: boolean; key?: string} = {enabled: !!roleId, key: roleId};
+  const byAgent: {enabled: boolean; key?: string} = {enabled: !!agentId, key: agentId};
+
+  const group = useApiQuery(() => getGroup({...groupsConfig, groupId: requireId(groupId, 'groupId')}), byGroup);
+  const members = useApiQuery(
+    () => getGroupMembers({...groupsConfig, groupId: requireId(groupId, 'groupId'), limit: 5}),
+    byGroup,
+  );
+  const role = useApiQuery(() => getRole({...rolesConfig, roleId: requireId(roleId, 'roleId')}), byRole);
+  const assignments = useApiQuery(
+    () => getRoleAssignments({...rolesConfig, limit: 5, roleId: requireId(roleId, 'roleId')}),
+    byRole,
+  );
+  const userGroups = useApiQuery(() => getUserGroups({...usersConfig, userId: requireId(userId, 'userId')}), {
+    enabled: !!userId,
+    key: userId,
+  });
+  const agentGroups = useApiQuery(
+    () => getAgentGroups({...agentsConfig, agentId: requireId(agentId, 'agentId')}),
+    byAgent,
+  );
+  const agentRoles = useApiQuery(
+    () => getAgentRoles({...agentsConfig, agentId: requireId(agentId, 'agentId')}),
+    byAgent,
+  );
 
   const granted = useGrantedPermissions();
   const reactGranted = useReactGrantedPermissions();
 
   const onError = (name: string) => (error: Error) => logEvent(`${name}:failed`, error.message, 'error');
 
-  const createGroup = useCreateGroup({
-    onError: onError('useCreateGroup'),
+  const createGroupCall = useApiMutation((payload: CreateGroupRequest) => createGroup({...groupsConfig, payload}), {
+    onError: onError('createGroup'),
     onSuccess: (created: {id: string}) => setCreatedGroup(created.id),
   });
-  const updateGroup = useUpdateGroup({onError: onError('useUpdateGroup')});
-  const addMembers = useAddGroupMembers({onError: onError('useAddGroupMembers')});
-  const removeMembers = useRemoveGroupMembers({onError: onError('useRemoveGroupMembers')});
-  const deleteGroup = useDeleteGroup({onError: onError('useDeleteGroup'), onSuccess: () => setCreatedGroup(null)});
+  const updateGroupCall = useApiMutation(
+    ({groupId: id, payload}: {groupId: string; payload: UpdateGroupRequest}) =>
+      updateGroup({...groupsConfig, groupId: id, payload}),
+    {onError: onError('updateGroup')},
+  );
+  const addMembers = useApiMutation(
+    ({groupId: id, members: identities}: {groupId: string; members: Members}) =>
+      addGroupMembers({...groupsConfig, groupId: id, members: identities}),
+    {onError: onError('addGroupMembers')},
+  );
+  const removeMembers = useApiMutation(
+    ({groupId: id, members: identities}: {groupId: string; members: Members}) =>
+      removeGroupMembers({...groupsConfig, groupId: id, members: identities}),
+    {onError: onError('removeGroupMembers')},
+  );
+  const deleteGroupCall = useApiMutation((id: string) => deleteGroup({...groupsConfig, groupId: id}), {
+    onError: onError('deleteGroup'),
+    onSuccess: () => setCreatedGroup(null),
+  });
 
-  const createRole = useCreateRole({
-    onError: onError('useCreateRole'),
+  const createRoleCall = useApiMutation((payload: CreateRoleRequest) => createRole({...rolesConfig, payload}), {
+    onError: onError('createRole'),
     onSuccess: (created: {id: string}) => setCreatedRole(created.id),
   });
-  const updateRole = useUpdateRole({onError: onError('useUpdateRole')});
-  const addAssignments = useAddRoleAssignments({onError: onError('useAddRoleAssignments')});
-  const removeAssignments = useRemoveRoleAssignments({onError: onError('useRemoveRoleAssignments')});
-  const deleteRole = useDeleteRole({onError: onError('useDeleteRole'), onSuccess: () => setCreatedRole(null)});
+  const updateRoleCall = useApiMutation(
+    ({payload, roleId: id}: {payload: UpdateRoleRequest; roleId: string}) =>
+      updateRole({...rolesConfig, payload, roleId: id}),
+    {onError: onError('updateRole')},
+  );
+  const addAssignments = useApiMutation(
+    ({assignments: list, roleId: id}: {assignments: RoleAssignmentInput[]; roleId: string}) =>
+      addRoleAssignments({...rolesConfig, assignments: list, roleId: id}),
+    {onError: onError('addRoleAssignments')},
+  );
+  const removeAssignments = useApiMutation(
+    ({assignments: list, roleId: id}: {assignments: RoleAssignmentInput[]; roleId: string}) =>
+      removeRoleAssignments({...rolesConfig, assignments: list, roleId: id}),
+    {onError: onError('removeRoleAssignments')},
+  );
+  const deleteRoleCall = useApiMutation((id: string) => deleteRole({...rolesConfig, roleId: id}), {
+    onError: onError('deleteRole'),
+    onSuccess: () => setCreatedRole(null),
+  });
 
   const name = (kind: string): string => `playground-${kind}-${Date.now().toString(36)}`;
   const me = (type: 'user'): {id: string; type: 'user'}[] => (userId ? [{id: userId, type}] : []);
@@ -203,9 +269,12 @@ const Hooks = (): ReactElement => {
         <div>
           <h1>Hooks</h1>
           <p>
-            The management hooks and <span className="pg-mono">useGrantedPermissions</span> from{' '}
-            <span className="pg-accent">@thunderid/nextjs</span>. Each request runs through the SDK&apos;s management
-            server action with the server-held session; the access token never reaches the browser.
+            The management API functions (<span className="pg-mono">getGroups()</span>,{' '}
+            <span className="pg-mono">createGroup()</span>, ...) called with{' '}
+            <span className="pg-accent">useManagementRequestConfig(collection)</span> from @thunderid/nextjs through the
+            playground&apos;s own small data layer, and <span className="pg-mono">useGrantedPermissions</span>. The
+            config&apos;s fetcher runs each request through the SDK&apos;s management server action with the server-held
+            session; the access token never reaches the browser.
           </p>
         </div>
       </div>
@@ -214,7 +283,7 @@ const Hooks = (): ReactElement => {
         <div className="pg-warning" role="status">
           {sdk.isLoading
             ? 'The SDK is still loading.'
-            : 'Not signed in: every management hook below fails with HTTP 401 from the server action. Sign in from the Overview page.'}
+            : 'Not signed in: every management call below fails with HTTP 401 from the server action. Sign in from the Overview page.'}
         </div>
       )}
 
@@ -242,15 +311,15 @@ const Hooks = (): ReactElement => {
 
       <div className="pg-section-label">Groups</div>
       <div className="pg-grid-2">
-        <HookCard name="useGetGroups" signature="useGetGroups({limit: 5})" query={groups} />
-        <HookCard name="useGetGroup" signature="useGetGroup(groupId)" query={group}>
+        <HookCard name="getGroups" signature="getGroups({...config, limit: 5})" query={groups} />
+        <HookCard name="getGroup" signature="getGroup({...config, groupId})" query={group}>
           <IdInput label="groupId" value={groupInput} fallback={firstGroup} onChange={setGroupInput} />
         </HookCard>
-        <HookCard name="useGetGroupMembers" signature="useGetGroupMembers(groupId, {limit: 5})" query={members} />
+        <HookCard name="getGroupMembers" signature="getGroupMembers({...config, groupId, limit: 5})" query={members} />
         <HookCard
           name="Group mutations"
-          signature="useCreateGroup · useUpdateGroup · useAddGroupMembers · useRemoveGroupMembers · useDeleteGroup"
-          query={{data: createGroup.data ?? updateGroup.data, error: null, isLoading: false}}
+          signature="createGroup · updateGroup · addGroupMembers · removeGroupMembers · deleteGroup"
+          query={{data: createGroupCall.data ?? updateGroupCall.data, error: null, isLoading: false}}
           summary={
             writeBlocked
               ? `Writes are disabled: ${writeBlocked}.`
@@ -263,7 +332,7 @@ const Hooks = (): ReactElement => {
               className="pg-btn"
               data-size="sm"
               disabled={!!writeBlocked || !!createdGroup}
-              onClick={() => void createGroup.mutate({name: name('group'), ouId: ouId!})}
+              onClick={() => void createGroupCall.mutate({name: name('group'), ouId: ouId!})}
             >
               Create
             </button>
@@ -273,8 +342,12 @@ const Hooks = (): ReactElement => {
               data-size="sm"
               disabled={!createdGroup}
               onClick={() =>
-                void updateGroup.mutate({
-                  data: {description: `renamed ${new Date().toLocaleTimeString()}`, name: name('group'), ouId: ouId!},
+                void updateGroupCall.mutate({
+                  payload: {
+                    description: `renamed ${new Date().toLocaleTimeString()}`,
+                    name: name('group'),
+                    ouId: ouId!,
+                  },
                   groupId: createdGroup!,
                 })
               }
@@ -305,36 +378,36 @@ const Hooks = (): ReactElement => {
               data-size="sm"
               data-variant="danger"
               disabled={!createdGroup}
-              onClick={() => void deleteGroup.mutate(createdGroup!)}
+              onClick={() => void deleteGroupCall.mutate(createdGroup!)}
             >
               Delete
             </button>
           </div>
           <dl className="pg-dl" style={{marginTop: 12}}>
-            <MutationRow label="useCreateGroup" mutation={createGroup} />
-            <MutationRow label="useUpdateGroup" mutation={updateGroup} />
-            <MutationRow label="useAddGroupMembers" mutation={addMembers} />
-            <MutationRow label="useRemoveGroupMembers" mutation={removeMembers} />
-            <MutationRow label="useDeleteGroup" mutation={deleteGroup} />
+            <MutationRow label="createGroup" mutation={createGroupCall} />
+            <MutationRow label="updateGroup" mutation={updateGroupCall} />
+            <MutationRow label="addGroupMembers" mutation={addMembers} />
+            <MutationRow label="removeGroupMembers" mutation={removeMembers} />
+            <MutationRow label="deleteGroup" mutation={deleteGroupCall} />
           </dl>
         </HookCard>
       </div>
 
       <div className="pg-section-label">Roles</div>
       <div className="pg-grid-2">
-        <HookCard name="useGetRoles" signature="useGetRoles({limit: 5})" query={roles} />
-        <HookCard name="useGetRole" signature="useGetRole(roleId)" query={role}>
+        <HookCard name="getRoles" signature="getRoles({...config, limit: 5})" query={roles} />
+        <HookCard name="getRole" signature="getRole({...config, roleId})" query={role}>
           <IdInput label="roleId" value={roleInput} fallback={firstRole} onChange={setRoleInput} />
         </HookCard>
         <HookCard
-          name="useGetRoleAssignments"
-          signature="useGetRoleAssignments(roleId, {limit: 5})"
+          name="getRoleAssignments"
+          signature="getRoleAssignments({...config, roleId, limit: 5})"
           query={assignments}
         />
         <HookCard
           name="Role mutations"
-          signature="useCreateRole · useUpdateRole · useAddRoleAssignments · useRemoveRoleAssignments · useDeleteRole"
-          query={{data: createRole.data ?? updateRole.data, error: null, isLoading: false}}
+          signature="createRole · updateRole · addRoleAssignments · removeRoleAssignments · deleteRole"
+          query={{data: createRoleCall.data ?? updateRoleCall.data, error: null, isLoading: false}}
           summary={
             writeBlocked
               ? `Writes are disabled: ${writeBlocked}.`
@@ -347,7 +420,7 @@ const Hooks = (): ReactElement => {
               className="pg-btn"
               data-size="sm"
               disabled={!!writeBlocked || !!createdRole}
-              onClick={() => void createRole.mutate({name: name('role'), ouId: ouId!})}
+              onClick={() => void createRoleCall.mutate({name: name('role'), ouId: ouId!})}
             >
               Create
             </button>
@@ -357,8 +430,8 @@ const Hooks = (): ReactElement => {
               data-size="sm"
               disabled={!createdRole}
               onClick={() =>
-                void updateRole.mutate({
-                  data: {description: 'updated', name: name('role'), ouId: ouId!, permissions: []},
+                void updateRoleCall.mutate({
+                  payload: {description: 'updated', name: name('role'), ouId: ouId!, permissions: []},
                   roleId: createdRole!,
                 })
               }
@@ -389,24 +462,24 @@ const Hooks = (): ReactElement => {
               data-size="sm"
               data-variant="danger"
               disabled={!createdRole}
-              onClick={() => void deleteRole.mutate(createdRole!)}
+              onClick={() => void deleteRoleCall.mutate(createdRole!)}
             >
               Delete
             </button>
           </div>
           <dl className="pg-dl" style={{marginTop: 12}}>
-            <MutationRow label="useCreateRole" mutation={createRole} />
-            <MutationRow label="useUpdateRole" mutation={updateRole} />
-            <MutationRow label="useAddRoleAssignments" mutation={addAssignments} />
-            <MutationRow label="useRemoveRoleAssignments" mutation={removeAssignments} />
-            <MutationRow label="useDeleteRole" mutation={deleteRole} />
+            <MutationRow label="createRole" mutation={createRoleCall} />
+            <MutationRow label="updateRole" mutation={updateRoleCall} />
+            <MutationRow label="addRoleAssignments" mutation={addAssignments} />
+            <MutationRow label="removeRoleAssignments" mutation={removeAssignments} />
+            <MutationRow label="deleteRole" mutation={deleteRoleCall} />
           </dl>
         </HookCard>
       </div>
 
       <div className="pg-section-label">Users</div>
       <div className="pg-grid-2">
-        <HookCard name="useGetUserGroups" signature="useGetUserGroups(userId)" query={userGroups}>
+        <HookCard name="getUserGroups" signature="getUserGroups({...config, userId})" query={userGroups}>
           <IdInput
             label="userId"
             value={userInput}
@@ -414,17 +487,17 @@ const Hooks = (): ReactElement => {
             onChange={setUserInput}
           />
         </HookCard>
-        <HookCard name="useGetUserTypes" signature="useGetUserTypes({limit: 10})" query={userTypes} />
+        <HookCard name="getUserTypes" signature="getUserTypes({...config, limit: 10})" query={userTypes} />
       </div>
 
       <div className="pg-section-label">Agents</div>
       <div className="pg-grid-2">
-        <HookCard name="useGetAgentTypes" signature="useGetAgentTypes({limit: 10})" query={agentTypes} />
-        <HookCard name="useGetAgents" signature="useGetAgents({limit: 5})" query={agents} />
-        <HookCard name="useGetAgentGroups" signature="useGetAgentGroups(agentId)" query={agentGroups}>
+        <HookCard name="getAgentTypes" signature="getAgentTypes({...config, limit: 10})" query={agentTypes} />
+        <HookCard name="getAgents" signature="getAgents({...config, limit: 5})" query={agents} />
+        <HookCard name="getAgentGroups" signature="getAgentGroups({...config, agentId})" query={agentGroups}>
           <IdInput label="agentId" value={agentInput} fallback={firstAgent} onChange={setAgentInput} />
         </HookCard>
-        <HookCard name="useGetAgentRoles" signature="useGetAgentRoles(agentId)" query={agentRoles} />
+        <HookCard name="getAgentRoles" signature="getAgentRoles({...config, agentId})" query={agentRoles} />
       </div>
     </main>
   );

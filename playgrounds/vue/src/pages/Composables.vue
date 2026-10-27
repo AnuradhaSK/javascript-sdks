@@ -2,71 +2,68 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {EmbeddedFlowComponent, FetchSelectPage, SelectPage} from '@thunderid/browser';
+import {getUserTypes, type EmbeddedFlowComponent, type FetchSelectPage, type SelectPage} from '@thunderid/browser';
 import {
-  ApiFetcher,
+  createAgent,
+  createApplication,
+  createGroup,
+  createRole,
+  createUser,
+  deleteAgent,
+  deleteApplication,
+  deleteGroup,
+  deleteRole,
+  deleteUser,
+  getAgent,
+  getAgentGroups,
+  getAgentRoles,
+  getAgents,
+  getAgentTypes,
+  getApplication,
+  getApplications,
+  getGroup,
+  getGroupMembers,
   getGroups,
+  getRole,
+  getRoleAssignments,
+  getRoles,
+  getUser,
+  getUserGroups,
+  getUsers,
+  addGroupMembers,
+  addRoleAssignments,
   GroupListResponse,
-  GroupQueryKeys,
   ManagementEndpoint,
   ManagementEndpointKey,
-  ResourceQueryOptions,
-  ResourceQueryResult,
-  useAddGroupMembers,
-  useAddRoleAssignments,
-  useCreateAgent,
-  useCreateApplication,
-  useCreateGroup,
-  useCreateRole,
-  useCreateUser,
-  useDeleteAgent,
-  useDeleteApplication,
-  useDeleteGroup,
-  useDeleteRole,
-  useDeleteUser,
+  ManagementRequestConfig,
+  removeGroupMembers,
+  removeRoleAssignments,
+  updateAgent,
+  updateApplication,
+  updateGroup,
+  updateRole,
+  updateUser,
   useFetchAuthFlows,
   useFetchUsers,
   useFetchUserTypes,
   useFlow,
   useFlowMeta,
-  useGetAgent,
-  useGetAgentGroups,
-  useGetAgentRoles,
-  useGetAgents,
-  useGetAgentTypes,
-  useGetApplication,
-  useGetApplications,
-  useGetGroup,
-  useGetGroupMembers,
-  useGetGroups,
-  useGetRole,
-  useGetRoleAssignments,
-  useGetRoles,
-  useGetUser,
-  useGetUserGroups,
-  useGetUsers,
-  useGetUserTypes,
   useGrantedPermissions,
   useI18n,
   useManagementEndpoint,
-  useRemoveGroupMembers,
-  useRemoveRoleAssignments,
-  useResourceMutation,
-  useResourceQuery,
+  useManagementRequestConfig,
   useTheme,
   useThunderID,
-  useUpdateAgent,
-  useUpdateApplication,
-  useUpdateGroup,
-  useUpdateRole,
-  useUpdateUser,
   useUser,
 } from '@thunderid/vue';
 import {computed, ComputedRef, Ref, ref, shallowRef, ShallowRef} from 'vue';
 import ComposableCard from '../components/ComposableCard.vue';
 import EventLog from '../components/EventLog.vue';
 import {describeError, track} from '../lib/events';
+import requireId from '../lib/requireId';
 import {asText, toUser} from '../lib/sdk';
+import useApiMutation, {type ApiMutation} from '../lib/useApiMutation';
+import useApiQuery, {type ApiQuery, type ApiQueryOptions} from '../lib/useApiQuery';
 
 interface FetcherState {
   data: SelectPage | null;
@@ -137,31 +134,46 @@ const i18nValue: ComputedRef<Record<string, unknown>> = computed(() => ({
   },
 }));
 
-// ── Management composables ──
-// Queries wait for a session (`enabled`), so a signed-out page makes no requests. Refetch runs one
-// anyway, which shows the error a signed-out or unauthorized call gets.
+// ── Management API functions ──
+// Each query calls an SDK management API function with the config from useManagementRequestConfig(),
+// through the playground's own data layer (lib/useApiQuery.ts and lib/useApiMutation.ts). Queries wait for a session
+// (`enabled`), so a signed-out page makes no requests. Refetch runs one anyway, which shows the error a
+// signed-out or unauthorized call gets.
 
 interface QueryEntry {
   name: string;
-  query: ResourceQueryResult<unknown>;
+  query: ApiQuery<unknown>;
   signature: string;
 }
 
-interface MutationLike {
-  error: Readonly<Ref<Error | null>>;
-  isLoading: Readonly<Ref<boolean>>;
-}
+/**
+ * The collections this page exercises.
+ */
+type PlaygroundCollection = Extract<
+  ManagementEndpointKey,
+  'agentTypes' | 'agents' | 'applications' | 'groups' | 'roles' | 'userTypes' | 'users'
+>;
 
-const signedIn: ResourceQueryOptions = {enabled: () => isSignedIn.value};
+const config: Record<PlaygroundCollection, ManagementRequestConfig> = {
+  agentTypes: useManagementRequestConfig('agentTypes'),
+  agents: useManagementRequestConfig('agents'),
+  applications: useManagementRequestConfig('applications'),
+  groups: useManagementRequestConfig('groups'),
+  roles: useManagementRequestConfig('roles'),
+  userTypes: useManagementRequestConfig('userTypes'),
+  users: useManagementRequestConfig('users'),
+};
+
+const signedIn: ApiQueryOptions = {enabled: () => isSignedIn.value};
 const page = {limit: 5};
 
-const groups = useGetGroups(page, signedIn);
-const roles = useGetRoles(page, signedIn);
-const agents = useGetAgents(page, signedIn);
-const users = useGetUsers(page, signedIn);
-const applications = useGetApplications(page, signedIn);
+const groups = useApiQuery(() => getGroups({...config.groups, ...page}), signedIn);
+const roles = useApiQuery(() => getRoles({...config.roles, ...page}), signedIn);
+const agents = useApiQuery(() => getAgents({...config.agents, ...page}), signedIn);
+const users = useApiQuery(() => getUsers({...config.users, ...page}), signedIn);
+const applications = useApiQuery(() => getApplications({...config.applications, ...page}), signedIn);
 
-// The single-resource and membership composables follow the first row of each list.
+// The single-resource and membership calls follow the first row of each list.
 const firstGroupId = (): string | undefined => groups.data.value?.groups[0]?.id;
 const firstRoleId = (): string | undefined => roles.data.value?.roles[0]?.id;
 const firstAgentId = (): string | undefined => agents.data.value?.agents[0]?.id;
@@ -170,141 +182,192 @@ const firstApplicationId = (): string | undefined => applications.data.value?.ap
 // ThunderID issues the user's ID as the `sub` claim.
 const signedInUserId = (): string | undefined => asText(toUser(sdk.user.value)?.['sub']) || undefined;
 
-const groupsEndpoint: ManagementEndpoint = useManagementEndpoint('groups');
-// A custom query on the same primitives the management composables use.
-const groupCount = useResourceQuery(
-  () => ['playground', 'group-count'],
-  (fetcher: ApiFetcher) =>
-    getGroups({...groupsEndpoint, fetcher, limit: 1}).then((result: GroupListResponse) => result.totalResults),
+/** Waits for a session and for the ID, and runs again when the ID changes. */
+const follows = (id: () => string | undefined): ApiQueryOptions => ({
+  enabled: () => isSignedIn.value && !!id(),
+  key: id,
+});
+
+// A derived value on the same data layer: the group count, read from a one-row page.
+const groupCount = useApiQuery(
+  () => getGroups({...config.groups, limit: 1}).then((result: GroupListResponse) => result.totalResults),
   signedIn,
 );
 
 const QUERIES: QueryEntry[] = [
   {
-    name: 'useGetUsers()',
+    name: 'getUsers()',
     query: users,
-    signature: '(params?: {limit, offset, filter}, options?) => ResourceQueryResult',
+    signature: "({...useManagementRequestConfig('users'), limit, offset, filter}) => Promise<ManagedUserListResponse>",
   },
   {
-    name: 'useGetUser(firstUserId)',
-    query: useGetUser(firstUserId, signedIn),
-    signature: '(userId) => ResourceQueryResult<ManagedUser>',
+    name: 'getUser(firstUserId)',
+    query: useApiQuery(
+      () => getUser({...config.users, userId: requireId(firstUserId(), 'user')}),
+      follows(firstUserId),
+    ),
+    signature: '({...config, userId}) => Promise<ManagedUser>',
   },
   {
-    name: 'useGetUserGroups(signedInUserId)',
-    query: useGetUserGroups(signedInUserId, page, signedIn),
-    signature: '(userId, params?) => ResourceQueryResult<MembershipGroupListResponse>',
-  },
-  {name: 'useGetUserTypes()', query: useGetUserTypes(page, signedIn), signature: '(params?) => ResourceQueryResult'},
-  {name: 'useGetGroups()', query: groups, signature: '(params?: {limit, offset}) => ResourceQueryResult'},
-  {
-    name: 'useGetGroup(firstGroupId)',
-    query: useGetGroup(firstGroupId, signedIn),
-    signature: '(groupId) => ResourceQueryResult<Group>',
+    name: 'getUserGroups(signedInUserId)',
+    query: useApiQuery(
+      () => getUserGroups({...config.users, ...page, userId: requireId(signedInUserId(), 'signed-in user')}),
+      follows(signedInUserId),
+    ),
+    signature: '({...config, userId, limit, offset}) => Promise<MembershipGroupListResponse>',
   },
   {
-    name: 'useGetGroupMembers(firstGroupId)',
-    query: useGetGroupMembers(firstGroupId, page, signedIn),
-    signature: '(groupId, params?) => ResourceQueryResult<GroupMemberListResponse>',
-  },
-  {name: 'useGetRoles()', query: roles, signature: '(params?: {limit, offset}) => ResourceQueryResult'},
-  {
-    name: 'useGetRole(firstRoleId)',
-    query: useGetRole(firstRoleId, signedIn),
-    signature: '(roleId) => ResourceQueryResult<Role>',
+    name: 'getUserTypes()',
+    query: useApiQuery(() => getUserTypes({...config.userTypes, ...page}), signedIn),
+    signature: "({...useManagementRequestConfig('userTypes'), limit, offset}) => Promise<page>",
   },
   {
-    name: 'useGetRoleAssignments(firstRoleId)',
-    query: useGetRoleAssignments(firstRoleId, page, signedIn),
-    signature: '(roleId, params?: {limit, offset, type}) => ResourceQueryResult',
-  },
-  {name: 'useGetAgents()', query: agents, signature: '(params?: {limit, offset}) => ResourceQueryResult'},
-  {
-    name: 'useGetAgent(firstAgentId)',
-    query: useGetAgent(firstAgentId, signedIn),
-    signature: '(agentId) => ResourceQueryResult<Agent>',
+    name: 'getGroups()',
+    query: groups,
+    signature: "({...useManagementRequestConfig('groups'), limit, offset}) => Promise<GroupListResponse>",
   },
   {
-    name: 'useGetAgentGroups(firstAgentId)',
-    query: useGetAgentGroups(firstAgentId, page, signedIn),
-    signature: '(agentId, params?) => ResourceQueryResult<MembershipGroupListResponse>',
+    name: 'getGroup(firstGroupId)',
+    query: useApiQuery(
+      () => getGroup({...config.groups, groupId: requireId(firstGroupId(), 'group')}),
+      follows(firstGroupId),
+    ),
+    signature: '({...config, groupId}) => Promise<Group>',
   },
   {
-    name: 'useGetAgentRoles(firstAgentId)',
-    query: useGetAgentRoles(firstAgentId, page, signedIn),
-    signature: '(agentId, params?) => ResourceQueryResult<AgentRoleListResponse>',
-  },
-  {name: 'useGetAgentTypes()', query: useGetAgentTypes(page, signedIn), signature: '(params?) => ResourceQueryResult'},
-  {name: 'useGetApplications()', query: applications, signature: '(params?) => ResourceQueryResult'},
-  {
-    name: 'useGetApplication(firstApplicationId)',
-    query: useGetApplication(firstApplicationId, signedIn),
-    signature: '(applicationId) => ResourceQueryResult<Application>',
+    name: 'getGroupMembers(firstGroupId)',
+    query: useApiQuery(
+      () => getGroupMembers({...config.groups, ...page, groupId: requireId(firstGroupId(), 'group')}),
+      follows(firstGroupId),
+    ),
+    signature: '({...config, groupId, limit, offset}) => Promise<GroupMemberListResponse>',
   },
   {
-    name: "useResourceQuery(['playground', 'group-count'])",
+    name: 'getRoles()',
+    query: roles,
+    signature: "({...useManagementRequestConfig('roles'), limit, offset}) => Promise<RoleListResponse>",
+  },
+  {
+    name: 'getRole(firstRoleId)',
+    query: useApiQuery(
+      () => getRole({...config.roles, roleId: requireId(firstRoleId(), 'role')}),
+      follows(firstRoleId),
+    ),
+    signature: '({...config, roleId}) => Promise<Role>',
+  },
+  {
+    name: 'getRoleAssignments(firstRoleId)',
+    query: useApiQuery(
+      () => getRoleAssignments({...config.roles, ...page, roleId: requireId(firstRoleId(), 'role')}),
+      follows(firstRoleId),
+    ),
+    signature: '({...config, roleId, limit, offset, type}) => Promise<RoleAssignmentListResponse>',
+  },
+  {
+    name: 'getAgents()',
+    query: agents,
+    signature: "({...useManagementRequestConfig('agents'), limit, offset}) => Promise<AgentListResponse>",
+  },
+  {
+    name: 'getAgent(firstAgentId)',
+    query: useApiQuery(
+      () => getAgent({...config.agents, agentId: requireId(firstAgentId(), 'agent')}),
+      follows(firstAgentId),
+    ),
+    signature: '({...config, agentId}) => Promise<Agent>',
+  },
+  {
+    name: 'getAgentGroups(firstAgentId)',
+    query: useApiQuery(
+      () => getAgentGroups({...config.agents, ...page, agentId: requireId(firstAgentId(), 'agent')}),
+      follows(firstAgentId),
+    ),
+    signature: '({...config, agentId, limit, offset}) => Promise<MembershipGroupListResponse>',
+  },
+  {
+    name: 'getAgentRoles(firstAgentId)',
+    query: useApiQuery(
+      () => getAgentRoles({...config.agents, ...page, agentId: requireId(firstAgentId(), 'agent')}),
+      follows(firstAgentId),
+    ),
+    signature: '({...config, agentId, limit, offset}) => Promise<AgentRoleListResponse>',
+  },
+  {
+    name: 'getAgentTypes()',
+    query: useApiQuery(() => getAgentTypes({...config.agentTypes, ...page}), signedIn),
+    signature: "({...useManagementRequestConfig('agentTypes'), limit, offset}) => Promise<AgentTypeListResponse>",
+  },
+  {
+    name: 'getApplications()',
+    query: applications,
+    signature: "({...useManagementRequestConfig('applications'), limit, offset}) => Promise<page>",
+  },
+  {
+    name: 'getApplication(firstApplicationId)',
+    query: useApiQuery(
+      () => getApplication({...config.applications, applicationId: requireId(firstApplicationId(), 'application')}),
+      follows(firstApplicationId),
+    ),
+    signature: '({...config, applicationId}) => Promise<Application>',
+  },
+  {
+    name: 'getGroups({limit: 1}).totalResults',
     query: groupCount,
-    signature: '(queryKey, queryFn: (fetcher) => Promise<T>, options?) => ResourceQueryResult<T>',
+    signature: 'A derived value: the group count, read from a one-row page',
   },
 ];
 
-const queryValue = (query: ResourceQueryResult<unknown>): Record<string, unknown> => ({
+const queryValue = (query: ApiQuery<unknown>): Record<string, unknown> => ({
   data: query.data.value,
   error: query.error.value?.message ?? null,
   isLoading: query.isLoading.value,
   refetch: query.refetch,
 });
 
-const refetch = (name: string, query: ResourceQueryResult<unknown>): void =>
+const refetch = (name: string, query: ApiQuery<unknown>): void =>
   call(name, async () => {
     await query.refetch();
     // refetch() resolves undefined on failure instead of rejecting; surface the error.
     if (query.error.value) throw query.error.value;
   });
 
-// Mutations write data, so the page only shows their state; the admin components in the explorer
-// drive them.
-const MUTATIONS: [string, MutationLike][] = [
-  ['useCreateUser', useCreateUser()],
-  ['useUpdateUser', useUpdateUser()],
-  ['useDeleteUser', useDeleteUser()],
-  ['useCreateGroup', useCreateGroup()],
-  ['useUpdateGroup', useUpdateGroup()],
-  ['useDeleteGroup', useDeleteGroup()],
-  ['useAddGroupMembers', useAddGroupMembers()],
-  ['useRemoveGroupMembers', useRemoveGroupMembers()],
-  ['useCreateRole', useCreateRole()],
-  ['useUpdateRole', useUpdateRole()],
-  ['useDeleteRole', useDeleteRole()],
-  ['useAddRoleAssignments', useAddRoleAssignments()],
-  ['useRemoveRoleAssignments', useRemoveRoleAssignments()],
-  ['useCreateAgent', useCreateAgent()],
-  ['useUpdateAgent', useUpdateAgent()],
-  ['useDeleteAgent', useDeleteAgent()],
-  ['useCreateApplication', useCreateApplication()],
-  ['useUpdateApplication', useUpdateApplication()],
-  ['useDeleteApplication', useDeleteApplication()],
+// The write functions, by the collection whose config they take. They write data, so the page lists
+// them without running them; the admin components in the explorer drive them.
+type WriteFunction = (...args: never[]) => Promise<unknown>;
+
+const MUTATIONS: [PlaygroundCollection, Record<string, WriteFunction>][] = [
+  ['users', {createUser, deleteUser, updateUser}],
+  ['groups', {addGroupMembers, createGroup, deleteGroup, removeGroupMembers, updateGroup}],
+  ['roles', {addRoleAssignments, createRole, deleteRole, removeRoleAssignments, updateRole}],
+  ['agents', {createAgent, deleteAgent, updateAgent}],
+  ['applications', {createApplication, deleteApplication, updateApplication}],
 ];
 
-// A custom mutation on the shared primitive. It writes nothing: it resolves locally and invalidates
-// the group queries, so pressing it refetches every mounted group list above.
-const touchGroups = useResourceMutation(
-  (label: string) => Promise.resolve(label),
-  () => [[GroupQueryKeys.GROUPS], [GroupQueryKeys.GROUP_MEMBERS]],
-);
+// A mutation on the same data layer. It writes nothing: it resolves locally and then refetches the
+// group queries, which is how an app keeps its own lists fresh after a write.
+const touchGroups: ApiMutation<string, string> = useApiMutation((label: string) => Promise.resolve(label), {
+  onSuccess: () =>
+    Promise.all(
+      QUERIES.filter((entry: QueryEntry) => entry.name.includes('Group')).map((entry: QueryEntry) =>
+        entry.query.refetch(),
+      ),
+    ),
+});
 
-const mutationsValue: ComputedRef<Record<string, unknown>> = computed(() =>
-  Object.fromEntries(
-    [...MUTATIONS, ['useResourceMutation', touchGroups] as [string, MutationLike]].map(
-      ([name, mutation]: [string, MutationLike]) => [
-        name,
-        mutation.error.value ? `error: ${mutation.error.value.message}` : mutation.isLoading.value ? 'running' : 'idle',
-      ],
+const mutationsValue: ComputedRef<Record<string, unknown>> = computed(() => ({
+  ...Object.fromEntries(
+    MUTATIONS.flatMap(([key, writes]: [PlaygroundCollection, Record<string, WriteFunction>]) =>
+      Object.keys(writes).map((name: string) => [`${name}()`, `({...useManagementRequestConfig('${key}'), ...})`]),
     ),
   ),
-);
+  refetchGroups: touchGroups.error.value
+    ? `error: ${touchGroups.error.value.message}`
+    : touchGroups.isLoading.value
+      ? 'running'
+      : 'idle',
+}));
 
-const ENDPOINT_KEYS: ManagementEndpointKey[] = [
+const ENDPOINT_KEYS: PlaygroundCollection[] = [
   'applications',
   'users',
   'userTypes',
@@ -315,7 +378,11 @@ const ENDPOINT_KEYS: ManagementEndpointKey[] = [
 ];
 
 const endpointsValue: Record<string, ManagementEndpoint> = Object.fromEntries(
-  ENDPOINT_KEYS.map((key: ManagementEndpointKey) => [key, useManagementEndpoint(key)]),
+  ENDPOINT_KEYS.map((key: PlaygroundCollection) => [key, useManagementEndpoint(key)]),
+);
+
+const requestConfigValue: Record<string, ManagementRequestConfig> = Object.fromEntries(
+  ENDPOINT_KEYS.map((key: PlaygroundCollection) => [key, config[key]]),
 );
 
 const granted = useGrantedPermissions();
@@ -346,8 +413,9 @@ const themeValue: ComputedRef<Record<string, unknown>> = computed(() => {
       <div>
         <h1>Composables</h1>
         <p>
-          Live values from every composable <span class="pg-accent">@thunderid/vue</span> exposes. Refs are unwrapped,
-          functions are shown as signatures; use the buttons to call them.
+          Live values from every composable <span class="pg-accent">@thunderid/vue</span> exposes, then the management
+          API functions called with <code>useManagementRequestConfig</code>. Refs are unwrapped, functions are shown as
+          signatures; use the buttons to call them.
         </p>
       </div>
     </div>
@@ -470,11 +538,13 @@ const themeValue: ComputedRef<Record<string, unknown>> = computed(() => {
 
     <div class="pg-heading">
       <div>
-        <h2>Management</h2>
+        <h2>Management API functions</h2>
         <p>
-          The management composables, <span class="pg-accent">useGrantedPermissions</span>, and
-          <span class="pg-accent">useManagementEndpoint</span>. Queries wait for a session and follow the first row of
-          each list; Refetch runs one anyway and shows its error.
+          The SDK's management API functions (<code>getGroups()</code>, <code>createGroup()</code>, ...) called with the
+          config from <span class="pg-accent">useManagementRequestConfig(collection)</span>, through the playground's
+          own small data layer (<code>src/lib/useApiQuery.ts</code> and <code>src/lib/useApiMutation.ts</code>), plus
+          <span class="pg-accent">useGrantedPermissions</span> and <span class="pg-accent">useManagementEndpoint</span>.
+          Queries wait for a session and follow the first row of each list; Refetch runs one anyway and shows its error.
         </p>
       </div>
     </div>
@@ -495,6 +565,12 @@ const themeValue: ComputedRef<Record<string, unknown>> = computed(() => {
       />
 
       <ComposableCard
+        name="useManagementRequestConfig(collection)"
+        signature="(collection) => {baseUrl, url, fetcher}: spread it into a management API function"
+        :value="requestConfigValue"
+      />
+
+      <ComposableCard
         v-for="entry in QUERIES"
         :key="entry.name"
         :name="entry.name"
@@ -509,8 +585,8 @@ const themeValue: ComputedRef<Record<string, unknown>> = computed(() => {
       </ComposableCard>
 
       <ComposableCard
-        name="Mutation composables"
-        signature="(options?) => {mutate, mutateAsync, reset, data, error, isLoading}"
+        name="Write API functions"
+        signature="({...useManagementRequestConfig(collection), ...input}) => Promise<result>"
         :value="mutationsValue"
       >
         <template #actions>
@@ -518,14 +594,14 @@ const themeValue: ComputedRef<Record<string, unknown>> = computed(() => {
             type="button"
             class="pg-btn"
             data-size="sm"
-            @click="call('useResourceMutation', () => touchGroups.mutateAsync('touch'))"
+            @click="call('refetchGroups', () => touchGroups.mutateAsync('touch'))"
           >
-            Invalidate groups
+            Refetch groups
           </button>
         </template>
         <p class="pg-empty">
-          Mutations write data, so they run from the admin components in Components. The custom
-          <code>useResourceMutation</code> writes nothing and invalidates the group queries.
+          Writes change data, so they run from the admin components in Components. Refetch groups runs a local mutation
+          that writes nothing and then refetches the group queries, the way an app refreshes its own data after a write.
         </p>
       </ComposableCard>
 

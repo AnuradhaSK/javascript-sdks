@@ -51,7 +51,7 @@
     "@thunderid/eslint-plugin": "catalog:",
     "@thunderid/prettier-config": "catalog:",
     "@types/node": "catalog:",
-    "better-auth": "^1.7.2",
+    "better-auth": "^1.7.13",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "rimraf": "catalog:",

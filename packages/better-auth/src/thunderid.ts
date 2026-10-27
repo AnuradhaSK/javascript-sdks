@@ -57,8 +57,10 @@ export function thunderid(options: ThunderIDOptions): GenericOAuthConfig<'thunde
 
   return {
     providerId: 'thunderid',
-    accountIssuer: issuer,
     discoveryUrl: `${issuer}/.well-known/openid-configuration`,
+    // Without the discovered issuer and keys, ID tokens could not be verified, so the provider is
+    // not registered rather than signing users in on unverified tokens.
+    requireIdTokenVerification: true,
     clientId: options.clientId,
     clientSecret: options.clientSecret,
     tokenEndpointAuth: options.tokenEndpointAuth,

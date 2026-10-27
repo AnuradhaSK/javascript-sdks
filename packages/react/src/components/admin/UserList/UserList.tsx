@@ -1,12 +1,20 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toEqualityFilter, toManagementErrorMessage, SelectOption} from '@thunderid/browser';
+import {
+  ManagedUserListResponse,
+  SelectOption,
+  UserQueryKeys,
+  getUsers,
+  toEqualityFilter,
+  toManagementErrorMessage,
+} from '@thunderid/browser';
 import {FC, ReactElement, useState} from 'react';
 import BaseUserList, {BaseUserListProps} from './BaseUserList';
-import {AdminSearchValue} from '../shared/AdminSearch';
-import useGetUsers from '../../../hooks/management/users/useGetUsers';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
+import {AdminSearchValue} from '../shared/AdminSearch';
 
 export type UserListProps = Omit<
   BaseUserListProps,
@@ -47,11 +55,13 @@ const UserList: FC<UserListProps> = ({
     {label: t('admin.users.list.search.username'), value: 'username'},
     {label: t('admin.users.list.search.email'), value: 'email'},
   ];
-  const {data, error, isLoading} = useGetUsers({
-    filter: filter ?? (search ? toEqualityFilter(search.attribute, search.value) : undefined),
-    limit,
-    offset,
-  });
+  const endpoint: ManagementEndpoint = useManagementEndpoint('users');
+  const queryFilter: string | undefined =
+    filter ?? (search ? toEqualityFilter(search.attribute, search.value) : undefined);
+  const {data, error, isLoading}: ResourceQueryResult<ManagedUserListResponse> = useResourceQuery(
+    [UserQueryKeys.USERS, {filter: queryFilter, limit, offset}],
+    (fetcher) => getUsers({...endpoint, fetcher, filter: queryFilter, limit, offset}),
+  );
 
   return (
     <BaseUserList

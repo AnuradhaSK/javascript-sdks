@@ -52,8 +52,18 @@ const sentRequest = (fetcher: FetcherMock): SentRequest => {
 
 describe('roles and groups management API', () => {
   it.each<[string, Run, string, string]>([
-    ['getRoles', (fetcher: ApiFetcher) => getRoles({baseUrl, fetcher, limit: 5}), 'GET', `${baseUrl}/roles?limit=5`],
-    ['getRole', (fetcher: ApiFetcher) => getRole({baseUrl, fetcher, roleId: 'r-1'}), 'GET', `${baseUrl}/roles/r-1`],
+    [
+      'getRoles',
+      (fetcher: ApiFetcher) => getRoles({baseUrl, fetcher, limit: 5}),
+      'GET',
+      `${baseUrl}/roles?include=display&limit=5`,
+    ],
+    [
+      'getRole',
+      (fetcher: ApiFetcher) => getRole({baseUrl, fetcher, roleId: 'r-1'}),
+      'GET',
+      `${baseUrl}/roles/r-1?include=display`,
+    ],
     [
       'deleteRole',
       (fetcher: ApiFetcher) => deleteRole({baseUrl, fetcher, roleId: 'r-1'}),
@@ -112,7 +122,7 @@ describe('roles and groups management API', () => {
       'getAgentTypes',
       (fetcher: ApiFetcher) => getAgentTypes({baseUrl, fetcher, limit: 50}),
       'GET',
-      `${baseUrl}/agent-types?limit=50`,
+      `${baseUrl}/agent-types?include=display&limit=50`,
     ],
   ])('%s sends the expected request', async (_name: string, run: Run, method: string, url: string) => {
     const fetcher: FetcherMock = createFetcher();

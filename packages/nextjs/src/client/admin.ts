@@ -4,10 +4,11 @@
 'use client';
 
 // The admin (management) surface of `@thunderid/react` that needs no Next.js-specific wiring: the
-// unstyled `Base*` admin components, which take their data as props, and the management hooks, which
-// reach the management API through the `http.fetcher` that `ThunderIDProvider` installs (a server
-// action holding the access token). The styled admin components have their own wrappers under
-// `components/admin`, and `useGrantedPermissions` has a Next.js implementation.
+// unstyled `Base*` admin components, which take their data as props, and `useManagementRequestConfig`,
+// whose config lets an app call the management API functions through the `http.fetcher` that
+// `ThunderIDProvider` installs (a server action holding the access token). The styled admin components
+// have their own wrappers under `components/admin`, and `useGrantedPermissions` has a Next.js
+// implementation.
 
 export {
   type AdminListRenderProps,
@@ -50,54 +51,19 @@ export {
   BaseAgentDetails,
   type BaseAgentDetailsProps,
   type BaseAgentDetailsRenderProps,
+  BaseApplicationList,
+  type BaseApplicationListProps,
+  type BaseApplicationListRenderProps,
+  BaseApplicationCreate,
+  type BaseApplicationCreateProps,
+  type BaseApplicationCreateRenderProps,
+  type ApplicationCreateSubmission,
+  BaseApplicationDetails,
+  type BaseApplicationDetailsProps,
+  type BaseApplicationDetailsRenderProps,
+  type ApplicationUpdateSubmission,
+  type ApplicationFormValues,
+  type ApplicationTextField,
 } from '@thunderid/react';
 
-export {
-  useGetUsers,
-  useGetUser,
-  useCreateUser,
-  useUpdateUser,
-  useDeleteUser,
-  useGetUserGroups,
-  useGetUserTypes,
-  useGetGroups,
-  useGetGroup,
-  useCreateGroup,
-  useUpdateGroup,
-  useDeleteGroup,
-  useGetGroupMembers,
-  useAddGroupMembers,
-  useRemoveGroupMembers,
-  useGetRoles,
-  useGetRole,
-  useCreateRole,
-  useUpdateRole,
-  useDeleteRole,
-  useGetRoleAssignments,
-  useAddRoleAssignments,
-  useRemoveRoleAssignments,
-  useGetAgents,
-  useGetAgent,
-  useCreateAgent,
-  useUpdateAgent,
-  useDeleteAgent,
-  useGetAgentGroups,
-  useGetAgentRoles,
-  useGetAgentTypes,
-  type ResourceQueryOptions,
-  type ResourceQueryResult,
-  type ResourceMutationOptions,
-  type ResourceMutationResult,
-  type UpdateUserVariables,
-  type UseGetGroupsParams,
-  type UpdateGroupVariables,
-  type UseGetGroupMembersParams,
-  type GroupMembersVariables,
-  type UseGetRolesParams,
-  type UpdateRoleVariables,
-  type UseGetRoleAssignmentsParams,
-  type RoleAssignmentsVariables,
-  type UseGetAgentsParams,
-  type UpdateAgentVariables,
-  type GrantedPermissions,
-} from '@thunderid/react';
+export {useManagementRequestConfig, type ManagementCollection, type GrantedPermissions} from '@thunderid/react';

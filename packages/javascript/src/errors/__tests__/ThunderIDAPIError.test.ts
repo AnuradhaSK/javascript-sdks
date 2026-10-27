@@ -179,3 +179,31 @@ describe('ThunderIDAPIError — structured response body parsing', (): void => {
     expect(error.code).toBe('FES-1004');
   });
 });
+
+describe('ThunderIDAPIError server error', () => {
+  it("keeps the server's error envelope, with its code and params", () => {
+    const body: string = JSON.stringify({
+      code: 'USR-1027',
+      description: {defaultValue: 'Agents depend on it', params: {dependencies: 'agents'}},
+      message: {defaultValue: 'User cannot be deleted'},
+    });
+
+    const error: ThunderIDAPIError = new ThunderIDAPIError(body, 'deleteUser-ResponseError-001', 'javascript', 409);
+
+    expect(error.message).toBe('User cannot be deleted');
+    expect(error.serverError).toEqual({
+      code: 'USR-1027',
+      description: {defaultValue: 'Agents depend on it', params: {dependencies: 'agents'}},
+      message: {defaultValue: 'User cannot be deleted'},
+    });
+  });
+
+  it('has no server error when the body is not an error envelope', () => {
+    expect(
+      new ThunderIDAPIError('Bad gateway', 'getUser-ResponseError-001', 'javascript', 502).serverError,
+    ).toBeUndefined();
+    expect(
+      new ThunderIDAPIError('{"foo":1}', 'getUser-ResponseError-001', 'javascript', 500).serverError,
+    ).toBeUndefined();
+  });
+});

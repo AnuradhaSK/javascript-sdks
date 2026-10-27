@@ -48,3 +48,45 @@ export interface UpdateManagedUserRequest {
   ouId?: string;
   type?: string;
 }
+
+/**
+ * A resource that references a user, such as an agent that names the user as its owner.
+ */
+export interface UserUsage {
+  /**
+   * What happens to the resource when the user is deleted.
+   */
+  behaviorOnDelete: 'fallback' | 'cascade' | 'restrict';
+  displayName: string;
+  id: string;
+  resourceType: string;
+}
+
+/**
+ * The resources that reference a user. `totalResults` and `summary` are `null` when the server could
+ * not tell; `0` means there are none.
+ */
+export interface UserUsagesResponse {
+  count: number;
+  /**
+   * The number of usages of each resource type, such as `agent`.
+   */
+  summary: Record<string, number> | null;
+  totalResults: number | null;
+  usages: UserUsage[];
+}
+
+/**
+ * New values for some of a user's credential attributes, keyed by attribute name.
+ */
+export interface UpdateUserCredentialsRequest {
+  credentials: Record<string, string>;
+}
+
+/**
+ * The payload used to create a user in the organization unit at a handle path.
+ */
+export interface CreateUserByPathRequest {
+  attributes?: Record<string, unknown>;
+  type: string;
+}

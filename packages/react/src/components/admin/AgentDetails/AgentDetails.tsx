@@ -1,13 +1,24 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {
+  Agent,
+  AgentQueryKeys,
+  AgentRoleListResponse,
+  GroupQueryKeys,
+  MembershipGroupListResponse,
+  RoleQueryKeys,
+  deleteAgent,
+  getAgent,
+  getAgentGroups,
+  getAgentRoles,
+  toManagementErrorMessage,
+} from '@thunderid/browser';
 import {FC, ReactElement} from 'react';
 import BaseAgentDetails, {BaseAgentDetailsProps} from './BaseAgentDetails';
-import useDeleteAgent from '../../../hooks/management/agents/useDeleteAgent';
-import useGetAgent from '../../../hooks/management/agents/useGetAgent';
-import useGetAgentGroups from '../../../hooks/management/agents/useGetAgentGroups';
-import useGetAgentRoles from '../../../hooks/management/agents/useGetAgentRoles';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceMutation, {ResourceMutationResult} from '../../../hooks/management/useResourceMutation';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
 
 export type AgentDetailsProps = Omit<
@@ -43,10 +54,27 @@ const AgentDetails: FC<AgentDetailsProps> = ({
   ...rest
 }: AgentDetailsProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
-  const agent = useGetAgent(agentId);
-  const groups = useGetAgentGroups(agentId, {limit: 100});
-  const roles = useGetAgentRoles(agentId, {limit: 100});
-  const deletion = useDeleteAgent({onSuccess: onDeleted});
+  const endpoint: ManagementEndpoint = useManagementEndpoint('agents');
+  const agent: ResourceQueryResult<Agent> = useResourceQuery(
+    [AgentQueryKeys.AGENT, agentId],
+    (fetcher) => getAgent({...endpoint, agentId, fetcher}),
+    {enabled: Boolean(agentId)},
+  );
+  const groups: ResourceQueryResult<MembershipGroupListResponse> = useResourceQuery(
+    [GroupQueryKeys.MEMBERSHIPS, 'agent', agentId, {limit: 100}],
+    (fetcher) => getAgentGroups({...endpoint, agentId, fetcher, limit: 100}),
+    {enabled: Boolean(agentId)},
+  );
+  const roles: ResourceQueryResult<AgentRoleListResponse> = useResourceQuery(
+    [RoleQueryKeys.ROLE_ASSIGNMENTS, 'agent', agentId, {limit: 100}],
+    (fetcher) => getAgentRoles({...endpoint, agentId, fetcher, limit: 100}),
+    {enabled: Boolean(agentId)},
+  );
+  const deletion: ResourceMutationResult<void, string> = useResourceMutation(
+    (id: string, fetcher) => deleteAgent({...endpoint, agentId: id, fetcher}),
+    () => [[AgentQueryKeys.AGENTS]],
+    {onSuccess: onDeleted},
+  );
 
   return (
     <BaseAgentDetails

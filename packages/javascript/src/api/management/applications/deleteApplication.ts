@@ -1,13 +1,16 @@
-// Copyright 2025-2026 The ThunderID Authors
+// Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import AdministrationModes, {
+  AdministrationFlowConfigKey,
+  AdministrationFlowInput,
+} from '../../../constants/AdministrationConstants';
+import {AdministrationOptions} from '../../../models/administration';
 import {ManagementRequestConfig} from '../../../models/api';
 import requestManagementResource from '../../../utils/requestManagementResource';
+import runAdministrationFlow from '../administration/runAdministrationFlow';
 
-/**
- * Configuration for the deleteApplication request.
- */
-export interface DeleteApplicationConfig extends ManagementRequestConfig {
+export interface DeleteApplicationConfig extends ManagementRequestConfig, AdministrationOptions {
   /**
    * Identifier of the application to delete.
    */
@@ -15,26 +18,34 @@ export interface DeleteApplicationConfig extends ManagementRequestConfig {
 }
 
 /**
- * Deletes an application.
- *
- * @param config - Request configuration object.
- * @returns A promise that resolves once the application is deleted.
- *
- * @example
- * ```typescript
- * await deleteApplication({
- *   baseUrl: 'https://localhost:8090',
- *   applicationId: '550e8400-e29b-41d4-a716-446655440000',
- * });
- * ```
+ * Deletes an application. In `flow` mode the configured application deletion flow runs instead,
+ * revoking what the application was granted before the record goes.
  */
-const deleteApplication = async ({applicationId, ...config}: DeleteApplicationConfig): Promise<void> =>
-  requestManagementResource<void>(config, {
+const deleteApplication = async ({
+  administrationMode,
+  applicationId,
+  ...config
+}: DeleteApplicationConfig): Promise<void> => {
+  if (administrationMode === AdministrationModes.FLOW) {
+    const result: Record<string, string> | null = await runAdministrationFlow(
+      config,
+      AdministrationFlowConfigKey.APPLICATION_DELETION,
+      {[AdministrationFlowInput.APPLICATION]: applicationId},
+      'application deletion',
+    );
+
+    if (result !== null) {
+      return;
+    }
+  }
+
+  await requestManagementResource<void>(config, {
     collection: 'applications',
     failureMessage: 'Failed to delete application',
     id: applicationId,
     method: 'DELETE',
     operation: 'deleteApplication',
   });
+};
 
 export default deleteApplication;

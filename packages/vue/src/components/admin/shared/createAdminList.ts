@@ -14,8 +14,8 @@ import DataTable, {type DataTableColumn} from '../../primitives/DataTable/DataTa
 export interface AdminListDefinition<T> {
   /** BEM block of the component. */
   block: string;
-  /** Builds the columns with the active translation function. */
-  columns: (t: AdminTranslate) => DataTableColumn<T>[];
+  /** Builds the columns with the active translation function, for the rows being shown. */
+  columns: (t: AdminTranslate, rows: T[]) => DataTableColumn<T>[];
   /** Translation key of the message shown when there are no rows. */
   emptyKey: string;
   /** Returns a row's identifier. */
@@ -122,7 +122,7 @@ const createAdminList = <T>(definition: AdminListDefinition<T>): Component =>
         const onPageChange: ((offset: number) => void) | undefined = props['onPageChange'] as
           | ((offset: number) => void)
           | undefined;
-        const columns: DataTableColumn<T>[] = definition.columns(t);
+        const columns: DataTableColumn<T>[] = definition.columns(t, rows);
         const search: AdminSearchValue | null = props['search'] as AdminSearchValue | null;
         const searchAttributes: SelectOption[] | undefined = props['searchAttributes'] as SelectOption[] | undefined;
         const onSearch: ((next: AdminSearchValue | null) => void) | undefined = props['onSearch'] as

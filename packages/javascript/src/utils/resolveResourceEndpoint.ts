@@ -16,16 +16,29 @@ export type ResourceEndpointKey =
   | 'agents'
   | 'agentTypes'
   | 'applications'
+  | 'configurationVersions'
+  | 'connections'
+  | 'design'
+  | 'export'
   | 'flowExecute'
   | 'flowMeta'
   | 'flows'
+  | 'gateways'
   | 'groups'
+  | 'i18n'
+  | 'import'
+  | 'notificationTemplates'
+  | 'organizationUnits'
+  | 'resourceServers'
   | 'roles'
+  | 'secrets'
+  | 'serverConfig'
   | 'users'
   | 'usersMe'
   | 'usersMeCredentials'
   | 'usersMeMeta'
-  | 'userTypes';
+  | 'userTypes'
+  | 'variables';
 
 /**
  * The `config.endpoints` keys that address resource-server endpoints rather than OIDC/OAuth
@@ -35,16 +48,29 @@ export const RESOURCE_ENDPOINT_KEYS: readonly ResourceEndpointKey[] = [
   'agents',
   'agentTypes',
   'applications',
+  'configurationVersions',
+  'connections',
+  'design',
+  'export',
   'flowExecute',
   'flowMeta',
   'flows',
+  'gateways',
   'groups',
+  'i18n',
+  'import',
+  'notificationTemplates',
+  'organizationUnits',
+  'resourceServers',
   'roles',
+  'secrets',
+  'serverConfig',
   'users',
   'usersMe',
   'usersMeCredentials',
   'usersMeMeta',
   'userTypes',
+  'variables',
 ];
 
 /**

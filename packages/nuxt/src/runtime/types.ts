@@ -43,11 +43,12 @@ export interface ThunderIDNuxtConfig extends Omit<AuthClientConfig, 'baseUrl'> {
    * Opt-in admin (management) surface. When `true`, the module serves `POST /api/auth/management`, which
    * performs a management API request with the signed-in user's server-held session, installs it as the
    * `http.fetcher` of the management composables, and auto-imports the admin components (`UserList`,
-   * `GroupMembers`, `RoleAssignments`, ... and their `Base*` variants) and composables (`useGetUsers`,
-   * `useCreateGroup`, `useGrantedPermissions`, ...) from `@thunderid/vue`. Nothing is served by default.
+   * `GroupMembers`, `RoleAssignments`, ... and their `Base*` variants) and composables (`useManagementRequestConfig`,
+   * `useGrantedPermissions`) from `@thunderid/vue`. Nothing is served by default.
    *
-   * The route only reaches the configured management collections (users, groups, roles, agents, user
-   * types, agent types), and the management API still decides what the signed-in user may do.
+   * The route only reaches the management collections that `@thunderid/node` allowlists in
+   * `MANAGEMENT_COLLECTIONS` (applications, users, groups, roles, agents, user and agent types, and the
+   * other administration collections), and the management API still decides what the signed-in user may do.
    */
   management?: boolean;
   /**

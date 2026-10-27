@@ -751,7 +751,7 @@ export const CAPABILITIES: Capability[] = [
     section: 'Management',
   },
   {
-    api: 'getGroups() · getGroupMembers() · useGetGroups()',
+    api: 'getGroups() · getGroupMembers()',
     id: 'groups',
     name: 'Groups',
     run: managementCheck(async (context: CapabilityContext) => {
@@ -769,7 +769,7 @@ export const CAPABILITIES: Capability[] = [
     section: 'Management',
   },
   {
-    api: 'getRoles() · getRoleAssignments() · useGetRoles()',
+    api: 'getRoles() · getRoleAssignments()',
     id: 'roles',
     name: 'Roles',
     run: managementCheck(async (context: CapabilityContext) => {
@@ -787,7 +787,7 @@ export const CAPABILITIES: Capability[] = [
     section: 'Management',
   },
   {
-    api: 'getAgentTypes() · useGetAgentTypes() · endpoints.agentTypes',
+    api: 'getAgentTypes() · endpoints.agentTypes',
     id: 'agentTypes',
     name: 'Agent types',
     run: managementCheck(async (context: CapabilityContext) => {
@@ -802,7 +802,7 @@ export const CAPABILITIES: Capability[] = [
     section: 'Management',
   },
   {
-    api: 'getAgentGroups() · getAgentRoles() · useGetAgentGroups() · useGetAgentRoles()',
+    api: 'getAgentGroups() · getAgentRoles()',
     id: 'agentMemberships',
     name: 'Agent groups and roles',
     run: managementCheck(async (context: CapabilityContext) => {
@@ -823,7 +823,7 @@ export const CAPABILITIES: Capability[] = [
     section: 'Management',
   },
   {
-    api: 'getUserGroups() · getUserTypes() · useGetUserGroups() · useGetUserTypes()',
+    api: 'getUserGroups() · getUserTypes()',
     id: 'userMemberships',
     name: 'User groups and types',
     run: managementCheck(async (context: CapabilityContext) => {

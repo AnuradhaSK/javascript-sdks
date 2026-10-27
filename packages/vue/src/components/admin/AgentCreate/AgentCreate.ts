@@ -1,14 +1,13 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {AgentQueryKeys, createAgent, getAgentTypes, toManagementErrorMessage} from '@thunderid/browser';
 import type {AgentType, AgentTypeListResponse, SelectOption, Agent, CreateAgentRequest} from '@thunderid/browser';
 import {type Component, type ComputedRef, type SetupContext, type VNode, computed, defineComponent, h} from 'vue';
 import BaseAgentCreate, {type AgentCreateSubmission} from './BaseAgentCreate';
-import useCreateAgent from '../../../composables/management/agents/useCreateAgent';
-import useGetAgentTypes from '../../../composables/management/agents/useGetAgentTypes';
-import type {ResourceMutationResult} from '../../../composables/management/useResourceMutation';
-import type {ResourceQueryResult} from '../../../composables/management/useResourceQuery';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import {type AdminFormProps, adminFormProps} from '../shared/adminFormProps';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 import useDefaultOuId from '../shared/useDefaultOuId';
@@ -45,16 +44,23 @@ const AgentCreate: Component = defineComponent({
   setup(props: AgentCreateProps, {emit, slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
     const resolvedOuId: ComputedRef<string | undefined> = useDefaultOuId(() => props.ouId);
-    const agentTypes: ResourceQueryResult<AgentTypeListResponse> = useGetAgentTypes({limit: 100});
+    const agentTypesEndpoint: ManagementEndpoint = useManagementEndpoint('agentTypes');
+    const agentsEndpoint: ManagementEndpoint = useManagementEndpoint('agents');
+    const agentTypes: ResourceQueryResult<AgentTypeListResponse> = useResourceQuery(
+      () => [AgentQueryKeys.AGENT_TYPES, {limit: 100}],
+      (fetcher) => getAgentTypes({...agentTypesEndpoint, fetcher, limit: 100}),
+    );
     const options: ComputedRef<SelectOption[]> = computed(() =>
       (agentTypes.data.value?.types ?? []).map((agentType: AgentType) => ({
         label: agentType.displayName,
         value: agentType.handle,
       })),
     );
-    const creation: ResourceMutationResult<Agent, CreateAgentRequest> = useCreateAgent({
-      onSuccess: (created: Agent): void => emit('created', created),
-    });
+    const creation: ResourceMutationResult<Agent, CreateAgentRequest> = useResourceMutation(
+      (payload: CreateAgentRequest, fetcher) => createAgent({...agentsEndpoint, fetcher, payload}),
+      () => [[AgentQueryKeys.AGENTS]],
+      {onSuccess: (created: Agent): void => emit('created', created)},
+    );
 
     const handleSubmit = ({description, name, type}: AgentCreateSubmission): void => {
       if (resolvedOuId.value) {

@@ -1,10 +1,12 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {AgentListResponse, BasicAgent} from '@thunderid/browser';
+import {AgentQueryKeys, getAgents} from '@thunderid/browser';
+import type {AgentListResponse, ApiFilteringParams, BasicAgent} from '@thunderid/browser';
 import type {Component} from 'vue';
 import BaseAgentList from './BaseAgentList';
-import useGetAgents from '../../../composables/management/agents/useGetAgents';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import createConnectedAdminList from '../shared/createConnectedAdminList';
 import type {AdminTranslate} from '../shared/useAdminTranslation';
 
@@ -24,8 +26,22 @@ const AgentList: Component = createConnectedAdminList<AgentListResponse, BasicAg
   base: BaseAgentList,
   errorKey: 'admin.agents.list.error',
   name: 'AgentList',
-  query: (params: () => Record<string, unknown>) =>
-    useGetAgents(() => params() as {filter?: string; limit?: number; offset?: number}),
+  query: (params: () => Record<string, unknown>): ResourceQueryResult<AgentListResponse> => {
+    const endpoint: ManagementEndpoint = useManagementEndpoint('agents');
+
+    return useResourceQuery(
+      () => {
+        const {filter, limit, offset} = params() as ApiFilteringParams;
+
+        return [AgentQueryKeys.AGENTS, {filter, limit, offset}];
+      },
+      (fetcher) => {
+        const {filter, limit, offset} = params() as ApiFilteringParams;
+
+        return getAgents({...endpoint, fetcher, filter, limit, offset});
+      },
+    );
+  },
   rows: (data: AgentListResponse | undefined) => data?.agents ?? [],
   rowsProp: 'agents',
   searchAttributes: (t: AdminTranslate) => [{label: t('admin.agents.list.search.name'), value: 'name'}],

@@ -1,14 +1,29 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {
+  GroupQueryKeys,
+  ManagedUser,
+  MembershipGroupListResponse,
+  UpdateManagedUserRequest,
+  UserQueryKeys,
+  deleteUser,
+  getUser,
+  getUserGroups,
+  toManagementErrorMessage,
+  updateUser,
+} from '@thunderid/browser';
 import {FC, ReactElement} from 'react';
 import BaseUserDetails, {BaseUserDetailsProps} from './BaseUserDetails';
-import useDeleteUser from '../../../hooks/management/users/useDeleteUser';
-import useGetUser from '../../../hooks/management/users/useGetUser';
-import useGetUserGroups from '../../../hooks/management/users/useGetUserGroups';
-import useUpdateUser from '../../../hooks/management/users/useUpdateUser';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceMutation, {ResourceMutationResult} from '../../../hooks/management/useResourceMutation';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
+
+interface UpdateUserVariables {
+  data: UpdateManagedUserRequest;
+  userId: string;
+}
 
 export type UserDetailsProps = Omit<
   BaseUserDetailsProps,
@@ -48,10 +63,26 @@ const UserDetails: FC<UserDetailsProps> = ({
   ...rest
 }: UserDetailsProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
-  const user = useGetUser(userId);
-  const groups = useGetUserGroups(userId, {limit: 100});
-  const deletion = useDeleteUser({onSuccess: onDeleted});
-  const update = useUpdateUser();
+  const endpoint: ManagementEndpoint = useManagementEndpoint('users');
+  const user: ResourceQueryResult<ManagedUser> = useResourceQuery(
+    [UserQueryKeys.USER, userId],
+    (fetcher) => getUser({...endpoint, fetcher, userId}),
+    {enabled: Boolean(userId)},
+  );
+  const groups: ResourceQueryResult<MembershipGroupListResponse> = useResourceQuery(
+    [GroupQueryKeys.MEMBERSHIPS, 'user', userId, {limit: 100}],
+    (fetcher) => getUserGroups({...endpoint, fetcher, limit: 100, userId}),
+    {enabled: Boolean(userId)},
+  );
+  const deletion: ResourceMutationResult<void, string> = useResourceMutation(
+    (id: string, fetcher) => deleteUser({...endpoint, fetcher, userId: id}),
+    () => [[UserQueryKeys.USERS]],
+    {onSuccess: onDeleted},
+  );
+  const update: ResourceMutationResult<ManagedUser, UpdateUserVariables> = useResourceMutation(
+    ({data, userId: id}: UpdateUserVariables, fetcher) => updateUser({...endpoint, fetcher, payload: data, userId: id}),
+    ({userId: id}: UpdateUserVariables) => [[UserQueryKeys.USER, id], [UserQueryKeys.USERS]],
+  );
 
   return (
     <BaseUserDetails
