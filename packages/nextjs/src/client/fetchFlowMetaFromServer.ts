@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {FlowMetadataResponse, ThunderIDAPIError, ThunderIDRuntimeError} from '@thunderid/node';
-import getFlowMetaAction, {GetFlowMetaActionResult} from '../server/actions/getFlowMetaAction';
+import getFlowMetaAction, {GetFlowMetaActionResult} from '../server/actions/auth/getFlowMetaAction';
 
 /**
  * The `fetchMeta` behind `FlowMetaProvider`: loads flow metadata through {@link getFlowMetaAction} so the browser

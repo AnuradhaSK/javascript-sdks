@@ -20,19 +20,19 @@ export interface ResourcePicker {
 const ResourcePickers: Record<'authFlows' | 'userTypes' | 'users', ResourcePicker> = {
   authFlows: {
     component: 'AuthFlowSelect',
-    componentPath: './runtime/components/user/AuthFlowSelect',
+    componentPath: './runtime/components/primitives/AuthFlowSelect',
     handlerPath: './runtime/server/routes/auth/select/auth-flows.get',
     route: NuxtAPIRoutes.AUTH_FLOWS,
   },
   userTypes: {
     component: 'UserTypeSelect',
-    componentPath: './runtime/components/user/UserTypeSelect',
+    componentPath: './runtime/components/primitives/UserTypeSelect',
     handlerPath: './runtime/server/routes/auth/select/user-types.get',
     route: NuxtAPIRoutes.USER_TYPES,
   },
   users: {
     component: 'UserSelect',
-    componentPath: './runtime/components/user/UserSelect',
+    componentPath: './runtime/components/primitives/UserSelect',
     handlerPath: './runtime/server/routes/auth/user/users.get',
     route: NuxtAPIRoutes.USERS,
   },

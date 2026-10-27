@@ -3,7 +3,7 @@
 
 import type {FetchAuthFlows, SelectPage, SelectPageRequest} from '@thunderid/node';
 import loadPageFromAction from './loadPageFromAction';
-import getAuthFlowsAction from '../server/actions/getAuthFlowsAction';
+import getAuthFlowsAction from '../server/actions/auth/getAuthFlowsAction';
 
 /**
  * The loader behind `AuthFlowSelect`: loads authentication flows through {@link getAuthFlowsAction} with the

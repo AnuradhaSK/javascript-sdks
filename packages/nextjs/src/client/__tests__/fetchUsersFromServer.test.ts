@@ -3,10 +3,10 @@
 
 import {ThunderIDAPIError, ThunderIDError, ThunderIDRuntimeError} from '@thunderid/node';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import getUsersAction from '../../server/actions/getUsersAction';
+import getUsersAction from '../../server/actions/management/getUsersAction';
 import fetchUsersFromServer from '../fetchUsersFromServer';
 
-vi.mock('../../server/actions/getUsersAction', () => ({default: vi.fn()}));
+vi.mock('../../server/actions/management/getUsersAction', () => ({default: vi.fn()}));
 
 const request = {component: {} as never, limit: 30, offset: 60, signal: new AbortController().signal};
 

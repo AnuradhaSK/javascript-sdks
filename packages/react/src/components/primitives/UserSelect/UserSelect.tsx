@@ -3,7 +3,7 @@
 
 import {FC} from 'react';
 import BaseUserSelect, {BaseUserSelectProps} from './BaseUserSelect';
-import useFetchUsers from '../../../hooks/useFetchUsers';
+import useFetchUsers from '../../../hooks/management/useFetchUsers';
 
 export type UserSelectProps = Omit<BaseUserSelectProps, 'fetchUsers'>;
 

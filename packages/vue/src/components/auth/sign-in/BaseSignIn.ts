@@ -20,7 +20,6 @@ import {
   ref,
   watch,
 } from 'vue';
-import {renderSignInComponents} from './AuthOptionFactory';
 import useFlow from '../../../composables/useFlow';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
@@ -29,6 +28,7 @@ import Alert from '../../primitives/Alert';
 import Card from '../../primitives/Card';
 import Spinner from '../../primitives/Spinner';
 import Typography from '../../primitives/Typography';
+import {renderSignInComponents} from '../flow/AuthOptionFactory';
 
 /**
  * Render props passed to the default scoped slot for custom UI rendering.

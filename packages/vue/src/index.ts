@@ -22,13 +22,74 @@ export {default as useFlowMeta} from './composables/useFlowMeta';
 export {default as useI18n} from './composables/useI18n';
 export {default as useTheme} from './composables/useTheme';
 export {default as useUser} from './composables/useUser';
-export {useOAuthCallback} from './composables/useOAuthCallback';
-export type {UseOAuthCallbackOptions, OAuthCallbackPayload} from './composables/useOAuthCallback';
-export {default as useInfiniteOptions} from './composables/useInfiniteOptions';
-export type {UseInfiniteOptionsArgs, UseInfiniteOptionsResult} from './composables/useInfiniteOptions';
-export {default as useFetchUsers} from './composables/useFetchUsers';
-export {default as useFetchAuthFlows} from './composables/useFetchAuthFlows';
-export {default as useFetchUserTypes} from './composables/useFetchUserTypes';
+export {useOAuthCallback} from './composables/auth/useOAuthCallback';
+export type {UseOAuthCallbackOptions, OAuthCallbackPayload} from './composables/auth/useOAuthCallback';
+export {default as useInfiniteOptions} from './composables/management/useInfiniteOptions';
+export type {UseInfiniteOptionsArgs, UseInfiniteOptionsResult} from './composables/management/useInfiniteOptions';
+export {default as useFetchUsers} from './composables/management/useFetchUsers';
+export {default as useFetchAuthFlows} from './composables/auth/useFetchAuthFlows';
+export {default as useFetchUserTypes} from './composables/management/useFetchUserTypes';
+
+// ── Composables — Management ──
+export {default as useResourceQuery} from './composables/management/useResourceQuery';
+export type {ResourceQueryOptions, ResourceQueryResult} from './composables/management/useResourceQuery';
+export {default as useResourceMutation} from './composables/management/useResourceMutation';
+export type {ResourceMutationOptions, ResourceMutationResult} from './composables/management/useResourceMutation';
+export {default as useManagementEndpoint} from './composables/management/useManagementEndpoint';
+export type {ManagementEndpoint, ManagementEndpointKey} from './composables/management/useManagementEndpoint';
+export {default as useGrantedPermissions} from './composables/management/useGrantedPermissions';
+export type {GrantedPermissions} from './composables/management/useGrantedPermissions';
+export {createResourceInvalidator} from '@thunderid/browser';
+export type {ResourceInvalidator, ResourceQueryKey} from '@thunderid/browser';
+export {default as useGetUsers} from './composables/management/users/useGetUsers';
+export {default as useGetUser} from './composables/management/users/useGetUser';
+export {default as useCreateUser} from './composables/management/users/useCreateUser';
+export {default as useUpdateUser} from './composables/management/users/useUpdateUser';
+export type {UpdateUserVariables} from './composables/management/users/useUpdateUser';
+export {default as useDeleteUser} from './composables/management/users/useDeleteUser';
+export {default as useGetUserGroups} from './composables/management/users/useGetUserGroups';
+export {default as useGetUserTypes} from './composables/management/users/useGetUserTypes';
+export {default as useGetGroups} from './composables/management/groups/useGetGroups';
+export type {UseGetGroupsParams} from './composables/management/groups/useGetGroups';
+export {default as useGetGroup} from './composables/management/groups/useGetGroup';
+export {default as useCreateGroup} from './composables/management/groups/useCreateGroup';
+export {default as useUpdateGroup} from './composables/management/groups/useUpdateGroup';
+export type {UpdateGroupVariables} from './composables/management/groups/useUpdateGroup';
+export {default as useDeleteGroup} from './composables/management/groups/useDeleteGroup';
+export {default as useGetGroupMembers} from './composables/management/groups/useGetGroupMembers';
+export type {UseGetGroupMembersParams} from './composables/management/groups/useGetGroupMembers';
+export {default as useAddGroupMembers} from './composables/management/groups/useAddGroupMembers';
+export type {GroupMembersVariables} from './composables/management/groups/useAddGroupMembers';
+export {default as useRemoveGroupMembers} from './composables/management/groups/useRemoveGroupMembers';
+export {default as useGetRoles} from './composables/management/roles/useGetRoles';
+export type {UseGetRolesParams} from './composables/management/roles/useGetRoles';
+export {default as useGetRole} from './composables/management/roles/useGetRole';
+export {default as useCreateRole} from './composables/management/roles/useCreateRole';
+export {default as useUpdateRole} from './composables/management/roles/useUpdateRole';
+export type {UpdateRoleVariables} from './composables/management/roles/useUpdateRole';
+export {default as useDeleteRole} from './composables/management/roles/useDeleteRole';
+export {default as useGetRoleAssignments} from './composables/management/roles/useGetRoleAssignments';
+export type {UseGetRoleAssignmentsParams} from './composables/management/roles/useGetRoleAssignments';
+export {default as useAddRoleAssignments} from './composables/management/roles/useAddRoleAssignments';
+export type {RoleAssignmentsVariables} from './composables/management/roles/useAddRoleAssignments';
+export {default as useRemoveRoleAssignments} from './composables/management/roles/useRemoveRoleAssignments';
+export {default as useGetAgents} from './composables/management/agents/useGetAgents';
+export type {UseGetAgentsParams} from './composables/management/agents/useGetAgents';
+export {default as useGetAgent} from './composables/management/agents/useGetAgent';
+export {default as useCreateAgent} from './composables/management/agents/useCreateAgent';
+export {default as useUpdateAgent} from './composables/management/agents/useUpdateAgent';
+export type {UpdateAgentVariables} from './composables/management/agents/useUpdateAgent';
+export {default as useDeleteAgent} from './composables/management/agents/useDeleteAgent';
+export {default as useGetAgentGroups} from './composables/management/agents/useGetAgentGroups';
+export {default as useGetAgentRoles} from './composables/management/agents/useGetAgentRoles';
+export {default as useGetAgentTypes} from './composables/management/agents/useGetAgentTypes';
+export {default as useGetApplications} from './composables/management/applications/useGetApplications';
+export type {UseGetApplicationsParams} from './composables/management/applications/useGetApplications';
+export {default as useGetApplication} from './composables/management/applications/useGetApplication';
+export {default as useCreateApplication} from './composables/management/applications/useCreateApplication';
+export {default as useUpdateApplication} from './composables/management/applications/useUpdateApplication';
+export type {UpdateApplicationVariables} from './composables/management/applications/useUpdateApplication';
+export {default as useDeleteApplication} from './composables/management/applications/useDeleteApplication';
 
 // ── Client ──
 export {default as ThunderIDVueClient} from './ThunderIDVueClient';
@@ -97,12 +158,12 @@ export {
 } from './components/primitives/Icons';
 
 // ── UI Components — Actions ──
-export {default as SignInButton} from './components/actions/SignInButton';
-export {default as BaseSignInButton} from './components/actions/BaseSignInButton';
-export {default as SignOutButton} from './components/actions/SignOutButton';
-export {default as BaseSignOutButton} from './components/actions/BaseSignOutButton';
-export {default as SignUpButton} from './components/actions/SignUpButton';
-export {default as BaseSignUpButton} from './components/actions/BaseSignUpButton';
+export {default as SignInButton} from './components/auth/buttons/SignInButton';
+export {default as BaseSignInButton} from './components/auth/buttons/BaseSignInButton';
+export {default as SignOutButton} from './components/auth/buttons/SignOutButton';
+export {default as BaseSignOutButton} from './components/auth/buttons/BaseSignOutButton';
+export {default as SignUpButton} from './components/auth/buttons/SignUpButton';
+export {default as BaseSignUpButton} from './components/auth/buttons/BaseSignUpButton';
 
 // ── UI Components — Auth Flow ──
 export {default as Callback} from './components/auth/Callback';
@@ -116,45 +177,88 @@ export {default as BaseSignUp} from './components/auth/sign-up/BaseSignUp';
 export type {BaseSignUpRenderProps, BaseSignUpProps} from './components/auth/sign-up/BaseSignUp';
 
 // ── UI Components — Control ──
-export {default as SignedIn} from './components/control/SignedIn';
-export {default as SignedOut} from './components/control/SignedOut';
-export {default as Loading} from './components/control/Loading';
+export {default as SignedIn} from './components/auth/guards/SignedIn';
+export {default as SignedOut} from './components/auth/guards/SignedOut';
+export {default as Loading} from './components/auth/guards/Loading';
 
 // ── UI Components — Presentation ──
-export {default as User} from './components/presentation/user/User';
-export {default as UserProfile} from './components/presentation/user-profile/UserProfile';
-export {default as BaseUserProfile} from './components/presentation/user-profile/BaseUserProfile';
-export {default as ChangeCredential} from './components/presentation/change-credential/ChangeCredential';
-export {default as BaseChangeCredential} from './components/presentation/change-credential/BaseChangeCredential';
-export type {ChangePasswordValues} from './components/presentation/change-credential/BaseChangeCredential';
-export {default as UserDropdown} from './components/presentation/user-dropdown/UserDropdown';
-export {default as BaseUserDropdown} from './components/presentation/user-dropdown/BaseUserDropdown';
-export {default as AcceptInvite} from './components/presentation/accept-invite/AcceptInvite';
-export type {AcceptInviteRenderProps} from './components/presentation/accept-invite/AcceptInvite';
-export {default as BaseAcceptInvite} from './components/presentation/accept-invite/BaseAcceptInvite';
+export {default as User} from './components/account/user/User';
+export {default as UserProfile} from './components/account/user-profile/UserProfile';
+export {default as BaseUserProfile} from './components/account/user-profile/BaseUserProfile';
+export {default as Attribution} from './components/common/attribution/Attribution';
+export {default as ChangeCredential} from './components/account/change-credential/ChangeCredential';
+export {default as BaseChangeCredential} from './components/account/change-credential/BaseChangeCredential';
+export type {ChangePasswordValues} from './components/account/change-credential/BaseChangeCredential';
+export {default as UserDropdown} from './components/account/user-dropdown/UserDropdown';
+export {default as BaseUserDropdown} from './components/account/user-dropdown/BaseUserDropdown';
+export {default as AcceptInvite} from './components/auth/accept-invite/AcceptInvite';
+export type {AcceptInviteRenderProps} from './components/auth/accept-invite/AcceptInvite';
+export {default as BaseAcceptInvite} from './components/auth/accept-invite/BaseAcceptInvite';
 export type {
   BaseAcceptInviteRenderProps,
   BaseAcceptInviteProps,
-} from './components/presentation/accept-invite/BaseAcceptInvite';
-export {default as InviteUser} from './components/presentation/invite-user/InviteUser';
-export type {InviteUserRenderProps} from './components/presentation/invite-user/InviteUser';
-export {default as BaseInviteUser} from './components/presentation/invite-user/BaseInviteUser';
-export type {
-  BaseInviteUserRenderProps,
-  BaseInviteUserProps,
-} from './components/presentation/invite-user/BaseInviteUser';
-export {default as LanguageSwitcher} from './components/presentation/language-switcher/LanguageSwitcher';
-export {default as BaseLanguageSwitcher} from './components/presentation/language-switcher/BaseLanguageSwitcher';
+} from './components/auth/accept-invite/BaseAcceptInvite';
+export {default as InviteUser} from './components/auth/invite-user/InviteUser';
+export type {InviteUserRenderProps} from './components/auth/invite-user/InviteUser';
+export {default as BaseInviteUser} from './components/auth/invite-user/BaseInviteUser';
+export type {BaseInviteUserRenderProps, BaseInviteUserProps} from './components/auth/invite-user/BaseInviteUser';
+export {default as LanguageSwitcher} from './components/common/language-switcher/LanguageSwitcher';
+export {default as BaseLanguageSwitcher} from './components/common/language-switcher/BaseLanguageSwitcher';
+
+// ── UI Components — Admin (management) ──
+export {default as DataTable} from './components/primitives/DataTable/DataTable';
+export type {DataTableColumn, DataTablePagination} from './components/primitives/DataTable/DataTable';
+export type {AdminListRenderProps} from './components/admin/shared/createAdminList';
+export type {AdminSearchValue} from './components/admin/shared/AdminSearch';
+export type {AdminFormRenderProps} from './components/admin/shared/adminFormProps';
+export {default as BaseUserList} from './components/admin/UserList/BaseUserList';
+export {default as UserList} from './components/admin/UserList/UserList';
+export {default as BaseUserCreate} from './components/admin/UserCreate/BaseUserCreate';
+export type {BaseUserCreateRenderProps, UserCreateSubmission} from './components/admin/UserCreate/BaseUserCreate';
+export {DEFAULT_USER_CREATE_FIELDS} from './components/admin/UserCreate/userCreateFields';
+export type {UserCreateField} from './components/admin/UserCreate/userCreateFields';
+export {default as UserCreate} from './components/admin/UserCreate/UserCreate';
+export {default as BaseUserDetails} from './components/admin/UserDetails/BaseUserDetails';
+export type {BaseUserDetailsRenderProps} from './components/admin/UserDetails/BaseUserDetails';
+export {default as UserDetails} from './components/admin/UserDetails/UserDetails';
+export {default as BaseGroupList} from './components/admin/GroupList/BaseGroupList';
+export {default as GroupList} from './components/admin/GroupList/GroupList';
+export {default as BaseGroupCreate} from './components/admin/GroupCreate/BaseGroupCreate';
+export type {BaseGroupCreateRenderProps, GroupCreateSubmission} from './components/admin/GroupCreate/BaseGroupCreate';
+export {default as GroupCreate} from './components/admin/GroupCreate/GroupCreate';
+export {default as BaseGroupMembers} from './components/admin/GroupMembers/BaseGroupMembers';
+export type {BaseGroupMembersRenderProps} from './components/admin/GroupMembers/BaseGroupMembers';
+export {default as GroupMembers} from './components/admin/GroupMembers/GroupMembers';
+export {default as BaseRoleList} from './components/admin/RoleList/BaseRoleList';
+export {default as RoleList} from './components/admin/RoleList/RoleList';
+export {default as BaseRoleCreate} from './components/admin/RoleCreate/BaseRoleCreate';
+export type {BaseRoleCreateRenderProps, RoleCreateSubmission} from './components/admin/RoleCreate/BaseRoleCreate';
+export {default as RoleCreate} from './components/admin/RoleCreate/RoleCreate';
+export {default as BaseRoleAssignments} from './components/admin/RoleAssignments/BaseRoleAssignments';
+export type {BaseRoleAssignmentsRenderProps} from './components/admin/RoleAssignments/BaseRoleAssignments';
+export {default as RoleAssignments} from './components/admin/RoleAssignments/RoleAssignments';
+export {default as BaseRolePermissions} from './components/admin/RolePermissions/BaseRolePermissions';
+export type {BaseRolePermissionsRenderProps} from './components/admin/RolePermissions/BaseRolePermissions';
+export {default as RolePermissions} from './components/admin/RolePermissions/RolePermissions';
+export {default as BaseAgentList} from './components/admin/AgentList/BaseAgentList';
+export {default as AgentList} from './components/admin/AgentList/AgentList';
+export {default as BaseAgentCreate} from './components/admin/AgentCreate/BaseAgentCreate';
+export type {AgentCreateSubmission, BaseAgentCreateRenderProps} from './components/admin/AgentCreate/BaseAgentCreate';
+export {default as AgentCreate} from './components/admin/AgentCreate/AgentCreate';
+export {default as BaseAgentDetails} from './components/admin/AgentDetails/BaseAgentDetails';
+export type {BaseAgentDetailsRenderProps} from './components/admin/AgentDetails/BaseAgentDetails';
+export {default as AgentDetails} from './components/admin/AgentDetails/AgentDetails';
+export type {IdentityCandidate} from './components/admin/shared/IdentityPicker';
 
 // ── UI Components — Adapters ──
-export {default as GoogleButton} from './components/adapters/GoogleButton';
-export {default as GitHubButton} from './components/adapters/GitHubButton';
-export {default as MicrosoftButton} from './components/adapters/MicrosoftButton';
-export {default as FacebookButton} from './components/adapters/FacebookButton';
+export {default as GoogleButton} from './components/auth/buttons/GoogleButton';
+export {default as GitHubButton} from './components/auth/buttons/GitHubButton';
+export {default as MicrosoftButton} from './components/auth/buttons/MicrosoftButton';
+export {default as FacebookButton} from './components/auth/buttons/FacebookButton';
 
 // ── Factories ──
-export {default as FieldFactory, createField, validateFieldValue} from './components/factories/FieldFactory';
-export type {FieldConfig} from './components/factories/FieldFactory';
+export {default as FieldFactory, createField, validateFieldValue} from './components/auth/flow/FieldFactory';
+export type {FieldConfig} from './components/auth/flow/FieldFactory';
 
 // ── Utilities ──
 export {default as buildThemeConfigFromFlowMeta} from './utils/buildThemeConfigFromFlowMeta';
@@ -185,8 +289,8 @@ export {initiateOAuthRedirect} from './utils/oauth';
 export {extractErrorMessage, normalizeFlowResponse} from './utils/flowTransformer';
 export type {FlowErrorResponse, FlowTransformOptions} from './utils/flowTransformer';
 export {handlePasskeyAuthentication, handlePasskeyRegistration} from './utils/passkey';
-export {default as getUsersMeMeta} from './api/getUsersMeMeta';
-export * from './api/getUsersMeMeta';
+export {default as getUsersMeMeta} from './api/account/getUsersMeMeta';
+export * from './api/account/getUsersMeMeta';
 
 // ── Phase 4 — Router Helpers ──
 export {createThunderIDGuard} from './router/guard';
@@ -230,4 +334,90 @@ export {
   type ComponentRenderContext,
   type ComponentsExtensions,
   type ComponentRenderer,
+} from '@thunderid/browser';
+
+// ── Re-exports from @thunderid/browser (management API) ──
+export {
+  AgentQueryKeys,
+  ApplicationQueryKeys,
+  GroupQueryKeys,
+  RoleQueryKeys,
+  UserQueryKeys,
+  ThunderIDAPIError,
+  addGroupMembers,
+  addRoleAssignments,
+  getTokenPermissions,
+  hasPermission,
+  createAgent,
+  createApplication,
+  createGroup,
+  createRole,
+  createUser,
+  deleteAgent,
+  deleteApplication,
+  deleteGroup,
+  deleteRole,
+  deleteUser,
+  getAgent,
+  getAgentGroups,
+  getAgentRoles,
+  getAgentTypes,
+  getAgents,
+  getApplication,
+  getApplications,
+  getGroup,
+  getGroupMembers,
+  getGroups,
+  getRole,
+  getRoleAssignments,
+  getRoles,
+  getUser,
+  getUserGroups,
+  getUsers,
+  removeGroupMembers,
+  removeRoleAssignments,
+  updateAgent,
+  updateApplication,
+  updateGroup,
+  updateRole,
+  updateUser,
+  type Agent,
+  type AgentListResponse,
+  type AgentRoleListResponse,
+  type AgentType,
+  type AgentTypeListResponse,
+  type ApiFetcher,
+  type ApiFilteringParams,
+  type Application,
+  type ApplicationListResponse,
+  type BasicAgent,
+  type BasicApplication,
+  type CreateAgentRequest,
+  type CreateApplicationRequest,
+  type CreateGroupRequest,
+  type CreateManagedUserRequest,
+  type CreateRoleRequest,
+  type Group,
+  type GroupListResponse,
+  type GroupMember,
+  type GroupMemberListResponse,
+  type GroupMemberType,
+  type ManagedUser,
+  type ManagedUserListResponse,
+  type ManagementRequestConfig,
+  type MembershipGroup,
+  type MembershipGroupListResponse,
+  type Role,
+  type RoleAssigneeType,
+  type RoleAssignment,
+  type RoleAssignmentInput,
+  type RoleAssignmentListResponse,
+  type RoleListResponse,
+  type RoleResourcePermissions,
+  type RoleSummary,
+  type UpdateAgentRequest,
+  type UpdateApplicationRequest,
+  type UpdateGroupRequest,
+  type UpdateManagedUserRequest,
+  type UpdateRoleRequest,
 } from '@thunderid/browser';

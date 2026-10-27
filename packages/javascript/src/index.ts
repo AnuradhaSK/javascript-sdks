@@ -3,62 +3,102 @@
 
 export {IsomorphicCrypto} from './IsomorphicCrypto';
 
-export {default as executeEmbeddedSignInFlow} from './api/executeEmbeddedSignInFlow';
-export {default as executeEmbeddedSignUpFlow} from './api/executeEmbeddedSignUpFlow';
-export {default as executeEmbeddedRecoveryFlow} from './api/executeEmbeddedRecoveryFlow';
-export {default as executeEmbeddedUserOnboardingFlow} from './api/executeEmbeddedUserOnboardingFlow';
-export type {EmbeddedUserOnboardingFlowResponse} from './api/executeEmbeddedUserOnboardingFlow';
-export {default as getFlowMeta} from './api/getFlowMeta';
-export {default as getOrganizationUnitChildren} from './api/getOrganizationUnitChildren';
+export {default as executeEmbeddedSignInFlow} from './api/auth/executeEmbeddedSignInFlow';
+export {default as executeEmbeddedSignUpFlow} from './api/auth/executeEmbeddedSignUpFlow';
+export {default as executeEmbeddedRecoveryFlow} from './api/auth/executeEmbeddedRecoveryFlow';
+export {default as executeEmbeddedUserOnboardingFlow} from './api/auth/executeEmbeddedUserOnboardingFlow';
+export type {EmbeddedUserOnboardingFlowResponse} from './api/auth/executeEmbeddedUserOnboardingFlow';
+export {default as getFlowMeta} from './api/auth/getFlowMeta';
+export {default as getOrganizationUnitChildren} from './api/management/getOrganizationUnitChildren';
 export type {
   GetOrganizationUnitChildrenConfig,
   OrganizationUnit,
   OrganizationUnitListResponse,
-} from './api/getOrganizationUnitChildren';
-export {default as getUserInfo} from './api/getUserInfo';
-export {default as getUsersMe} from './api/getUsersMe';
-export type {GetUsersMeConfig} from './api/getUsersMe';
-export {default as getUsersMeMeta} from './api/getUsersMeMeta';
-export type {GetUsersMeMetaConfig, UsersMeMetaResponse, AttributeSchema} from './api/getUsersMeMeta';
-export {default as updateMeCredentials} from './api/updateMeCredentials';
-export type {UpdateMeCredentialsConfig} from './api/updateMeCredentials';
-export {default as updateMeProfile} from './api/updateMeProfile';
-export type {UpdateMeProfileConfig} from './api/updateMeProfile';
+} from './api/management/getOrganizationUnitChildren';
+export {default as getUserInfo} from './api/auth/getUserInfo';
+export {default as getUsersMe} from './api/account/getUsersMe';
+export type {GetUsersMeConfig} from './api/account/getUsersMe';
+export {default as getUsersMeMeta} from './api/account/getUsersMeMeta';
+export type {GetUsersMeMetaConfig, UsersMeMetaResponse, AttributeSchema} from './api/account/getUsersMeMeta';
+export {default as updateMeCredentials} from './api/account/updateMeCredentials';
+export type {UpdateMeCredentialsConfig} from './api/account/updateMeCredentials';
+export {default as updateMeProfile} from './api/account/updateMeProfile';
+export type {UpdateMeProfileConfig} from './api/account/updateMeProfile';
 
-export {default as getApplications} from './api/applications/getApplications';
-export type {GetApplicationsConfig} from './api/applications/getApplications';
-export {default as getApplication} from './api/applications/getApplication';
-export type {GetApplicationConfig} from './api/applications/getApplication';
-export {default as createApplication} from './api/applications/createApplication';
-export type {CreateApplicationConfig} from './api/applications/createApplication';
-export {default as updateApplication} from './api/applications/updateApplication';
-export type {UpdateApplicationConfig} from './api/applications/updateApplication';
-export {default as deleteApplication} from './api/applications/deleteApplication';
-export type {DeleteApplicationConfig} from './api/applications/deleteApplication';
-export {default as getUsers} from './api/users/getUsers';
-export type {GetUsersConfig} from './api/users/getUsers';
-export {default as getFlows} from './api/flows/getFlows';
-export type {GetFlowsConfig} from './api/flows/getFlows';
-export {default as getUserTypes} from './api/user-types/getUserTypes';
-export type {GetUserTypesConfig} from './api/user-types/getUserTypes';
-export {default as getUser} from './api/users/getUser';
-export type {GetUserConfig} from './api/users/getUser';
-export {default as createUser} from './api/users/createUser';
-export type {CreateUserConfig} from './api/users/createUser';
-export {default as updateUser} from './api/users/updateUser';
-export type {UpdateUserConfig} from './api/users/updateUser';
-export {default as deleteUser} from './api/users/deleteUser';
-export type {DeleteUserConfig} from './api/users/deleteUser';
-export {default as getAgents} from './api/agents/getAgents';
-export type {GetAgentsConfig} from './api/agents/getAgents';
-export {default as getAgent} from './api/agents/getAgent';
-export type {GetAgentConfig} from './api/agents/getAgent';
-export {default as createAgent} from './api/agents/createAgent';
-export type {CreateAgentConfig} from './api/agents/createAgent';
-export {default as updateAgent} from './api/agents/updateAgent';
-export type {UpdateAgentConfig} from './api/agents/updateAgent';
-export {default as deleteAgent} from './api/agents/deleteAgent';
-export type {DeleteAgentConfig} from './api/agents/deleteAgent';
+export {default as getApplications} from './api/management/applications/getApplications';
+export type {GetApplicationsConfig} from './api/management/applications/getApplications';
+export {default as getApplication} from './api/management/applications/getApplication';
+export type {GetApplicationConfig} from './api/management/applications/getApplication';
+export {default as createApplication} from './api/management/applications/createApplication';
+export type {CreateApplicationConfig} from './api/management/applications/createApplication';
+export {default as updateApplication} from './api/management/applications/updateApplication';
+export type {UpdateApplicationConfig} from './api/management/applications/updateApplication';
+export {default as deleteApplication} from './api/management/applications/deleteApplication';
+export type {DeleteApplicationConfig} from './api/management/applications/deleteApplication';
+export {default as getUsers} from './api/management/users/getUsers';
+export type {GetUsersConfig} from './api/management/users/getUsers';
+export {default as getFlows} from './api/auth/flows/getFlows';
+export type {GetFlowsConfig} from './api/auth/flows/getFlows';
+export {default as getUserTypes} from './api/management/user-types/getUserTypes';
+export type {GetUserTypesConfig} from './api/management/user-types/getUserTypes';
+export {default as getUser} from './api/management/users/getUser';
+export type {GetUserConfig} from './api/management/users/getUser';
+export {default as createUser} from './api/management/users/createUser';
+export type {CreateUserConfig} from './api/management/users/createUser';
+export {default as updateUser} from './api/management/users/updateUser';
+export type {UpdateUserConfig} from './api/management/users/updateUser';
+export {default as deleteUser} from './api/management/users/deleteUser';
+export type {DeleteUserConfig} from './api/management/users/deleteUser';
+export {default as getAgents} from './api/management/agents/getAgents';
+export type {GetAgentsConfig} from './api/management/agents/getAgents';
+export {default as getAgent} from './api/management/agents/getAgent';
+export type {GetAgentConfig} from './api/management/agents/getAgent';
+export {default as createAgent} from './api/management/agents/createAgent';
+export type {CreateAgentConfig} from './api/management/agents/createAgent';
+export {default as updateAgent} from './api/management/agents/updateAgent';
+export type {UpdateAgentConfig} from './api/management/agents/updateAgent';
+export {default as deleteAgent} from './api/management/agents/deleteAgent';
+export type {DeleteAgentConfig} from './api/management/agents/deleteAgent';
+export {default as getRoles} from './api/management/roles/getRoles';
+export type {GetRolesConfig} from './api/management/roles/getRoles';
+export {default as getRole} from './api/management/roles/getRole';
+export type {GetRoleConfig} from './api/management/roles/getRole';
+export {default as createRole} from './api/management/roles/createRole';
+export type {CreateRoleConfig} from './api/management/roles/createRole';
+export {default as updateRole} from './api/management/roles/updateRole';
+export type {UpdateRoleConfig} from './api/management/roles/updateRole';
+export {default as deleteRole} from './api/management/roles/deleteRole';
+export type {DeleteRoleConfig} from './api/management/roles/deleteRole';
+export {default as getRoleAssignments} from './api/management/roles/getRoleAssignments';
+export type {GetRoleAssignmentsConfig} from './api/management/roles/getRoleAssignments';
+export {default as addRoleAssignments} from './api/management/roles/addRoleAssignments';
+export type {AddRoleAssignmentsConfig} from './api/management/roles/addRoleAssignments';
+export {default as removeRoleAssignments} from './api/management/roles/removeRoleAssignments';
+export type {RemoveRoleAssignmentsConfig} from './api/management/roles/removeRoleAssignments';
+export {default as getGroups} from './api/management/groups/getGroups';
+export type {GetGroupsConfig} from './api/management/groups/getGroups';
+export {default as getGroup} from './api/management/groups/getGroup';
+export type {GetGroupConfig} from './api/management/groups/getGroup';
+export {default as createGroup} from './api/management/groups/createGroup';
+export type {CreateGroupConfig} from './api/management/groups/createGroup';
+export {default as updateGroup} from './api/management/groups/updateGroup';
+export type {UpdateGroupConfig} from './api/management/groups/updateGroup';
+export {default as deleteGroup} from './api/management/groups/deleteGroup';
+export type {DeleteGroupConfig} from './api/management/groups/deleteGroup';
+export {default as getGroupMembers} from './api/management/groups/getGroupMembers';
+export type {GetGroupMembersConfig} from './api/management/groups/getGroupMembers';
+export {default as addGroupMembers} from './api/management/groups/addGroupMembers';
+export type {AddGroupMembersConfig} from './api/management/groups/addGroupMembers';
+export {default as removeGroupMembers} from './api/management/groups/removeGroupMembers';
+export type {RemoveGroupMembersConfig} from './api/management/groups/removeGroupMembers';
+export {default as getUserGroups} from './api/management/users/getUserGroups';
+export type {GetUserGroupsConfig} from './api/management/users/getUserGroups';
+export {default as getAgentGroups} from './api/management/agents/getAgentGroups';
+export type {GetAgentGroupsConfig} from './api/management/agents/getAgentGroups';
+export {default as getAgentRoles} from './api/management/agents/getAgentRoles';
+export type {GetAgentRolesConfig} from './api/management/agents/getAgentRoles';
+export {default as getAgentTypes} from './api/management/agents/getAgentTypes';
+export type {GetAgentTypesConfig} from './api/management/agents/getAgentTypes';
 
 export {default as ApplicationNativeAuthenticationConstants} from './constants/ApplicationNativeAuthenticationConstants';
 export {default as TokenConstants} from './constants/TokenConstants';
@@ -70,6 +110,8 @@ export {default as ConsentConstants} from './constants/ConsentConstants';
 export {default as ApplicationQueryKeys} from './constants/ApplicationQueryKeys';
 export {default as UserQueryKeys} from './constants/UserQueryKeys';
 export {default as AgentQueryKeys} from './constants/AgentQueryKeys';
+export {default as RoleQueryKeys} from './constants/RoleQueryKeys';
+export {default as GroupQueryKeys} from './constants/GroupQueryKeys';
 export {default as UserSelectConstants} from './constants/UserSelectConstants';
 export {default as AuthFlowSelectConstants} from './constants/AuthFlowSelectConstants';
 export {default as UserTypeSelectConstants} from './constants/UserTypeSelectConstants';
@@ -246,10 +288,36 @@ export type {
   AgentInboundAuthConfig,
   AgentListResponse,
   AgentLoginConsentConfig,
+  AgentRoleListResponse,
+  AgentType,
+  AgentTypeListResponse,
   BasicAgent,
   CreateAgentRequest,
   UpdateAgentRequest,
 } from './models/agent-resource';
+export type {
+  CreateRoleRequest,
+  Role,
+  RoleAssigneeType,
+  RoleAssignment,
+  RoleAssignmentInput,
+  RoleAssignmentListResponse,
+  RoleListResponse,
+  RoleResourcePermissions,
+  RoleSummary,
+  UpdateRoleRequest,
+} from './models/role';
+export type {
+  CreateGroupRequest,
+  Group,
+  GroupListResponse,
+  GroupMember,
+  GroupMemberListResponse,
+  GroupMemberType,
+  MembershipGroup,
+  MembershipGroupListResponse,
+  UpdateGroupRequest,
+} from './models/group';
 export type {AuthCodeResponse} from './models/auth-code-response';
 export type {Crypto, JWKInterface} from './models/crypto';
 export type {OAuthResponseMode} from './models/oauth-response';
@@ -275,6 +343,15 @@ export {default as createTheme, DEFAULT_THEME} from './theme/createTheme';
 export type {ThemeColors, ThemeConfig, Theme, ThemeMode, ThemeDetection} from './theme/types';
 
 export {default as AuthenticationHelper} from './utils/AuthenticationHelper';
+export {default as ThunderIDWordmark} from './constants/ThunderIDWordmark';
+export type {ThunderIDWordmarkPath} from './constants/ThunderIDWordmark';
+export {default as getTokenPermissions} from './utils/getTokenPermissions';
+export {default as createResourceInvalidator, fallbackResourceInvalidator} from './utils/createResourceInvalidator';
+export type {ResourceInvalidator, ResourceQueryKey} from './utils/createResourceInvalidator';
+export {default as toEqualityFilter} from './utils/toEqualityFilter';
+export {default as toManagementErrorMessage} from './utils/toManagementErrorMessage';
+export {default as resolveManagedIdentityName} from './utils/resolveManagedIdentityName';
+export {default as hasPermission} from './utils/hasPermission';
 export {default as arrayBufferToBase64url} from './utils/arrayBufferToBase64url';
 export {default as base64urlToArrayBuffer} from './utils/base64urlToArrayBuffer';
 export {default as bem} from './utils/bem';

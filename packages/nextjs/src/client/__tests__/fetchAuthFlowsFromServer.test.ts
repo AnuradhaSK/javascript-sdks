@@ -3,10 +3,10 @@
 
 import {ThunderIDError} from '@thunderid/node';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import getAuthFlowsAction from '../../server/actions/getAuthFlowsAction';
+import getAuthFlowsAction from '../../server/actions/auth/getAuthFlowsAction';
 import fetchAuthFlowsFromServer from '../fetchAuthFlowsFromServer';
 
-vi.mock('../../server/actions/getAuthFlowsAction', () => ({default: vi.fn()}));
+vi.mock('../../server/actions/auth/getAuthFlowsAction', () => ({default: vi.fn()}));
 
 const request = {component: {} as never, limit: 30, offset: 60, signal: new AbortController().signal};
 

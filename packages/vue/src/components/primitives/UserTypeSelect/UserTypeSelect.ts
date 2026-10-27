@@ -3,7 +3,7 @@
 
 import {type Component, type VNode, defineComponent, h} from 'vue';
 import BaseUserTypeSelect from './BaseUserTypeSelect';
-import useFetchUserTypes from '../../../composables/useFetchUserTypes';
+import useFetchUserTypes from '../../../composables/management/useFetchUserTypes';
 import {commonSelectProps, type CommonSelectProps} from '../Select/ResourceSelect';
 
 type UserTypeSelectProps = CommonSelectProps;

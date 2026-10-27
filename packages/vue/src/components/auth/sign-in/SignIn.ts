@@ -27,9 +27,9 @@ import {
   watch,
 } from 'vue';
 import BaseSignIn from './BaseSignIn';
+import {useOAuthCallback, type OAuthCallbackPayload} from '../../../composables/auth/useOAuthCallback';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
-import {useOAuthCallback, type OAuthCallbackPayload} from '../../../composables/useOAuthCallback';
 import useThunderID from '../../../composables/useThunderID';
 import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
