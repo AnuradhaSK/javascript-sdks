@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {type ConsentPurposeData, PromptElement} from '@thunderid/browser';
-import {type ChangeEvent, FC, ReactNode} from 'react';
+import {type ChangeEvent, FC, ReactNode, useMemo} from 'react';
 import ConsentCheckboxList, {getConsentOptionalKey} from './ConsentCheckboxList';
 import Typography from '../../primitives/Typography/Typography';
 import Toggle from '../../primitives/Toggle/Toggle';
@@ -70,6 +70,19 @@ export interface ConsentProps {
   t?: UseTranslation['t'];
 }
 
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+/**
+ * Keep only well-formed prompt elements (non-null objects with a string `name`).
+ * @param value Raw `essential`/`optional` value from the consent payload
+ */
+const toPromptElements = (value: unknown): PromptElement[] =>
+  Array.isArray(value)
+    ? (value.filter(
+        (element: unknown) => isObject(element) && typeof element['name'] === 'string',
+      ) as unknown as PromptElement[])
+    : [];
+
 /**
  * Consent component renders the list of purposes and their associated attributes (essential and optional)
  * based on the data provided by the backend. It allows users to toggle optional attributes while essential
@@ -98,24 +111,27 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
   });
   const optionalSectionLabelClass: string = css({alignItems: 'center', display: 'flex', gap: '4px'});
 
-  /** Resolve i18n keys */
-  const resolve = (text: string | undefined): string => {
-    if (!text || !t) {
-      return text || '';
-    }
-    return t(text);
+  /**
+   * Resolve an i18n key, falling back to the given value when no translation is found.
+   * `t` returns the key itself for missing translations, so that case is treated as "not found".
+   * @param key Translation key
+   * @param fallback Value to use when the key cannot be resolved
+   */
+  const resolve = (key: string, fallback = ''): string => {
+    const translated: string | undefined = t?.(key);
+    return translated && translated !== key ? translated : fallback;
   };
 
-  const essentialInfo = resolve(`consent.essential_claims.info`);
-  const optionalInfo = resolve(`consent.optional_claims.info`);
-  const permissionInfo = resolve(`consent.authorize_scope.info`);
-  /**
-   * Falls back to default config values if essential/optional
-   * keys cannot be resolved via translation files .
-   */
-  const essentialLabel = resolve(`consent.essential_claims`) || 'Essential Attributes';
-  const optionalLabel = resolve(`consent.optional_claims`) || 'Optional Attributes';
-  const permissionLabel = resolve(`consent.authorize_scope`) || 'Permissions';
+  const essentialInfo = resolve('consent.essential_claims.info');
+  const optionalInfo = resolve('consent.optional_claims.info');
+  const essentialPermissionInfo = resolve('consent.essential_scope.info');
+  const optionalPermissionInfo = resolve('consent.optional_scope.info');
+  const essentialLabel = resolve('consent.essential_claims', 'Essential Attributes');
+  const optionalLabel = resolve('consent.optional_claims', 'Optional Attributes');
+  const essentialPermissionLabel = resolve('consent.essential_scope', 'Essential Permissions');
+  const optionalPermissionLabel = resolve('consent.optional_scope', 'Optional Permissions');
+  const toggleAllAttributesLabel = resolve('consent.optional_claims.toggle_all', 'Toggle all optional attributes');
+  const toggleAllPermissionsLabel = resolve('consent.optional_scope.toggle_all', 'Toggle all optional permissions');
 
   /**
    * Method to check whether master toggle button is checked or not
@@ -124,7 +140,7 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
    */
   const handleChange = (purpose: ConsentPurposeData, checked: boolean): void => {
     const checkValue = checked ? 'true' : 'false';
-    purpose.optional.map((opt: PromptElement) => {
+    purpose.optional.forEach((opt: PromptElement) => {
       const key: string = getConsentOptionalKey(purpose.purposeId, opt.name);
       onInputChange(key, checkValue);
     });
@@ -142,19 +158,66 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
     });
   };
 
-  if (!consentData) return null;
+  /**
+   * Renders a section title with an optional info tooltip.
+   * @param label Section title
+   * @param info Tooltip text; the tooltip is omitted when empty
+   */
+  const renderSectionTitle = (label: string, info: string): ReactNode => (
+    <>
+      <Typography variant="subtitle2" fontWeight="bold">
+        {label}
+      </Typography>
+      {info && (
+        <Tooltip helperText={info}>
+          <Info width="1rem" height="1rem" />
+        </Tooltip>
+      )}
+    </>
+  );
 
-  let purposes: ConsentPurposeData[] = [];
+  // Parse, validate and order the purposes once per `consentData` change rather than on every render
+  // (e.g. each `formValues` update). Must run before any early return to respect the rules of hooks.
+  const purposes: ConsentPurposeData[] = useMemo((): ConsentPurposeData[] => {
+    if (!consentData) return [];
 
-  try {
-    const parsed: ConsentPurposeData[] | {purposes: ConsentPurposeData[]} =
-      typeof consentData === 'string' ? JSON.parse(consentData) : consentData;
+    let parsed: unknown;
 
-    purposes = Array.isArray(parsed) ? parsed : parsed.purposes || [];
-  } catch (e) {
-    // Failed to parse consent prompt data
-    return null;
-  }
+    try {
+      parsed = typeof consentData === 'string' ? JSON.parse(consentData) : consentData;
+    } catch (e) {
+      // Failed to parse consent prompt data
+      return [];
+    }
+
+    const rawPurposes: unknown = Array.isArray(parsed) ? parsed : (parsed as {purposes?: unknown})?.purposes;
+
+    if (!Array.isArray(rawPurposes)) return [];
+
+    // `JSON.parse` doesn't validate the shape, so drop malformed purposes and elements here
+    // instead of letting the sort or the render read properties off `null`. Purposes without a
+    // `purposeId` are omitted too, since it keys the optional-element form values and they would collide.
+    const normalized: ConsentPurposeData[] = rawPurposes
+      .filter(
+        (purpose: unknown): purpose is Record<string, unknown> =>
+          isObject(purpose) && typeof purpose['purposeId'] === 'string',
+      )
+      .map(
+        (purpose: Record<string, unknown>): ConsentPurposeData => ({
+          ...(purpose as unknown as ConsentPurposeData),
+          essential: toPromptElements(purpose['essential']),
+          optional: toPromptElements(purpose['optional']),
+        }),
+      );
+
+    // Order purposes so that permissions come first and attributes come last.
+    // `normalized` is already a copy, so sorting doesn't mutate the caller's data; Array.prototype.sort
+    // is stable, so purposes of the same type keep their original order.
+    return normalized.sort(
+      (a: ConsentPurposeData, b: ConsentPurposeData) =>
+        Number(b.type === 'permissions') - Number(a.type === 'permissions'),
+    );
+  }, [consentData]);
 
   if (purposes.length === 0) return null;
 
@@ -164,70 +227,66 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
 
   return (
     <div className={purposesContainerClass}>
-      {purposes.map((purpose: ConsentPurposeData, purposeIndex: number) => (
-        <div key={purpose.purposeId || purposeIndex} className={purposeItemClass}>
-          {/* TODO: Uncomment when the backend supports multiple purposes for a application */}
-          {/* <Typography variant="h6" fontWeight={600} gutterBottom color="inherit">
+      {purposes.map((purpose: ConsentPurposeData, purposeIndex: number) => {
+        // Pick section labels/tooltips according to the purpose type (permissions vs attributes)
+        const isPermission: boolean = purpose.type === 'permissions';
+
+        return (
+          <div key={purpose.purposeId || purposeIndex} className={purposeItemClass}>
+            {/* TODO: Uncomment when the backend supports multiple purposes for a application */}
+            {/* <Typography variant="h6" fontWeight={600} gutterBottom color="inherit">
             {purpose.purposeName}
           </Typography>
           <Typography variant="body2" color="inherit" style={{marginBottom: '1rem', opacity: 0.85}}>
             {purpose.description}
           </Typography> */}
 
-          {purpose.essential && purpose.essential.length > 0 && (
-            <div className={sectionClass}>
-              <div className={sectionHeaderClass}>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  {essentialLabel}
-                </Typography>
-                {essentialInfo !== '' && (
-                  <Tooltip helperText={essentialInfo}>
-                    <Info width="1rem" height="1rem" />
-                  </Tooltip>
-                )}
-              </div>
-              <ConsentCheckboxList
-                variant="ESSENTIAL"
-                purpose={purpose}
-                formValues={formValues}
-                onInputChange={onInputChange}
-                t={t}
-              />
-            </div>
-          )}
-
-          {purpose.optional && purpose.optional.length > 0 && (
-            <div className={sectionClass}>
-              <div className={optionalSectionHeaderClass}>
-                <div className={optionalSectionLabelClass}>
-                  <Typography variant="subtitle2" fontWeight="bold">
-                    {purpose.type === 'permissions' ? permissionLabel : optionalLabel}
-                  </Typography>
-                  {/* Show tooltip for optional claims/permissions according to their type */}
-                  {Boolean(purpose.type === 'permissions' ? permissionInfo : optionalInfo) && (
-                    <Tooltip helperText={purpose.type === 'permissions' ? permissionInfo : optionalInfo}>
-                      <Info width="1rem" height="1rem" />
-                    </Tooltip>
+            {purpose.essential?.length > 0 && (
+              <div className={sectionClass}>
+                <div className={sectionHeaderClass}>
+                  {renderSectionTitle(
+                    isPermission ? essentialPermissionLabel : essentialLabel,
+                    isPermission ? essentialPermissionInfo : essentialInfo,
                   )}
                 </div>
-                <Toggle
-                  id={`consent_opt_${purpose.purposeId}_all`}
-                  checked={checkOptValue(purpose)}
-                  aria-label="Toggle all optional attributes"
-                  onChange={(e: ChangeEvent<HTMLInputElement>): void => handleChange(purpose, e.target.checked)}
+                <ConsentCheckboxList
+                  variant="ESSENTIAL"
+                  purpose={purpose}
+                  formValues={formValues}
+                  onInputChange={onInputChange}
+                  t={t}
                 />
               </div>
-              <ConsentCheckboxList
-                variant="OPTIONAL"
-                purpose={purpose}
-                formValues={formValues}
-                onInputChange={onInputChange}
-                t={t}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+
+            {purpose.optional?.length > 0 && (
+              <div className={sectionClass}>
+                <div className={optionalSectionHeaderClass}>
+                  <div className={optionalSectionLabelClass}>
+                    {renderSectionTitle(
+                      isPermission ? optionalPermissionLabel : optionalLabel,
+                      isPermission ? optionalPermissionInfo : optionalInfo,
+                    )}
+                  </div>
+                  <Toggle
+                    id={`consent_opt_${purpose.purposeId}_all`}
+                    checked={checkOptValue(purpose)}
+                    aria-label={isPermission ? toggleAllPermissionsLabel : toggleAllAttributesLabel}
+                    onChange={(e: ChangeEvent<HTMLInputElement>): void => handleChange(purpose, e.target.checked)}
+                  />
+                </div>
+                <ConsentCheckboxList
+                  variant="OPTIONAL"
+                  purpose={purpose}
+                  formValues={formValues}
+                  onInputChange={onInputChange}
+                  t={t}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
