@@ -19,6 +19,7 @@ import {
   createThunderIDGuard,
   FlowMetaContextValue,
   getAgentGroups,
+  getAgentName,
   getAgentRoles,
   getAgents,
   getAgentTypes,
@@ -754,7 +755,9 @@ export const CAPABILITIES: Capability[] = [
         getAgentRoles({...config, agentId: agent.id}),
       );
 
-      return pass(`"${agent.name}": ${plural(groups.totalResults, 'group')}, roles [${roles.roles.join(', ')}]`);
+      return pass(
+        `"${getAgentName(agent)}": ${plural(groups.totalResults, 'group')}, roles [${roles.roles.join(', ')}]`,
+      );
     },
     section: 'Management',
   },

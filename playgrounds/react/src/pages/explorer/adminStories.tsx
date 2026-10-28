@@ -47,6 +47,7 @@ import {
   UserDetails,
   UserList,
   getAccountLifecycleActions,
+  getAgentName,
 } from '@thunderid/react';
 import {ReactElement} from 'react';
 import {
@@ -943,7 +944,7 @@ const STORIES: ComponentDef[] = [
           action={action}
           attributes={[{label: 'Name', value: 'name'}]}
           rows={SAMPLE_AGENTS}
-          valueOf={(agent: BasicAgent, attribute: string) => (attribute === 'name' ? agent.name : undefined)}
+          valueOf={(agent: BasicAgent, attribute: string) => (attribute === 'name' ? getAgentName(agent) : undefined)}
           render={({onSearch, rows: matching, search, searchAttributes}) => (
             <Paged<BasicAgent>
               key={JSON.stringify(search)}

@@ -16,6 +16,7 @@ import {
   RoleQueryKeys,
   UserQueryKeys,
   addGroupMembers,
+  getAgentName,
   getAgents,
   getGroupMembers,
   getUsers,
@@ -111,7 +112,7 @@ const GroupMembers: FC<GroupMembersProps> = ({
 
   const candidates: Partial<Record<'user' | 'agent', IdentityCandidate[]>> = useMemo(
     () => ({
-      agent: (agents.data?.agents ?? []).map((agent: BasicAgent) => ({id: agent.id, label: agent.name})),
+      agent: (agents.data?.agents ?? []).map((agent: BasicAgent) => ({id: agent.id, label: getAgentName(agent)})),
       user: (users.data?.users ?? []).map((user: ManagedUser) => ({
         id: user.id,
         label: resolveManagedIdentityName(user),

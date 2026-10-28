@@ -11,6 +11,7 @@ import {
   deleteRole,
   EmbeddedFlowType,
   getAgentGroups,
+  getAgentName,
   getAgentRoles,
   getAgents,
   getAgentTypes,
@@ -780,7 +781,7 @@ export const CAPABILITIES: Capability[] = [
         const groups = await track('getAgentGroups', () => getAgentGroups({...config, agentId: agent.id}));
         const roles = await track('getAgentRoles', () => getAgentRoles({...config, agentId: agent.id}));
 
-        return pass(`"${agent.name}": ${groups.totalResults} groups, roles [${roles.roles.join(', ')}]`);
+        return pass(`"${getAgentName(agent)}": ${groups.totalResults} groups, roles [${roles.roles.join(', ')}]`);
       }),
     section: 'Management',
   },

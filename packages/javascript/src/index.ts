@@ -871,6 +871,7 @@ export {default as toCreateApplicationRequest} from './utils/toCreateApplication
 export {default as toUpdateApplicationRequest} from './utils/toUpdateApplicationRequest';
 export {default as toManagementErrorMessage} from './utils/toManagementErrorMessage';
 export {default as resolveManagedIdentityName} from './utils/resolveManagedIdentityName';
+export {default as getAgentName} from './utils/getAgentName';
 export {default as getAccountLifecycleActions} from './utils/getAccountLifecycleActions';
 export {default as hasPermission} from './utils/hasPermission';
 export {default as arrayBufferToBase64url} from './utils/arrayBufferToBase64url';

@@ -101,8 +101,22 @@ const SAMPLE_ASSIGNMENTS: RoleAssignment[] = [
 ];
 
 const SAMPLE_AGENTS: BasicAgent[] = [
-  {description: 'Routes support tickets', id: 'agt_triage', name: 'Triage bot', ouId: OU, type: 'assistant'},
-  {description: 'Reconciles invoices', id: 'agt_ledger', name: 'Ledger', ouId: OU, type: 'worker'},
+  {
+    attributes: {name: 'Triage bot'},
+    description: 'Routes support tickets',
+    display: 'Triage bot',
+    id: 'agt_triage',
+    ouId: OU,
+    type: 'assistant',
+  },
+  {
+    attributes: {name: 'Ledger'},
+    description: 'Reconciles invoices',
+    display: 'Ledger',
+    id: 'agt_ledger',
+    ouId: OU,
+    type: 'worker',
+  },
 ];
 
 const SAMPLE_APPLICATIONS: BasicApplication[] = [

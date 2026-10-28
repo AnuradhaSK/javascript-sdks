@@ -9,9 +9,12 @@ import I18nProvider from '../../../contexts/I18n/I18nProvider';
 import ThemeProvider from '../../../contexts/Theme/ThemeProvider';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../contexts/ThunderID/ThunderIDContext';
 import UserContext, {UserContextProps} from '../../../contexts/User/UserContext';
+import AgentCreate from '../AgentCreate/AgentCreate';
 import BaseAgentCreate from '../AgentCreate/BaseAgentCreate';
 import AgentDetails from '../AgentDetails/AgentDetails';
+import BaseAgentDetails from '../AgentDetails/BaseAgentDetails';
 import AgentList from '../AgentList/AgentList';
+import BaseAgentList from '../AgentList/BaseAgentList';
 import ApplicationCreate from '../ApplicationCreate/ApplicationCreate';
 import BaseApplicationCreate, {BaseApplicationCreateRenderProps} from '../ApplicationCreate/BaseApplicationCreate';
 import ApplicationDetails from '../ApplicationDetails/ApplicationDetails';
@@ -712,7 +715,9 @@ describe('connected data loading', () => {
         return Promise.resolve(respond(users[0]));
       }
       if (pathname === '/agents/ag-1') {
-        return Promise.resolve(respond({id: 'ag-1', name: 'Deploy bot', ouId: 'ou-1', type: 'default'}));
+        return Promise.resolve(
+          respond({attributes: {name: 'Deploy bot'}, display: 'Deploy bot', id: 'ag-1', ouId: 'ou-1', type: 'default'}),
+        );
       }
       if (init?.method === 'POST' && pathname === '/groups') {
         return Promise.resolve(respond({id: 'g-9', name: 'Support', ouId: 'ou-1'}, 201));
@@ -884,6 +889,85 @@ describe('connected data loading', () => {
     );
     expect(JSON.parse(fetcher.mock.calls[0][1].body as string)).toEqual({name: 'Support', ouId: 'ou-1'});
     await waitFor(() => expect(requestedPaths(fetcher)).toContain('/groups?include=display&limit=20&offset=0'));
+  });
+});
+
+describe('agent names', () => {
+  it('shows the display value, then the name attribute, then the identifier in the agent list', () => {
+    renderWithProviders(
+      <BaseAgentList
+        agents={[
+          {attributes: {name: 'Sync worker'}, display: 'Nightly sync worker', id: 'ag-1', ouId: 'ou-1', type: 'bot'},
+          {attributes: {name: 'Billing bot'}, id: 'ag-2', ouId: 'ou-1', type: 'bot'},
+          {id: 'ag-3', ouId: 'ou-1', type: 'bot'},
+        ]}
+      />,
+    );
+
+    const table: HTMLElement = screen.getByRole('table', {name: 'Agents'});
+
+    expect(within(table).getByText('Nightly sync worker')).toBeTruthy();
+    expect(within(table).getByText('Billing bot')).toBeTruthy();
+    expect(within(table).getByText('ag-3')).toBeTruthy();
+  });
+
+  it('titles the agent details and asks to delete the agent by its name attribute', () => {
+    const onDelete: Mock = vi.fn();
+
+    renderWithProviders(
+      <BaseAgentDetails
+        agent={{attributes: {name: 'Billing bot'}, id: 'ag-2', ouId: 'ou-1', type: 'bot'}}
+        onDelete={onDelete}
+      />,
+    );
+
+    expect(screen.getByText('Billing bot')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', {name: 'Delete agent'}));
+    fireEvent.click(
+      within(screen.getByRole('group', {name: 'Delete Billing bot?'})).getByRole('button', {name: 'Confirm'}),
+    );
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it('sends the name of a new agent as its name attribute', async () => {
+    const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockImplementation((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return Promise.resolve(
+          respond({attributes: {name: 'Concierge'}, id: 'ag-9', ouId: 'ou-1', type: 'assistant'}, 201),
+        );
+      }
+      if (new URL(url).pathname === '/agent-types') {
+        return Promise.resolve(
+          respond({
+            count: 1,
+            startIndex: 1,
+            totalResults: 1,
+            types: [{displayName: 'Assistant', handle: 'assistant', id: 'at-1', ouId: 'ou-1'}],
+          }),
+        );
+      }
+
+      return Promise.resolve(respond({agents: [], count: 0, startIndex: 1, totalResults: 0}));
+    });
+    const onCreated: Mock = vi.fn();
+
+    renderWithProviders(<AgentCreate onCreated={onCreated} />, {fetcher, ouId: 'ou-1'});
+
+    await screen.findByRole('option', {name: 'Assistant'});
+    fireEvent.change(document.querySelector('input[name="name"]')!, {target: {value: 'Concierge'}});
+    fireEvent.click(screen.getByRole('button', {name: 'Register agent'}));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledOnce());
+    const creation: [string, RequestInit] | undefined = fetcher.mock.calls.find(
+      ([, init]: [string, RequestInit]) => init?.method === 'POST',
+    );
+
+    expect(creation?.[0]).toBe(`${baseUrl}/agents`);
+    expect(JSON.parse(creation?.[1].body as string)).toEqual({
+      attributes: {name: 'Concierge'},
+      ouId: 'ou-1',
+      type: 'assistant',
+    });
   });
 });
 
@@ -1489,7 +1573,13 @@ describe('administration flows', () => {
     const fetcher: FetcherMock = createFlowServer({
       configured: {agentSuspendFlow: 'suspend-agent', agentUnsuspendFlow: 'unsuspend-agent'},
       resources: {
-        '/agents/a-1': {id: 'a-1', name: 'Billing bot', ouId: 'ou-1', status: {value: 'SUSPENDED'}, type: 'bot'},
+        '/agents/a-1': {
+          attributes: {name: 'Billing bot'},
+          id: 'a-1',
+          ouId: 'ou-1',
+          status: {value: 'SUSPENDED'},
+          type: 'bot',
+        },
       },
     });
 

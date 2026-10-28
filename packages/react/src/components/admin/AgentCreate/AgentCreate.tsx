@@ -75,7 +75,7 @@ const AgentCreate: FC<AgentCreateProps> = ({
 
   const handleSubmit = ({description, name, type}: AgentCreateSubmission): void => {
     if (resolvedOuId) {
-      void mutate({description, name, ouId: resolvedOuId, owner, type});
+      void mutate({attributes: {name}, description, ouId: resolvedOuId, owner, type});
     }
   };
 

@@ -25,6 +25,7 @@ import {
   type Group,
   type ManagedUser,
   type RoleSummary,
+  getAgentName,
 } from '@thunderid/react';
 import {ReactElement, ReactNode} from 'react';
 import {
@@ -145,11 +146,11 @@ const identitySnippet = (name: string, idProp: string, rows: string, remove: str
 const CODE: Record<string, () => Snippet> = {
   agentcreate: () => formSnippet('AgentCreate', ['name', 'type', 'description']),
   agentdetails: () => ({
-    imports: ['AgentDetails'],
+    imports: ['AgentDetails', 'getAgentName'],
     jsx: `<AgentDetails agentId={agentId} deletable>
   {({agent, groups, roles, onDelete}) => (
     <Card>
-      <CardHeader title={agent?.name} subheader={agent?.type} />
+      <CardHeader title={agent && getAgentName(agent)} subheader={agent?.type} />
       <CardContent>
         {groups.map((group) => <Chip key={group.id} color="primary" label={group.name} />)}
         {roles.map((role) => <Chip key={role} label={role} />)}
@@ -396,7 +397,7 @@ const RENDER: Record<string, (args: Args, action: Action) => ReactNode> = {
       ),
       {
         attributes: [{label: 'Name', value: 'name'}],
-        valueOf: (agent: BasicAgent, attribute: string) => (attribute === 'name' ? agent.name : undefined),
+        valueOf: (agent: BasicAgent, attribute: string) => (attribute === 'name' ? getAgentName(agent) : undefined),
       },
     ),
   applicationcreate: (_args: Args, action: Action) => (
