@@ -5,6 +5,7 @@ import {
   ApiFetcher,
   EmbeddedFlowType,
   getAgentGroups,
+  getAgentName,
   getAgentRoles,
   getAgents,
   getAgentTypes,
@@ -721,7 +722,9 @@ export const CAPABILITIES: Capability[] = [
         getAgentRoles({...config, agentId: agent.id}),
       );
 
-      return pass(`"${agent.name}": ${plural(groups.totalResults, 'group')}, ${plural(roles.totalResults, 'role')}`);
+      return pass(
+        `"${getAgentName(agent)}": ${plural(groups.totalResults, 'group')}, ${plural(roles.totalResults, 'role')}`,
+      );
     },
     section: 'Management',
   },

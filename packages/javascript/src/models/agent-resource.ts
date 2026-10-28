@@ -26,6 +26,9 @@ export interface Agent {
   allowedAgentTypes?: string[];
   allowedUserTypes?: string[];
   assertion?: AssertionConfig;
+  /**
+   * The agent's attributes, as its agent type defines them. The name is `attributes.name`.
+   */
   attributes?: Record<string, unknown>;
   /**
    * Populated only when the agent has an inbound client.
@@ -33,13 +36,17 @@ export interface Agent {
   authFlowId?: string;
   clientId?: string;
   description?: string;
+  /**
+   * The display value the server resolves from the agent's attributes, returned by reads made with
+   * `include=display`. The agent's name lives in `attributes.name`.
+   */
+  display?: string;
   id: string;
   inboundAuthConfig?: AgentInboundAuthConfig[];
   isReadOnly?: boolean;
   isRegistrationFlowEnabled?: boolean;
   loginConsent?: AgentLoginConsentConfig;
   logoUrl?: string;
-  name: string;
   ouHandle?: string;
   ouId: string;
   owner?: string;
@@ -55,12 +62,20 @@ export interface Agent {
  * The summary of an agent returned in list responses.
  */
 export interface BasicAgent {
+  /**
+   * The agent's attributes, as its agent type defines them. The name is `attributes.name`.
+   */
+  attributes?: Record<string, unknown>;
   clientId?: string;
   description?: string;
+  /**
+   * The display value the server resolves from the agent's attributes, returned by reads made with
+   * `include=display`. The agent's name lives in `attributes.name`.
+   */
+  display?: string;
   id: string;
   isReadOnly?: boolean;
   logoUrl?: string;
-  name: string;
   ouHandle?: string;
   ouId: string;
   type: string;
@@ -80,11 +95,13 @@ export interface AgentListResponse {
  * The payload used to create an agent.
  */
 export interface CreateAgentRequest {
+  /**
+   * The agent's attributes, as its agent type defines them. The name goes in `attributes.name`.
+   */
   attributes?: Record<string, unknown>;
   description?: string;
   inboundAuthConfig?: AgentInboundAuthConfig[];
   logoUrl?: string;
-  name: string;
   ouId: string;
   owner?: string;
   type: string;
@@ -96,6 +113,9 @@ export interface CreateAgentRequest {
 export interface UpdateAgentRequest {
   allowedAgentTypes?: string[];
   allowedUserTypes?: string[];
+  /**
+   * The agent's attributes, as its agent type defines them. The name goes in `attributes.name`.
+   */
   attributes?: Record<string, unknown>;
   authFlowId?: string;
   /**
@@ -107,7 +127,6 @@ export interface UpdateAgentRequest {
   inboundAuthConfig?: AgentInboundAuthConfig[];
   isRegistrationFlowEnabled?: boolean;
   logoUrl?: string;
-  name?: string;
   ouId?: string;
   owner?: string;
   registrationFlowId?: string;

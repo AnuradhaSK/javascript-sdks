@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {AccountLifecycleAction, Agent, MembershipGroup, Preferences} from '@thunderid/browser';
+import {AccountLifecycleAction, Agent, MembershipGroup, Preferences, getAgentName} from '@thunderid/browser';
 import {FC, ReactElement, ReactNode} from 'react';
 import useTranslation from '../../../hooks/useTranslation';
 import Alert from '../../primitives/Alert/Alert';
@@ -158,7 +158,7 @@ const BaseAgentDetails: FC<BaseAgentDetailsProps> = ({
     <AdminSection
       block="agent-details"
       className={className}
-      title={agent.name}
+      title={getAgentName(agent)}
       description={agent.description}
       preferences={preferences}
       actions={
@@ -169,13 +169,13 @@ const BaseAgentDetails: FC<BaseAgentDetailsProps> = ({
               actions={lifecycleActions}
               collectsOperatorNote
               isRunning={isRunningLifecycleAction}
-              name={agent.name}
+              name={getAgentName(agent)}
               onAction={onLifecycleAction}
             />
           )}
           {onDelete && !agent.isReadOnly && (
             <ConfirmButton
-              confirmText={t('admin.agents.details.delete.confirm', {name: agent.name})}
+              confirmText={t('admin.agents.details.delete.confirm', {name: getAgentName(agent)})}
               isLoading={isDeleting}
               onConfirm={onDelete}
             >

@@ -123,14 +123,23 @@ const SAMPLE_ROLES: RoleSummary[] = [
 
 const SAMPLE_AGENTS: BasicAgent[] = [
   {
+    attributes: {name: 'Travel concierge'},
     clientId: 'concierge-01',
+    display: 'Travel concierge',
     id: 'agt_concierge',
-    name: 'Travel concierge',
     ouHandle: 'acme',
     ouId: OU,
     type: 'assistant',
   },
-  {clientId: 'billing-02', id: 'agt_billing', name: 'Billing assistant', ouHandle: 'acme', ouId: OU, type: 'worker'},
+  {
+    attributes: {name: 'Billing assistant'},
+    clientId: 'billing-02',
+    display: 'Billing assistant',
+    id: 'agt_billing',
+    ouHandle: 'acme',
+    ouId: OU,
+    type: 'worker',
+  },
 ];
 
 const SAMPLE_AGENT: Agent = {

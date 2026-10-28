@@ -393,6 +393,7 @@ export {
   executeAdministrationFlow,
   findAdministrationFlows,
   getAccountLifecycleActions,
+  getAgentName,
   getAgentType,
   getUserType,
   getUserTypes,

@@ -30,7 +30,7 @@ export interface UpdateAgentConfig extends ManagementRequestConfig {
  * const agent = await updateAgent({
  *   baseUrl: 'https://localhost:8090',
  *   agentId: '6f1e2d3c-4b5a-4978-8a6b-5c4d3e2f1a0b',
- *   payload: {name: 'Renamed Agent'},
+ *   payload: {attributes: {name: 'Renamed Agent'}},
  * });
  * ```
  */

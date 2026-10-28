@@ -6,6 +6,7 @@ import {
   type Agent,
   type MembershipGroup,
   type Preferences,
+  getAgentName,
   withVendorCSSClassPrefix,
 } from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
@@ -172,7 +173,12 @@ const BaseAgentDetails: Component = defineComponent({
 
       return h(
         AdminSection,
-        {block: 'agent-details', className: props.className, description: agent.description, title: agent.name},
+        {
+          block: 'agent-details',
+          className: props.className,
+          description: agent.description,
+          title: getAgentName(agent),
+        },
         {
           actions: (): (VNode | VNode[] | null | undefined)[] => [
             slots['actions']?.(),
@@ -181,7 +187,7 @@ const BaseAgentDetails: Component = defineComponent({
                   actions: props.lifecycleActions,
                   collectsOperatorNote: true,
                   isRunning: props.isRunningLifecycleAction,
-                  name: agent.name,
+                  name: getAgentName(agent),
                   onAction: props.onLifecycleAction,
                   t,
                 })
@@ -190,7 +196,7 @@ const BaseAgentDetails: Component = defineComponent({
               ? h(
                   ConfirmButton,
                   {
-                    confirmText: t('admin.agents.details.delete.confirm', {name: agent.name}),
+                    confirmText: t('admin.agents.details.delete.confirm', {name: getAgentName(agent)}),
                     isLoading: props.isDeleting,
                     onConfirm: props.onDelete,
                     t,

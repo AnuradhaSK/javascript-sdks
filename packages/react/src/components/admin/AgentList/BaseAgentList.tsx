@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {BasicAgent, Preferences, SelectOption} from '@thunderid/browser';
+import {BasicAgent, Preferences, SelectOption, getAgentName} from '@thunderid/browser';
 import {FC, ReactElement, ReactNode} from 'react';
 import useTranslation from '../../../hooks/useTranslation';
 import DataTable, {DataTableColumn} from '../../primitives/DataTable/DataTable';
@@ -93,7 +93,11 @@ const BaseAgentList: FC<BaseAgentListProps> = ({
   const {t} = useTranslation(preferences?.i18n);
 
   const columns: DataTableColumn<BasicAgent>[] = [
-    {header: t('admin.agents.list.columns.name'), id: 'name', render: (agent: BasicAgent): ReactNode => agent.name},
+    {
+      header: t('admin.agents.list.columns.name'),
+      id: 'name',
+      render: (agent: BasicAgent): ReactNode => getAgentName(agent),
+    },
     {header: t('admin.agents.list.columns.type'), id: 'type', render: (agent: BasicAgent): ReactNode => agent.type},
     {
       header: t('admin.agents.list.columns.client_id'),

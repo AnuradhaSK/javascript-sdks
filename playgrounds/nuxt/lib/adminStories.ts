@@ -16,7 +16,14 @@ import type {
   RoleResourcePermissions,
   RoleSummary,
 } from '@thunderid/browser';
-import {Attribution, Button, DataTable, type DataTableColumn, type IdentityCandidate} from '@thunderid/vue';
+import {
+  Attribution,
+  Button,
+  DataTable,
+  type DataTableColumn,
+  getAgentName,
+  type IdentityCandidate,
+} from '@thunderid/vue';
 import {defineComponent, h, ref, type Component, type PropType, type Ref, type VNode} from 'vue';
 import {tag} from './storyCode';
 import type {Action, Args, ComponentDef, PropControl, Snippet} from './storyTypes';
@@ -145,15 +152,32 @@ const SAMPLE_ROLES: RoleSummary[] = [
 
 const SAMPLE_AGENTS: BasicAgent[] = [
   {
+    attributes: {name: 'Travel concierge'},
     clientId: 'agt_concierge',
+    display: 'Travel concierge',
     id: 'agt_1',
-    name: 'Travel concierge',
     ouHandle: 'acme',
     ouId: 'ou_acme',
     type: 'assistant',
   },
-  {clientId: 'agt_triage', id: 'agt_2', name: 'Ticket triage', ouHandle: 'acme', ouId: 'ou_acme', type: 'worker'},
-  {clientId: 'agt_reports', id: 'agt_3', name: 'Report builder', ouHandle: 'acme', ouId: 'ou_acme', type: 'worker'},
+  {
+    attributes: {name: 'Ticket triage'},
+    clientId: 'agt_triage',
+    display: 'Ticket triage',
+    id: 'agt_2',
+    ouHandle: 'acme',
+    ouId: 'ou_acme',
+    type: 'worker',
+  },
+  {
+    attributes: {name: 'Report builder'},
+    clientId: 'agt_reports',
+    display: 'Report builder',
+    id: 'agt_3',
+    ouHandle: 'acme',
+    ouId: 'ou_acme',
+    type: 'worker',
+  },
 ];
 
 const SAMPLE_APPLICATIONS: BasicApplication[] = [
@@ -221,7 +245,7 @@ const USER_CANDIDATES: IdentityCandidate[] = SAMPLE_USERS.map((user: ManagedUser
 const GROUP_CANDIDATES: IdentityCandidate[] = SAMPLE_GROUPS.map((group: Group) => ({id: group.id, label: group.name}));
 const AGENT_CANDIDATES: IdentityCandidate[] = SAMPLE_AGENTS.map((agent: BasicAgent) => ({
   id: agent.id,
-  label: agent.name,
+  label: getAgentName(agent),
 }));
 
 const USER_TYPES: {label: string; value: string}[] = [

@@ -18,6 +18,7 @@ import {
   RoleQueryKeys,
   UserQueryKeys,
   addRoleAssignments,
+  getAgentName,
   getAgents,
   getGroups,
   getRoleAssignments,
@@ -127,7 +128,7 @@ const RoleAssignments: FC<RoleAssignmentsProps> = ({
 
   const candidates: Partial<Record<'user' | 'group' | 'agent', IdentityCandidate[]>> = useMemo(
     () => ({
-      agent: (agents.data?.agents ?? []).map((agent: BasicAgent) => ({id: agent.id, label: agent.name})),
+      agent: (agents.data?.agents ?? []).map((agent: BasicAgent) => ({id: agent.id, label: getAgentName(agent)})),
       group: (groups.data?.groups ?? []).map((group: Group) => ({id: group.id, label: group.name})),
       user: (users.data?.users ?? []).map((user: ManagedUser) => ({
         id: user.id,

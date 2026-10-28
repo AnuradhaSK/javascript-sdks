@@ -15,6 +15,7 @@ import type {
   RoleResourcePermissions,
   RoleSummary,
 } from '@thunderid/react';
+import {getAgentName} from '@thunderid/react';
 
 /* Sample data for the Base* stories. Shapes follow the management API models. */
 
@@ -55,21 +56,30 @@ export const SAMPLE_ROLES: RoleSummary[] = [
 export const SAMPLE_AGENTS: BasicAgent[] = [
   {
     ...OU,
+    attributes: {name: 'Concierge'},
     clientId: 'agt_concierge',
     description: 'Books travel for employees',
+    display: 'Concierge',
     id: 'agt-1',
-    name: 'Concierge',
     type: 'assistant',
   },
   {
     ...OU,
+    attributes: {name: 'Ticket triage'},
     clientId: 'agt_triage',
     description: 'Routes support tickets',
+    display: 'Ticket triage',
     id: 'agt-2',
-    name: 'Ticket triage',
     type: 'worker',
   },
-  {...OU, clientId: 'agt_reporter', id: 'agt-3', name: 'Nightly reporter', type: 'worker'},
+  {
+    ...OU,
+    attributes: {name: 'Nightly reporter'},
+    clientId: 'agt_reporter',
+    display: 'Nightly reporter',
+    id: 'agt-3',
+    type: 'worker',
+  },
 ];
 
 export const SAMPLE_AGENT: Agent = {...SAMPLE_AGENTS[0], owner: 'usr-1'};
@@ -129,7 +139,7 @@ export const RESOURCE_SERVER_NAMES: Record<string, string> = {
 };
 
 export const CANDIDATES = {
-  agent: SAMPLE_AGENTS.map((agent: BasicAgent) => ({id: agent.id, label: agent.name})),
+  agent: SAMPLE_AGENTS.map((agent: BasicAgent) => ({id: agent.id, label: getAgentName(agent)})),
   group: SAMPLE_GROUPS.map((group: Group) => ({id: group.id, label: group.name})),
   user: SAMPLE_USERS.map((user: ManagedUser) => ({id: user.id, label: user.display ?? user.id})),
 };

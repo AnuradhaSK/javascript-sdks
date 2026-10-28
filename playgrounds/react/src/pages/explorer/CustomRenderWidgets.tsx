@@ -31,6 +31,7 @@ import {
   type BaseUserCreateRenderProps,
   type BaseUserDetailsRenderProps,
   type DataTableColumn,
+  getAgentName,
   useTheme,
 } from '@thunderid/react';
 import {ReactElement, ReactNode, useMemo, useState} from 'react';
@@ -395,7 +396,7 @@ export const UserCard = (details: BaseUserDetailsRenderProps): ReactElement => (
 /** The agent details' render props drawn as an MUI card. */
 export const AgentCard = (details: BaseAgentDetailsRenderProps): ReactElement => (
   <DetailsCard
-    title={details.agent?.name}
+    title={details.agent ? getAgentName(details.agent) : undefined}
     subheader={details.agent ? `${details.agent.type} · ${details.agent.ouHandle ?? details.agent.ouId}` : undefined}
     isLoading={details.isLoading}
     isDeleting={details.isDeleting}

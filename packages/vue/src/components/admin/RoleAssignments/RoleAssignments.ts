@@ -7,6 +7,7 @@ import {
   RoleQueryKeys,
   UserQueryKeys,
   addRoleAssignments,
+  getAgentName,
   getAgents,
   getGroups,
   getRoleAssignments,
@@ -140,7 +141,10 @@ const RoleAssignments: Component = defineComponent({
 
     return (): VNode => {
       const candidates: Partial<Record<'user' | 'group' | 'agent', IdentityCandidate[]>> = {
-        agent: (agents.data.value?.agents ?? []).map((agent: BasicAgent) => ({id: agent.id, label: agent.name})),
+        agent: (agents.data.value?.agents ?? []).map((agent: BasicAgent) => ({
+          id: agent.id,
+          label: getAgentName(agent),
+        })),
         group: (groups.data.value?.groups ?? []).map((group: Group) => ({id: group.id, label: group.name})),
         user: (users.data.value?.users ?? []).map((user: ManagedUser) => ({
           id: user.id,

@@ -25,7 +25,7 @@ export interface CreateAgentConfig extends ManagementRequestConfig {
  * ```typescript
  * const agent = await createAgent({
  *   baseUrl: 'https://localhost:8090',
- *   payload: {ouId, type: 'default', name: 'Nightly Sync Worker'},
+ *   payload: {attributes: {name: 'Nightly Sync Worker'}, ouId, type: 'default'},
  * });
  * ```
  */

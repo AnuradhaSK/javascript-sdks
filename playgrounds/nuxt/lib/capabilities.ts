@@ -3,6 +3,7 @@
 
 import {
   getAgentGroups,
+  getAgentName,
   getAgentRoles,
   getAgents,
   getAgentTypes,
@@ -818,7 +819,7 @@ export const CAPABILITIES: Capability[] = [
         getAgentRoles({...config, agentId: agent.id}),
       );
 
-      return pass(`"${agent.name}": ${groups.totalResults} groups, ${roles.totalResults} roles`);
+      return pass(`"${getAgentName(agent)}": ${groups.totalResults} groups, ${roles.totalResults} roles`);
     }),
     section: 'Management',
   },

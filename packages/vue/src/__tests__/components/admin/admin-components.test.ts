@@ -19,6 +19,7 @@ import AgentDetails from '../../../components/admin/AgentDetails/AgentDetails';
 import BaseAgentDetails from '../../../components/admin/AgentDetails/BaseAgentDetails';
 import type {BaseAgentDetailsRenderProps} from '../../../components/admin/AgentDetails/BaseAgentDetails';
 import AgentList from '../../../components/admin/AgentList/AgentList';
+import BaseAgentList from '../../../components/admin/AgentList/BaseAgentList';
 import ApplicationCreate from '../../../components/admin/ApplicationCreate/ApplicationCreate';
 import BaseApplicationCreate from '../../../components/admin/ApplicationCreate/BaseApplicationCreate';
 import type {BaseApplicationCreateRenderProps} from '../../../components/admin/ApplicationCreate/BaseApplicationCreate';
@@ -461,7 +462,9 @@ describe('admin components (vue)', () => {
       context.fetcher.mockImplementation(
         respondWith((url, init) => {
           if (init.method === 'DELETE') return null;
-          if (url.pathname === '/agents/a1') return {id: 'a1', name: 'Concierge', ouId: 'ou-1', type: 'assistant'};
+          if (url.pathname === '/agents/a1') {
+            return {attributes: {name: 'Concierge'}, display: 'Concierge', id: 'a1', ouId: 'ou-1', type: 'assistant'};
+          }
           if (url.pathname === '/agents/a1/roles') return {...page, roles: ['viewer']};
 
           return {...page, groups: [{id: 'g1', name: 'Ops', ouId: 'ou-1'}]};
@@ -472,12 +475,12 @@ describe('admin components (vue)', () => {
         default: (props: BaseAgentDetailsRenderProps) => {
           renderProps = props;
 
-          return h('span', props.agent?.name);
+          return h('span', props.agent?.display);
         },
       });
 
       await vi.waitFor(() => {
-        expect(renderProps?.agent?.name).toBe('Concierge');
+        expect(renderProps?.agent?.display).toBe('Concierge');
         expect(renderProps?.roles).toEqual(['viewer']);
         expect(renderProps?.groups.map((group) => group.name)).toEqual(['Ops']);
       });
@@ -523,7 +526,7 @@ describe('admin components (vue)', () => {
       context.fetcher.mockImplementation(
         respondWith((_url, init) =>
           init.method === 'POST'
-            ? {id: 'a1', name: 'Concierge', ouId: 'ou-1', type: 'assistant'}
+            ? {attributes: {name: 'Concierge'}, id: 'a1', ouId: 'ou-1', type: 'assistant'}
             : {...page, types: [{displayName: 'Assistant', handle: 'assistant'}]},
         ),
       );
@@ -548,7 +551,11 @@ describe('admin components (vue)', () => {
       await vi.waitFor(() => expect(wrapper.emitted('created')).toHaveLength(1));
       const create = context.fetcher.mock.calls.find((call) => call[1].method === 'POST')!;
       expect(create[0]).toBe('https://thunder.example/agents');
-      expect(JSON.parse(create[1].body as string)).toMatchObject({name: 'Concierge', ouId: 'ou-1', type: 'assistant'});
+      expect(JSON.parse(create[1].body as string)).toEqual({
+        attributes: {name: 'Concierge'},
+        ouId: 'ou-1',
+        type: 'assistant',
+      });
       expect(invalidatedKeys(invalidate)).toEqual([[AgentQueryKeys.AGENTS]]);
     });
 
@@ -831,13 +838,17 @@ describe('admin components (vue)', () => {
       let renderProps: BaseAgentDetailsRenderProps | undefined;
       mountWith(
         BaseAgentDetails,
-        {agent: {id: 'a1', name: 'Concierge', ouId: 'ou-1', type: 'assistant'}, onDelete, roles: ['viewer']},
+        {
+          agent: {display: 'Concierge', id: 'a1', ouId: 'ou-1', type: 'assistant'},
+          onDelete,
+          roles: ['viewer'],
+        },
         createManagementContext(),
         {
           default: (props: BaseAgentDetailsRenderProps) => {
             renderProps = props;
 
-            return h('span', props.agent?.name);
+            return h('span', props.agent?.display);
           },
         },
       );
@@ -886,6 +897,41 @@ describe('admin components (vue)', () => {
       );
 
       expect(wrapper.findAll('li').map((item) => item.text())).toEqual(['Orders API: read']);
+    });
+  });
+
+  describe('agent names', () => {
+    it('shows the display value, then the name attribute, then the identifier in the agent list', () => {
+      const {wrapper} = mountWith(BaseAgentList, {
+        agents: [
+          {attributes: {name: 'Sync worker'}, display: 'Nightly sync worker', id: 'ag-1', ouId: 'ou-1', type: 'bot'},
+          {attributes: {name: 'Billing bot'}, id: 'ag-2', ouId: 'ou-1', type: 'bot'},
+          {id: 'ag-3', ouId: 'ou-1', type: 'bot'},
+        ],
+      });
+
+      const names: string[] = wrapper.findAll('tbody tr').map((row: DOMWrapper<Element>) => row.find('td').text());
+      expect(names).toEqual(['Nightly sync worker', 'Billing bot', 'ag-3']);
+    });
+
+    it('titles the agent details and asks to delete the agent by its name attribute', async () => {
+      const onDelete = vi.fn();
+      const {wrapper} = mountWith(BaseAgentDetails, {
+        agent: {attributes: {name: 'Billing bot'}, id: 'ag-2', ouId: 'ou-1', type: 'bot'},
+        onDelete,
+      });
+
+      expect(wrapper.text()).toContain('Billing bot');
+      const deleteButton = wrapper
+        .findAll('button')
+        .find(
+          (button: DOMWrapper<HTMLButtonElement>) => button.text() === translate('admin.agents.details.delete.action'),
+        );
+      await deleteButton!.trigger('click');
+
+      expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe(
+        translate('admin.agents.details.delete.confirm', {name: 'Billing bot'}),
+      );
     });
   });
 
@@ -1563,7 +1609,13 @@ describe('admin components (vue)', () => {
       const context = createFlowContext({
         configured: {agentSuspendFlow: 'suspend-agent', agentUnsuspendFlow: 'unsuspend-agent'},
         resources: {
-          '/agents/a-1': {id: 'a-1', name: 'Billing bot', ouId: 'ou-1', status: {value: 'SUSPENDED'}, type: 'bot'},
+          '/agents/a-1': {
+            attributes: {name: 'Billing bot'},
+            id: 'a-1',
+            ouId: 'ou-1',
+            status: {value: 'SUSPENDED'},
+            type: 'bot',
+          },
         },
       });
       const {wrapper} = mountWith(AgentDetails, {agentId: 'a-1', lifecycleActions: true}, context);

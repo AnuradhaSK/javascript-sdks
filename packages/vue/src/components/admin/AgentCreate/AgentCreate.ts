@@ -64,7 +64,7 @@ const AgentCreate: Component = defineComponent({
 
     const handleSubmit = ({description, name, type}: AgentCreateSubmission): void => {
       if (resolvedOuId.value) {
-        void creation.mutate({description, name, ouId: resolvedOuId.value, owner: props.owner, type});
+        void creation.mutate({attributes: {name}, description, ouId: resolvedOuId.value, owner: props.owner, type});
       }
     };
 
