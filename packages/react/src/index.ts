@@ -133,6 +133,33 @@ export * from './components/auth/flow/FlowTimer';
 export {default as ConsentCheckboxList} from './components/auth/flow/ConsentCheckboxList';
 export * from './components/auth/flow/ConsentCheckboxList';
 
+export {default as ConsentAuthorizationDetail} from './components/auth/flow/ConsentAuthorizationDetail';
+export type {
+  ConsentAuthorizationDetailProps,
+  ConsentAuthorizationDetailRenderProps,
+} from './components/auth/flow/ConsentAuthorizationDetail';
+
+export {default as ConsentDetailField} from './components/auth/flow/ConsentDetailField';
+export type {ConsentDetailFieldProps} from './components/auth/flow/ConsentDetailField';
+
+export {default as isConsentApprovalBlocked} from './utils/isConsentApprovalBlocked';
+
+export {default as formatConsentDetailValue} from './utils/formatConsentDetailValue';
+export {default as getConsentDetailLayout, CONSENT_DETAIL_DISPLAY_LIMITS} from './utils/getConsentDetailLayout';
+export {default as isConsentDetailStructured} from './utils/isConsentDetailStructured';
+export {default as isConsentDetailTextClamped} from './utils/isConsentDetailTextClamped';
+export type {ConsentDetailListDisplay} from './utils/getConsentDetailListDisplay';
+
+export {default as useConsentDetailField} from './hooks/auth/useConsentDetailField';
+export type {
+  ConsentDetailFieldError,
+  ConsentDetailInputError,
+  ConsentDetailInputKind,
+  ConsentDetailListItem,
+  UseConsentDetailFieldProps,
+  UseConsentDetailFieldResult,
+} from './hooks/auth/useConsentDetailField';
+
 export {default as Consent} from './components/auth/flow/Consent';
 export * from './components/auth/flow/Consent';
 
@@ -459,6 +486,16 @@ export {
   type SelectPage,
   type SelectPageRequest,
   type UserSelectOptionMapping,
+  type ConsentDetailRow,
+  type ConsentDetailValueType,
+  type ConsentDetailModification,
+  type AuthorizationDetail,
+  type AuthorizeRequestParamValue,
+  getConsentModifiedKey,
+  CONSENT_MODIFIED_KEY_PREFIX,
+  getConsentInvalidKey,
+  CONSENT_INVALID_KEY_PREFIX,
+  getConsentElementDecision,
 } from '@thunderid/browser';
 
 export {

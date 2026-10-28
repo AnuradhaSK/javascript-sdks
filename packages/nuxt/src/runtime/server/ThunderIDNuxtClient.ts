@@ -54,6 +54,7 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtClientConfig>
     const authConfig: AuthClientConfig<ThunderIDNuxtConfig> = {
       afterSignInUrl: config.afterSignInUrl!,
       afterSignOutUrl: config.afterSignOutUrl || '/',
+      authorizationDetails: config.authorizationDetails,
       baseUrl: config.baseUrl!,
       clientId: config.clientId!,
       clientSecret: config.clientSecret || undefined,

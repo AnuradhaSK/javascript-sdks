@@ -486,6 +486,7 @@ class AuthenticationHelper<T> {
 
         return {
           accessToken: parsedResponse.access_token,
+          authorizationDetails: parsedResponse.authorization_details,
           createdAt: parsedResponse.created_at,
           expiresIn: parsedResponse.expires_in,
           idToken: parsedResponse.id_token,
@@ -500,6 +501,7 @@ class AuthenticationHelper<T> {
 
     return {
       accessToken: parsedResponse.access_token,
+      authorizationDetails: parsedResponse.authorization_details,
       createdAt: parsedResponse.created_at,
       expiresIn: parsedResponse.expires_in,
       idToken: parsedResponse.id_token,
