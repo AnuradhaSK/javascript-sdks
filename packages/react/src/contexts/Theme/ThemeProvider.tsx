@@ -12,8 +12,20 @@ import {
   ThemeConfig,
   ThemeMode,
 } from '@thunderid/browser';
-import {FC, PropsWithChildren, ReactElement, useCallback, useContext, useEffect, useMemo, useState} from 'react';
+import {
+  FC,
+  MutableRefObject,
+  PropsWithChildren,
+  ReactElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import ThemeContext from './ThemeContext';
+import ThemeRootContext, {ThemeRootContextValue} from './ThemeRootContext';
 import applyThemeToDOM from '../../utils/applyThemeToDOM';
 import buildThemeConfigFromFlowMeta from '../../utils/buildThemeConfigFromFlowMeta';
 import normalizeThemeConfig from '../../utils/normalizeThemeConfig';
@@ -26,7 +38,8 @@ export interface ThemeProviderProps {
    */
   designTheme?: FlowMetaTheme | null;
   /**
-   * Initial color scheme override. Overrides the server default when provided.
+   * Color scheme override. Overrides the server default when provided, and the color scheme follows it
+   * when it changes.
    */
   mode?: ThemeMode;
 
@@ -89,6 +102,16 @@ const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
   };
 
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(getInitialColorScheme);
+
+  // Follow a change of mode after mount, such as a host app's own color scheme toggle.
+  const [seededMode, setSeededMode] = useState<ThemeMode | undefined>(mode);
+
+  if (mode !== seededMode) {
+    setSeededMode(mode);
+    if (mode !== undefined) {
+      setColorScheme(getInitialColorScheme());
+    }
+  }
 
   // When mode is unset, sync the color scheme with the server default once flow meta loads.
   useEffect(() => {
@@ -164,17 +187,37 @@ const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
 
   const direction: 'ltr' | 'rtl' = flowMetaTheme?.direction ?? 'ltr';
 
-  // Apply CSS variables to the document root.
-  useEffect(() => {
-    applyThemeToDOM(theme);
-  }, [theme]);
+  // The innermost ThemeProvider owns the document root: an outer one stops writing its CSS variables
+  // and text direction while a nested one is mounted, and writes them again once it unmounts.
+  const parentRoot: ThemeRootContextValue | null = useContext(ThemeRootContext);
+  const claims: MutableRefObject<number> = useRef<number>(0);
+  const applied: MutableRefObject<{direction: 'ltr' | 'rtl'; theme: Theme} | null> = useRef(null);
 
-  // Apply text direction to the document root.
+  const applyToRoot: () => void = useCallback(() => {
+    if (!applied.current || typeof document === 'undefined') return;
+    applyThemeToDOM(applied.current.theme);
+    document.documentElement.dir = applied.current.direction;
+  }, []);
+
+  const root: ThemeRootContextValue = useMemo(
+    () => ({
+      claim: (): (() => void) => {
+        claims.current += 1;
+        return (): void => {
+          claims.current -= 1;
+          if (claims.current === 0) applyToRoot();
+        };
+      },
+    }),
+    [applyToRoot],
+  );
+
+  useEffect(() => parentRoot?.claim(), [parentRoot]);
+
   useEffect(() => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.dir = direction;
-    }
-  }, [direction]);
+    applied.current = {direction, theme};
+    if (claims.current === 0) applyToRoot();
+  }, [applyToRoot, direction, theme]);
 
   const value: any = {
     colorScheme,
@@ -183,7 +226,11 @@ const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
     toggleTheme,
   };
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>
+      <ThemeRootContext.Provider value={root}>{children}</ThemeRootContext.Provider>
+    </ThemeContext.Provider>
+  );
 };
 
 export default ThemeProvider;

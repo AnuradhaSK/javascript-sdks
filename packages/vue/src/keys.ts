@@ -8,6 +8,7 @@ import type {
   FlowMetaContextValue,
   I18nContextValue,
   ThemeContextValue,
+  ThemeRootContextValue,
   UserContextValue,
 } from './models/contexts';
 
@@ -35,6 +36,11 @@ export const FLOW_META_KEY: InjectionKey<FlowMetaContextValue> = Symbol('thunder
  * Injection key for the Theme context (color scheme, CSS variables, toggle).
  */
 export const THEME_KEY: InjectionKey<ThemeContextValue> = Symbol('thunderid-theme');
+
+/**
+ * Injection key a nested ThemeProvider uses to take the document root from the one above it.
+ */
+export const THEME_ROOT_KEY: InjectionKey<ThemeRootContextValue> = Symbol('thunderid-theme-root');
 
 /**
  * Injection key for the I18n context (translation function, language switching).

@@ -230,6 +230,17 @@ export interface FlowMetaContextValue {
 /**
  * Shape of the Theme context exposed by `useTheme()`.
  */
+/**
+ * Lets a nested `ThemeProvider` take the document root from the one above it.
+ */
+export interface ThemeRootContextValue {
+  /**
+   * Hands the document root to a nested `ThemeProvider` until the returned release is called, so the
+   * innermost provider's CSS variables and text direction are the ones on the page.
+   */
+  claim: () => () => void;
+}
+
 export interface ThemeContextValue {
   /** The current color scheme ('light' | 'dark'). */
   colorScheme: Readonly<Ref<'light' | 'dark'>>;
