@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/nuxt",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Nuxt SDK for ThunderID",
   "keywords": [
     "thunderid",
