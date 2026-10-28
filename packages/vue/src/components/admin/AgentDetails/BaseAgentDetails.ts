@@ -1,11 +1,19 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {type Agent, type MembershipGroup, type Preferences, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {
+  type AccountLifecycleAction,
+  type Agent,
+  type MembershipGroup,
+  type Preferences,
+  withVendorCSSClassPrefix,
+} from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import Alert from '../../primitives/Alert/Alert';
 import CopyableText from '../../primitives/CopyableText/CopyableText';
 import Spinner from '../../primitives/Spinner/Spinner';
+import AccessStatusBadge from '../shared/AccessStatusBadge';
+import AccountLifecycleButtons from '../shared/AccountLifecycleButtons';
 import AdminSection from '../shared/AdminSection';
 import ChipList from '../shared/ChipList';
 import ConfirmButton from '../shared/ConfirmButton';
@@ -20,7 +28,10 @@ type BaseAgentDetailsProps = Readonly<{
   groups: MembershipGroup[];
   isDeleting: boolean;
   isLoading: boolean;
+  isRunningLifecycleAction: boolean;
+  lifecycleActions: AccountLifecycleAction[];
   onDelete: (() => void) | undefined;
+  onLifecycleAction: ((action: AccountLifecycleAction, operatorNote?: string) => void) | undefined;
   preferences: Preferences | undefined;
   roles: string[];
 }>;
@@ -34,8 +45,13 @@ export interface BaseAgentDetailsRenderProps {
   groups: MembershipGroup[];
   isDeleting: boolean;
   isLoading: boolean;
+  isRunningLifecycleAction: boolean;
+  /** The account lifecycle actions offered for the agent. Empty when none is allowed. */
+  lifecycleActions: AccountLifecycleAction[];
   /** Deletes the agent. Undefined when deletion is not allowed, including for read-only agents. */
   onDelete?: () => void;
+  /** Runs an account lifecycle action, with the operator's note on a suspension. Undefined when none is allowed. */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   roles: string[];
 }
 
@@ -61,8 +77,22 @@ const BaseAgentDetails: Component = defineComponent({
     groups: {default: () => [], type: Array as PropType<MembershipGroup[]>},
     isDeleting: {default: false, type: Boolean},
     isLoading: {default: false, type: Boolean},
+    isRunningLifecycleAction: {default: false, type: Boolean},
+    /**
+     * The account lifecycle actions to offer (suspend, unsuspend, unlock), shown only with
+     * `onLifecycleAction`. They change only runtime state, so they apply to read-only agents too.
+     */
+    lifecycleActions: {default: () => [], type: Array as PropType<AccountLifecycleAction[]>},
     /** Deletes the agent. The delete action is hidden when omitted. Also available as `@delete`. */
     onDelete: {default: undefined, type: Function as PropType<() => void>},
+    /**
+     * Runs an account lifecycle action. Suspending and unsuspending ask for confirmation first, and a
+     * suspension takes an optional operator note. Also available as `@lifecycle-action`.
+     */
+    onLifecycleAction: {
+      default: undefined,
+      type: Function as PropType<(action: AccountLifecycleAction, operatorNote?: string) => void>,
+    },
     /** Component-level preferences, for example `i18n.bundles` overrides. */
     preferences: {default: undefined, type: Object as PropType<Preferences>},
     /** Names of the roles assigned to the agent, directly or through its groups. */
@@ -81,7 +111,10 @@ const BaseAgentDetails: Component = defineComponent({
           groups: props.groups,
           isDeleting: props.isDeleting,
           isLoading: props.isLoading,
+          isRunningLifecycleAction: props.isRunningLifecycleAction,
+          lifecycleActions: props.onLifecycleAction && agent ? props.lifecycleActions : [],
           onDelete: agent && !agent.isReadOnly ? props.onDelete : undefined,
+          onLifecycleAction: agent ? props.onLifecycleAction : undefined,
           roles: props.roles,
         };
 
@@ -123,6 +156,13 @@ const BaseAgentDetails: Component = defineComponent({
         {label: t('admin.common.columns.organization_unit'), value: agent.ouHandle ?? agent.ouId},
       ];
 
+      if (agent.status) {
+        details.push({
+          label: t('admin.common.columns.status'),
+          value: h(AccessStatusBadge, {status: agent.status.value, t}),
+        });
+      }
+
       if (agent.clientId) {
         details.push({
           label: t('admin.agents.list.columns.client_id'),
@@ -136,6 +176,16 @@ const BaseAgentDetails: Component = defineComponent({
         {
           actions: (): (VNode | VNode[] | null | undefined)[] => [
             slots['actions']?.(),
+            props.onLifecycleAction
+              ? h(AccountLifecycleButtons, {
+                  actions: props.lifecycleActions,
+                  collectsOperatorNote: true,
+                  isRunning: props.isRunningLifecycleAction,
+                  name: agent.name,
+                  onAction: props.onLifecycleAction,
+                  t,
+                })
+              : null,
             props.onDelete && !agent.isReadOnly
               ? h(
                   ConfirmButton,

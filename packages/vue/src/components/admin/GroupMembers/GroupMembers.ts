@@ -15,6 +15,7 @@ import {
   toManagementErrorMessage,
 } from '@thunderid/browser';
 import type {
+  AdministrationMode,
   AgentListResponse,
   BasicAgent,
   Group,
@@ -34,6 +35,7 @@ import type {IdentityCandidate} from '../shared/IdentityPicker';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 
 type GroupMembersProps = Readonly<{
+  administrationMode: AdministrationMode | undefined;
   className: string;
   description: string | undefined;
   editable: boolean;
@@ -59,6 +61,11 @@ interface GroupMembersVariables {
 const GroupMembers: Component = defineComponent({
   name: 'GroupMembers',
   props: {
+    /**
+     * How a member is removed. `flow` runs the administration flow the server configures for it, which can revoke
+     * grants and end sessions first. It needs `baseUrl`. Defaults to `native`.
+     */
+    administrationMode: {default: undefined, type: String as PropType<AdministrationMode>},
     /** Extra CSS class added to the root element. */
     className: {default: '', type: String},
     /** Text shown under the title. */
@@ -107,7 +114,13 @@ const GroupMembers: Component = defineComponent({
     );
     const remove: ResourceMutationResult<Group, GroupMembersVariables> = useResourceMutation(
       ({groupId, members: removed}: GroupMembersVariables, fetcher) =>
-        removeGroupMembers({...groupsEndpoint, fetcher, groupId, members: removed}),
+        removeGroupMembers({
+          ...groupsEndpoint,
+          administrationMode: props.administrationMode,
+          fetcher,
+          groupId,
+          members: removed,
+        }),
       invalidatedByMembership,
     );
 

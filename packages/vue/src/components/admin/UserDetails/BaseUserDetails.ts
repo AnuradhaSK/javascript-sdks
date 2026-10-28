@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {resolveManagedIdentityName} from '@thunderid/browser';
-import {type ManagedUser, type MembershipGroup, type Preferences, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {
+  type AccountLifecycleAction,
+  type ManagedUser,
+  type MembershipGroup,
+  type Preferences,
+  withVendorCSSClassPrefix,
+} from '@thunderid/browser';
 import {
   type Component,
   type PropType,
@@ -18,6 +24,8 @@ import Alert from '../../primitives/Alert/Alert';
 import Button from '../../primitives/Button/Button';
 import Spinner from '../../primitives/Spinner/Spinner';
 import TextField from '../../primitives/TextField/TextField';
+import AccessStatusBadge from '../shared/AccessStatusBadge';
+import AccountLifecycleButtons from '../shared/AccountLifecycleButtons';
 import AdminAvatar from '../shared/AdminAvatar';
 import AdminSection from '../shared/AdminSection';
 import ChipList from '../shared/ChipList';
@@ -33,8 +41,11 @@ type BaseUserDetailsProps = Readonly<{
   hiddenAttributes: string[];
   isDeleting: boolean;
   isLoading: boolean;
+  isRunningLifecycleAction: boolean;
   isUpdating: boolean;
+  lifecycleActions: AccountLifecycleAction[];
   onDelete: (() => void) | undefined;
+  onLifecycleAction: ((action: AccountLifecycleAction, operatorNote?: string) => void) | undefined;
   onUpdate: ((attributes: Record<string, unknown>) => void) | undefined;
   preferences: Preferences | undefined;
   user: ManagedUser | undefined;
@@ -52,9 +63,17 @@ export interface BaseUserDetailsRenderProps {
   groups: MembershipGroup[];
   isDeleting: boolean;
   isLoading: boolean;
+  isRunningLifecycleAction: boolean;
   isUpdating: boolean;
+  /** The account lifecycle actions offered for the user. Empty when none is allowed. */
+  lifecycleActions: AccountLifecycleAction[];
   /** Deletes the user. Undefined when deletion is not allowed, including for read-only users. */
   onDelete?: () => void;
+  /**
+   * Runs an account lifecycle action, with the operator's note on a suspension. Undefined when none is
+   * allowed.
+   */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   /** Saves the given attributes. Undefined when editing is not allowed, including for read-only users. */
   onUpdate?: (attributes: Record<string, unknown>) => void;
   user?: ManagedUser;
@@ -90,9 +109,23 @@ const BaseUserDetails: Component = defineComponent({
     hiddenAttributes: {default: () => ['password'], type: Array as PropType<string[]>},
     isDeleting: {default: false, type: Boolean},
     isLoading: {default: false, type: Boolean},
+    isRunningLifecycleAction: {default: false, type: Boolean},
     isUpdating: {default: false, type: Boolean},
+    /**
+     * The account lifecycle actions to offer (suspend, unsuspend, unlock), shown only with
+     * `onLifecycleAction`. They change only runtime state, so they apply to read-only users too.
+     */
+    lifecycleActions: {default: () => [], type: Array as PropType<AccountLifecycleAction[]>},
     /** Deletes the user. The delete action is hidden when omitted. Also available as `@delete`. */
     onDelete: {default: undefined, type: Function as PropType<() => void>},
+    /**
+     * Runs an account lifecycle action. Suspending and unsuspending ask for confirmation first, and a
+     * suspension takes an optional operator note. Also available as `@lifecycle-action`.
+     */
+    onLifecycleAction: {
+      default: undefined,
+      type: Function as PropType<(action: AccountLifecycleAction, operatorNote?: string) => void>,
+    },
     /**
      * Saves edited attributes. Text attributes become editable only when set. Receives every attribute,
      * edited or not. Also available as `@update`.
@@ -124,8 +157,11 @@ const BaseUserDetails: Component = defineComponent({
           groups: props.groups,
           isDeleting: props.isDeleting,
           isLoading: props.isLoading,
+          isRunningLifecycleAction: props.isRunningLifecycleAction,
           isUpdating: props.isUpdating,
+          lifecycleActions: props.onLifecycleAction && user ? props.lifecycleActions : [],
           onDelete: isWritable ? props.onDelete : undefined,
+          onLifecycleAction: user ? props.onLifecycleAction : undefined,
           onUpdate: isWritable ? props.onUpdate : undefined,
           user,
         };
@@ -240,6 +276,16 @@ const BaseUserDetails: Component = defineComponent({
         {
           actions: (): (VNode | VNode[] | null | undefined)[] => [
             slots['actions']?.(),
+            props.onLifecycleAction
+              ? h(AccountLifecycleButtons, {
+                  actions: props.lifecycleActions,
+                  collectsOperatorNote: true,
+                  isRunning: props.isRunningLifecycleAction,
+                  name: displayName,
+                  onAction: props.onLifecycleAction,
+                  t,
+                })
+              : null,
             props.onDelete && !user.isReadOnly
               ? h(
                   ConfirmButton,
@@ -258,6 +304,7 @@ const BaseUserDetails: Component = defineComponent({
             h('div', {class: cls('row')}, [
               h(AdminAvatar, {name: displayName, size: 48}),
               h('span', {class: cls('muted')}, user.ouHandle ?? user.ouId),
+              h(AccessStatusBadge, {status: user.status?.value, t}),
             ]),
             h(
               Panel,

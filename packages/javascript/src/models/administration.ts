@@ -85,3 +85,13 @@ export interface AccountLifecycleResult {
    */
   emailSent?: boolean;
 }
+
+/**
+ * A kind of identity the account lifecycle operations act on.
+ */
+export type AccountLifecycleSubjectKind = 'agent' | 'application' | 'user';
+
+/**
+ * An account lifecycle operation an operator can run. Locking is automatic only, so there is no lock.
+ */
+export type AccountLifecycleAction = 'suspend' | 'unlock' | 'unsuspend';

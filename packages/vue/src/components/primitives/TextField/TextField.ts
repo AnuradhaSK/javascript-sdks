@@ -11,6 +11,7 @@ type TextFieldProps = Readonly<{
   helperText: string | undefined;
   id: string | undefined;
   label: string | undefined;
+  maxLength: number | undefined;
   modelValue: string;
   name: string | undefined;
   placeholder: string | undefined;
@@ -27,6 +28,8 @@ const TextField: Component = defineComponent({
     helperText: {default: undefined, type: String},
     id: {default: undefined, type: String},
     label: {default: undefined, type: String},
+    /** The most characters the field accepts. */
+    maxLength: {default: undefined, type: Number},
     modelValue: {default: '', type: String},
     name: {default: undefined, type: String},
     placeholder: {default: undefined, type: String},
@@ -77,6 +80,7 @@ const TextField: Component = defineComponent({
           'data-testid': attrs['data-testid'],
           disabled: props.disabled,
           id: props.id ?? props.name,
+          maxlength: props.maxLength,
           name: props.name,
           onBlur: () => emit('blur'),
           onInput: (e: Event) => emit('update:modelValue', (e.target as HTMLInputElement).value),

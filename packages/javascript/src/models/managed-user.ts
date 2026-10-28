@@ -1,6 +1,7 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {AccessStatus} from './access-status';
 import {ApiPaginationLink} from './api';
 
 /**
@@ -15,6 +16,10 @@ export interface ManagedUser {
   isReadOnly?: boolean;
   ouHandle?: string;
   ouId: string;
+  /**
+   * The effective access status, set by the server on a read.
+   */
+  status?: AccessStatus;
   type: string;
 }
 

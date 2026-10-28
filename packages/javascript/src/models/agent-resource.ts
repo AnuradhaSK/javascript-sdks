@@ -1,6 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {AccessStatus} from './access-status';
 import {AssertionConfig, OAuth2Config} from './application';
 
 /**
@@ -43,6 +44,10 @@ export interface Agent {
   ouId: string;
   owner?: string;
   registrationFlowId?: string;
+  /**
+   * The effective access status, set by the server on a read.
+   */
+  status?: AccessStatus;
   type: string;
 }
 

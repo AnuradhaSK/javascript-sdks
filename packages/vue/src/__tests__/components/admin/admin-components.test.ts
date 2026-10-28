@@ -10,7 +10,7 @@ import type {
   ResourceQueryKey,
   RoleResourcePermissions,
 } from '@thunderid/browser';
-import {mount} from '@vue/test-utils';
+import {type DOMWrapper, type VueWrapper, mount} from '@vue/test-utils';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {h, nextTick} from 'vue';
 import AgentCreate from '../../../components/admin/AgentCreate/AgentCreate';
@@ -1348,6 +1348,264 @@ describe('admin components (vue)', () => {
       await vi.waitFor(() => expect(denied.find('[role="alert"]').exists()).toBe(true));
       expect(denied.find('[role="alert"]').text()).toBe(translate('admin.common.errors.forbidden'));
       expect(denied.text()).not.toContain('raw server detail');
+    });
+  });
+
+  describe('administration flows', () => {
+    /**
+     * A fetcher that answers like the server: the flow configuration (`configured`, handle by config key),
+     * the administration flow listing (one flow per configured handle, with the id `id-<handle>`), flow
+     * execution, and the given resources by path.
+     */
+    const createFlowContext = ({
+      configured = {},
+      resources = {},
+    }: {configured?: Record<string, string>; resources?: Record<string, unknown>} = {}): ManagementTestContext => {
+      const context = createManagementContext();
+      context.fetcher.mockImplementation((url: string) => {
+        const {pathname} = new URL(url);
+
+        if (pathname === '/server-config/flow') {
+          return Promise.resolve(
+            jsonResponse({
+              merged: Object.fromEntries(
+                Object.entries(configured).map(([key, handle]) => [key, {defaultHandle: handle}]),
+              ),
+            }),
+          );
+        }
+        if (pathname === '/flows') {
+          return Promise.resolve(
+            jsonResponse({
+              flows: Object.values(configured).map((handle) => ({
+                flowType: 'ADMINISTRATION',
+                handle,
+                id: `id-${handle}`,
+              })),
+            }),
+          );
+        }
+        if (pathname === '/flow/execute') {
+          return Promise.resolve(jsonResponse({data: {additionalData: {}}, flowStatus: 'COMPLETE'}));
+        }
+        if (pathname.endsWith('/groups') || pathname.endsWith('/roles')) {
+          return Promise.resolve(jsonResponse({count: 0, groups: [], roles: [], startIndex: 1, totalResults: 0}));
+        }
+
+        return Promise.resolve(jsonResponse(resources[pathname] ?? {}));
+      });
+
+      return context;
+    };
+
+    /** The bodies of the flow executions a context's fetcher received, in order. */
+    const executions = (context: ManagementTestContext): unknown[] =>
+      context.fetcher.mock.calls
+        .filter(([url]) => url === 'https://thunder.example/flow/execute')
+        .map(([, init]) => JSON.parse(init.body as string) as unknown);
+
+    const lifecycleButton = (
+      wrapper: VueWrapper | DOMWrapper<Element>,
+      name: string,
+    ): DOMWrapper<HTMLButtonElement> | undefined =>
+      wrapper.findAll('button').find((button: DOMWrapper<HTMLButtonElement>) => button.text() === name);
+
+    const lockedUser: ManagedUser = {...users[0], status: {value: 'LOCKED'}};
+
+    describe('BaseUserDetails', () => {
+      it('shows the translated access status', () => {
+        const {wrapper} = mountWith(BaseUserDetails, {user: lockedUser});
+
+        expect(wrapper.text()).toContain(translate('admin.common.status.locked'));
+      });
+
+      it('offers no lifecycle actions without a handler', () => {
+        const {wrapper} = mountWith(BaseUserDetails, {lifecycleActions: ['unlock', 'suspend'], user: lockedUser});
+
+        expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.unlock'))).toBeUndefined();
+        expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.suspend'))).toBeUndefined();
+      });
+
+      it('unlocks straight away, and asks for confirmation and an optional note before suspending', async () => {
+        const onLifecycleAction = vi.fn();
+        const {wrapper} = mountWith(BaseUserDetails, {
+          lifecycleActions: ['unlock', 'suspend'],
+          onLifecycleAction,
+          user: lockedUser,
+        });
+
+        await lifecycleButton(wrapper, translate('admin.common.lifecycle.unlock'))!.trigger('click');
+        expect(onLifecycleAction).toHaveBeenLastCalledWith('unlock');
+
+        await lifecycleButton(wrapper, translate('admin.common.lifecycle.suspend'))!.trigger('click');
+        expect(onLifecycleAction).toHaveBeenCalledTimes(1);
+        const confirmation = wrapper.find('[role="group"]');
+        expect(confirmation.attributes('aria-label')).toBe(
+          translate('admin.common.lifecycle.suspend_confirm', {name: 'Jane Doe'}),
+        );
+        const note = confirmation.find('input');
+        expect(confirmation.find(`label[for="${note.attributes('id')}"]`).text()).toBe(
+          translate('admin.common.lifecycle.operator_note'),
+        );
+        expect(note.attributes('maxlength')).toBe('100');
+        await note.setValue(' Ticket 4521 ');
+        await lifecycleButton(confirmation, translate('admin.common.lifecycle.suspend'))!.trigger('click');
+
+        expect(onLifecycleAction).toHaveBeenLastCalledWith('suspend', 'Ticket 4521');
+      });
+
+      it('hands the default slot the lifecycle actions, for read-only users too', () => {
+        const onLifecycleAction = vi.fn();
+        let renderProps: BaseUserDetailsRenderProps | undefined;
+        mountWith(
+          BaseUserDetails,
+          {lifecycleActions: ['unlock'], onLifecycleAction, user: {...lockedUser, isReadOnly: true}},
+          undefined,
+          {
+            default: (props: BaseUserDetailsRenderProps) => {
+              renderProps = props;
+
+              return h('span', props.displayName);
+            },
+          },
+        );
+
+        expect(renderProps?.lifecycleActions).toEqual(['unlock']);
+        expect(renderProps?.onLifecycleAction).toBe(onLifecycleAction);
+      });
+    });
+
+    describe('UserDetails', () => {
+      it('reads no flow configuration unless lifecycle actions are on', async () => {
+        const context = createFlowContext({resources: {'/users/u1': lockedUser}});
+        const {wrapper} = mountWith(UserDetails, {userId: 'u1'}, context);
+
+        await vi.waitFor(() => expect(wrapper.find('h2').text()).toBe('Jane Doe'));
+        expect(context.fetcher.mock.calls.some(([url]) => url.includes('/server-config/'))).toBe(false);
+      });
+
+      it('says the account actions could not be loaded when the flow configuration cannot be read', async () => {
+        const context = createFlowContext({resources: {'/users/u1': lockedUser}});
+        const server = context.fetcher.getMockImplementation()!;
+        context.fetcher.mockImplementation((url: string, init?: RequestInit) =>
+          url.includes('/server-config/') ? Promise.resolve(new Response('{}', {status: 500})) : server(url, init),
+        );
+        const {wrapper} = mountWith(UserDetails, {lifecycleActions: true, userId: 'u1'}, context);
+
+        await vi.waitFor(() =>
+          expect(wrapper.find('[role="alert"]').text()).toBe(translate('admin.common.lifecycle.load_error')),
+        );
+        expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.unlock'))).toBeUndefined();
+      });
+
+      it('offers only the actions whose flow is configured, and runs one through its flow', async () => {
+        const context = createFlowContext({
+          configured: {userUnlockFlow: 'unlock-user'},
+          resources: {'/users/u1': lockedUser},
+        });
+        const {wrapper} = mountWith(UserDetails, {lifecycleActions: true, userId: 'u1'}, context);
+
+        await vi.waitFor(() =>
+          expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.unlock'))).toBeDefined(),
+        );
+        expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.suspend'))).toBeUndefined();
+        await lifecycleButton(wrapper, translate('admin.common.lifecycle.unlock'))!.trigger('click');
+
+        await vi.waitFor(() =>
+          expect(executions(context)).toEqual([{flowId: 'id-unlock-user', inputs: {subject: 'u1'}}]),
+        );
+      });
+
+      it('deletes through the user deletion flow in flow mode', async () => {
+        const context = createFlowContext({
+          configured: {userDeletionFlow: 'delete-user'},
+          resources: {'/users/u1': users[0]},
+        });
+        const {wrapper} = mountWith(UserDetails, {administrationMode: 'flow', deletable: true, userId: 'u1'}, context);
+
+        await vi.waitFor(() =>
+          expect(lifecycleButton(wrapper, translate('admin.users.details.delete.action'))).toBeDefined(),
+        );
+        await lifecycleButton(wrapper, translate('admin.users.details.delete.action'))!.trigger('click');
+        await lifecycleButton(wrapper.find('[role="group"]'), translate('admin.common.actions.confirm'))!.trigger(
+          'click',
+        );
+
+        await vi.waitFor(() => expect(wrapper.emitted('deleted')).toHaveLength(1));
+        expect(executions(context)).toEqual([{flowId: 'id-delete-user', inputs: {subject: 'u1'}}]);
+        expect(context.fetcher.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false);
+      });
+    });
+
+    it('removes a group member through the membership removal flow in flow mode', async () => {
+      const context = createFlowContext({
+        configured: {groupMembershipRemovalFlow: 'remove-member'},
+        resources: {
+          '/groups/g-1/members': {
+            count: 1,
+            members: [{display: 'Jane Doe', id: 'u1', type: 'user'}],
+            startIndex: 1,
+            totalResults: 1,
+          },
+        },
+      });
+      const {wrapper} = mountWith(GroupMembers, {administrationMode: 'flow', editable: true, groupId: 'g-1'}, context);
+      const removeLabel: string = translate('admin.groups.members.remove_label', {name: 'Jane Doe'});
+
+      await vi.waitFor(() => expect(wrapper.find(`button[aria-label="${removeLabel}"]`).exists()).toBe(true));
+      await wrapper.find(`button[aria-label="${removeLabel}"]`).trigger('click');
+
+      await vi.waitFor(() => expect(executions(context)).toHaveLength(1));
+      expect(context.fetcher.mock.calls.some(([url]) => url.endsWith('/members/remove'))).toBe(false);
+    });
+
+    it('unsuspends an agent through its flow', async () => {
+      const context = createFlowContext({
+        configured: {agentSuspendFlow: 'suspend-agent', agentUnsuspendFlow: 'unsuspend-agent'},
+        resources: {
+          '/agents/a-1': {id: 'a-1', name: 'Billing bot', ouId: 'ou-1', status: {value: 'SUSPENDED'}, type: 'bot'},
+        },
+      });
+      const {wrapper} = mountWith(AgentDetails, {agentId: 'a-1', lifecycleActions: true}, context);
+
+      await vi.waitFor(() =>
+        expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.unsuspend'))).toBeDefined(),
+      );
+      expect(wrapper.text()).toContain(translate('admin.common.status.suspended'));
+      expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.suspend'))).toBeUndefined();
+      await lifecycleButton(wrapper, translate('admin.common.lifecycle.unsuspend'))!.trigger('click');
+      const confirmation = wrapper.find('[role="group"]');
+      expect(confirmation.attributes('aria-label')).toBe(
+        translate('admin.common.lifecycle.unsuspend_confirm', {name: 'Billing bot'}),
+      );
+      await lifecycleButton(confirmation, translate('admin.common.lifecycle.unsuspend'))!.trigger('click');
+
+      await vi.waitFor(() =>
+        expect(executions(context)).toEqual([{flowId: 'id-unsuspend-agent', inputs: {subject: 'a-1'}}]),
+      );
+    });
+
+    it('suspends an application without asking for an operator note', async () => {
+      const context = createFlowContext({
+        configured: {applicationSuspendFlow: 'suspend-app'},
+        resources: {'/applications/app-1': {id: 'app-1', name: 'Portal', status: {value: 'ACTIVE'}}},
+      });
+      const {wrapper} = mountWith(ApplicationDetails, {applicationId: 'app-1', lifecycleActions: true}, context);
+
+      await vi.waitFor(() =>
+        expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.suspend'))).toBeDefined(),
+      );
+      await lifecycleButton(wrapper, translate('admin.common.lifecycle.suspend'))!.trigger('click');
+      const confirmation = wrapper.find('[role="group"]');
+      expect(confirmation.attributes('aria-label')).toBe(
+        translate('admin.common.lifecycle.suspend_confirm', {name: 'Portal'}),
+      );
+      expect(confirmation.find('input').exists()).toBe(false);
+      await lifecycleButton(confirmation, translate('admin.common.lifecycle.suspend'))!.trigger('click');
+
+      await vi.waitFor(() =>
+        expect(executions(context)).toEqual([{flowId: 'id-suspend-app', inputs: {subject: 'app-1'}}]),
+      );
     });
   });
 });

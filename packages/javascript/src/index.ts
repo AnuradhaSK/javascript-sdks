@@ -388,6 +388,8 @@ export {default as suspendApplication} from './api/management/applications/suspe
 export type {SuspendApplicationConfig} from './api/management/applications/suspendApplication';
 export {default as unsuspendApplication} from './api/management/applications/unsuspendApplication';
 export type {UnsuspendApplicationConfig} from './api/management/applications/unsuspendApplication';
+export {default as runAccountLifecycleAction} from './api/management/administration/runAccountLifecycleAction';
+export type {RunAccountLifecycleActionConfig} from './api/management/administration/runAccountLifecycleAction';
 export {default as deleteAction} from './api/management/resource-servers/deleteAction';
 export type {DeleteActionConfig} from './api/management/resource-servers/deleteAction';
 export {default as getConnections} from './api/management/connections/getConnections';
@@ -408,6 +410,7 @@ export {default as GroupQueryKeys} from './constants/GroupQueryKeys';
 export {
   default as AdministrationModes,
   ADMINISTRATION_FLOW_TYPE,
+  AccountLifecycleFlowConfigKey,
   AdministrationFlowConfigKey,
   AdministrationFlowData,
   AdministrationFlowInput,
@@ -594,6 +597,13 @@ export type {
   CimdPreviewResponse,
 } from './models/application';
 export type {
+  AccessHoldReason,
+  AccessLockedMethod,
+  AccessStatus,
+  AccessStatusDetails,
+  AccessStatusValue,
+} from './models/access-status';
+export type {
   CreateManagedUserRequest,
   CreateUserByPathRequest,
   ManagedUser,
@@ -604,8 +614,10 @@ export type {
   UserUsagesResponse,
 } from './models/managed-user';
 export type {
+  AccountLifecycleAction,
   AccountLifecycleOptions,
   AccountLifecycleResult,
+  AccountLifecycleSubjectKind,
   AdministrationFlowConfig,
   AdministrationFlowConfigKeyValue,
   AdministrationFlowExecutionResponse,
@@ -859,6 +871,7 @@ export {default as toCreateApplicationRequest} from './utils/toCreateApplication
 export {default as toUpdateApplicationRequest} from './utils/toUpdateApplicationRequest';
 export {default as toManagementErrorMessage} from './utils/toManagementErrorMessage';
 export {default as resolveManagedIdentityName} from './utils/resolveManagedIdentityName';
+export {default as getAccountLifecycleActions} from './utils/getAccountLifecycleActions';
 export {default as hasPermission} from './utils/hasPermission';
 export {default as arrayBufferToBase64url} from './utils/arrayBufferToBase64url';
 export {default as base64urlToArrayBuffer} from './utils/base64urlToArrayBuffer';

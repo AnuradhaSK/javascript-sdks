@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AccessStatusValue,
+  AccountLifecycleAction,
+  AdministrationMode,
   Agent,
   AgentCreate,
   AgentDetails,
@@ -56,6 +59,7 @@ import {
   UserCreate,
   UserDetails,
   UserList,
+  getAccountLifecycleActions,
 } from '@thunderid/vue';
 import {Component, h, VNode} from 'vue';
 import DataTableHost from './DataTableHost';
@@ -71,6 +75,15 @@ import useApiQuery from '../../lib/useApiQuery';
 // signed-in user's token, so without a session they show the component's own error state.
 
 const OU = 'ou_7d1e';
+
+/**
+ * Every user lifecycle flow configured, so the sample offers whatever its status allows.
+ */
+const ALL_USER_LIFECYCLE_FLOWS: Record<string, string> = {
+  userSuspendFlow: 'user-suspend',
+  userUnlockFlow: 'user-unlock',
+  userUnsuspendFlow: 'user-unsuspend',
+};
 
 const SAMPLE_USERS: ManagedUser[] = [
   {
@@ -629,12 +642,14 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
         ? {
             imports: ['UserDetails'],
             script: handler('handleDeleted'),
-            template: tpl('UserDetails', omit(args, 'source', 'isLoading', 'error', 'userId'), {
+            template: tpl('UserDetails', omit(args, 'source', 'isLoading', 'error', 'userId', 'status'), {
+              defaults: {administrationMode: 'native'},
               extra: [`user-id="${str(args, 'userId') || SAMPLE_USERS[0].id}"`, '@deleted="handleDeleted"'],
             }),
           }
         : {
             imports: [
+              ...(bool(args, 'lifecycleActions') ? ['AccountLifecycleAction'] : []),
               'BaseUserDetails',
               'getUser',
               'getUserGroups',
@@ -660,6 +675,9 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                 ? ['const handleUpdate = (attributes: Record<string, unknown>): void => {};']
                 : []),
               ...(bool(args, 'deletable') ? handler('handleDelete') : []),
+              ...(bool(args, 'lifecycleActions')
+                ? ['const handleLifecycleAction = (action: AccountLifecycleAction, operatorNote?: string): void => {};']
+                : []),
             ],
             template: tpl(
               'BaseUserDetails',
@@ -671,6 +689,9 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                   ':is-loading="isLoading"',
                   ...(bool(args, 'editable') ? ['@update="handleUpdate"'] : []),
                   ...(bool(args, 'deletable') ? ['@delete="handleDelete"'] : []),
+                  ...(bool(args, 'lifecycleActions')
+                    ? [`:lifecycle-actions="['unlock', 'suspend']"`, '@lifecycle-action="handleLifecycleAction"']
+                    : []),
                 ],
               },
             ),
@@ -685,10 +706,38 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
         name: 'deletable',
         type: 'boolean',
       },
+      {
+        control: 'bool',
+        description: 'Offers suspend, unsuspend and unlock through the configured administration flows.',
+        name: 'lifecycleActions',
+        type: 'boolean',
+      },
+      {
+        control: ['ACTIVE', 'LOCKED', 'SUSPENDED'],
+        description: "The sample user's access status, which decides the lifecycle actions offered (base only).",
+        name: 'status',
+        type: "'ACTIVE' | 'LOCKED' | 'SUSPENDED'",
+      },
+      {
+        control: ['native', 'flow'],
+        description: 'How the delete runs: the management API, or the configured user deletion flow (live only).',
+        name: 'administrationMode',
+        type: "'native' | 'flow'",
+      },
       idControl('userId', 'user'),
       ...baseStateControls,
     ],
-    defaults: {deletable: true, editable: true, error: '', isLoading: false, source: 'base', userId: ''},
+    defaults: {
+      administrationMode: 'native',
+      deletable: true,
+      editable: true,
+      error: '',
+      isLoading: false,
+      lifecycleActions: true,
+      source: 'base',
+      status: 'LOCKED',
+      userId: '',
+    },
     group: 'Admin',
     id: 'userdetails',
     live: true,
@@ -704,9 +753,11 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               query: () => useApiQuery(() => getUsers({...useManagementRequestConfig('users'), limit: 1})),
               render: (userId: string): VNode =>
                 h(UserDetails, {
+                  administrationMode: str(args, 'administrationMode') as AdministrationMode,
                   deletable: bool(args, 'deletable'),
                   editable: bool(args, 'editable'),
                   key: userId,
+                  lifecycleActions: bool(args, 'lifecycleActions'),
                   onDeleted: () => action('deleted', quoted(userId)),
                   userId,
                 }),
@@ -715,18 +766,29 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               error: str(args, 'error') || null,
               groups: SAMPLE_MEMBERSHIPS,
               isLoading: bool(args, 'isLoading'),
+              lifecycleActions: getAccountLifecycleActions(
+                'user',
+                str(args, 'status') as AccessStatusValue,
+                ALL_USER_LIFECYCLE_FLOWS,
+              ),
               onDelete: bool(args, 'deletable') ? (): void => action('delete', quoted(SAMPLE_USERS[0].id)) : undefined,
+              onLifecycleAction: bool(args, 'lifecycleActions')
+                ? (lifecycleAction: AccountLifecycleAction, operatorNote?: string): void =>
+                    action('lifecycle-action', operatorNote ? `${lifecycleAction}: ${operatorNote}` : lifecycleAction)
+                : undefined,
               onUpdate: bool(args, 'editable')
                 ? (attributes: Record<string, unknown>): void => action('update', JSON.stringify(attributes))
                 : undefined,
-              user: SAMPLE_USERS[0],
+              user: {...SAMPLE_USERS[0], status: {value: str(args, 'status') as AccessStatusValue}},
             }),
       ),
     stories: [
       {id: 'base', name: 'Sample user'},
-      {args: {deletable: false, editable: false}, id: 'readonly', name: 'Read only'},
+      {args: {deletable: false, editable: false, lifecycleActions: false}, id: 'readonly', name: 'Read only'},
+      {args: {status: 'SUSPENDED'}, id: 'suspended', name: 'Suspended'},
       {args: {isLoading: true}, id: 'loading', name: 'Loading'},
       {args: {source: 'live'}, id: 'live', name: 'Live (first user)'},
+      {args: {administrationMode: 'flow', source: 'live'}, id: 'live-flows', name: 'Live through administration flows'},
     ],
   },
   listStory({
