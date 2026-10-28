@@ -2,25 +2,41 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  resolveManagedIdentityName,
-  toManagementErrorMessage,
+  AgentListResponse,
+  AgentQueryKeys,
   BasicAgent,
   Group,
+  GroupListResponse,
+  GroupQueryKeys,
   ManagedUser,
+  ManagedUserListResponse,
   RoleAssigneeType,
   RoleAssignment,
   RoleAssignmentInput,
+  RoleAssignmentListResponse,
+  RoleQueryKeys,
+  UserQueryKeys,
+  addRoleAssignments,
+  getAgents,
+  getGroups,
+  getRoleAssignments,
+  getUsers,
+  removeRoleAssignments,
+  resolveManagedIdentityName,
+  toManagementErrorMessage,
 } from '@thunderid/browser';
 import {FC, ReactElement, useMemo, useState} from 'react';
 import BaseRoleAssignments, {BaseRoleAssignmentsProps} from './BaseRoleAssignments';
-import useGetAgents from '../../../hooks/management/agents/useGetAgents';
-import useGetGroups from '../../../hooks/management/groups/useGetGroups';
-import useAddRoleAssignments from '../../../hooks/management/roles/useAddRoleAssignments';
-import useGetRoleAssignments from '../../../hooks/management/roles/useGetRoleAssignments';
-import useRemoveRoleAssignments from '../../../hooks/management/roles/useRemoveRoleAssignments';
-import useGetUsers from '../../../hooks/management/users/useGetUsers';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceMutation, {ResourceMutationResult} from '../../../hooks/management/useResourceMutation';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
 import {IdentityCandidate} from '../shared/IdentityPicker';
+
+interface RoleAssignmentsVariables {
+  assignments: RoleAssignmentInput[];
+  roleId: string;
+}
 
 export type RoleAssignmentsProps = Omit<
   BaseRoleAssignmentsProps,
@@ -65,12 +81,41 @@ const RoleAssignments: FC<RoleAssignmentsProps> = ({
 }: RoleAssignmentsProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
   const [typeFilter, setTypeFilter] = useState<RoleAssigneeType | null>(null);
-  const assignments = useGetRoleAssignments(roleId, {limit: 100, type: typeFilter ?? undefined});
-  const users = useGetUsers({limit: 100}, {enabled: editable});
-  const groups = useGetGroups({limit: 100}, {enabled: editable});
-  const agents = useGetAgents({limit: 100}, {enabled: editable});
-  const assign = useAddRoleAssignments();
-  const unassign = useRemoveRoleAssignments();
+  const rolesEndpoint: ManagementEndpoint = useManagementEndpoint('roles');
+  const usersEndpoint: ManagementEndpoint = useManagementEndpoint('users');
+  const groupsEndpoint: ManagementEndpoint = useManagementEndpoint('groups');
+  const agentsEndpoint: ManagementEndpoint = useManagementEndpoint('agents');
+  const type: RoleAssigneeType | undefined = typeFilter ?? undefined;
+  const assignments: ResourceQueryResult<RoleAssignmentListResponse> = useResourceQuery(
+    [RoleQueryKeys.ROLE_ASSIGNMENTS, roleId, {limit: 100, type}],
+    (fetcher) => getRoleAssignments({...rolesEndpoint, fetcher, limit: 100, roleId, type}),
+    {enabled: Boolean(roleId)},
+  );
+  const users: ResourceQueryResult<ManagedUserListResponse> = useResourceQuery(
+    [UserQueryKeys.USERS, {limit: 100}],
+    (fetcher) => getUsers({...usersEndpoint, fetcher, limit: 100}),
+    {enabled: editable},
+  );
+  const groups: ResourceQueryResult<GroupListResponse> = useResourceQuery(
+    [GroupQueryKeys.GROUPS, {limit: 100}],
+    (fetcher) => getGroups({...groupsEndpoint, fetcher, limit: 100}),
+    {enabled: editable},
+  );
+  const agents: ResourceQueryResult<AgentListResponse> = useResourceQuery(
+    [AgentQueryKeys.AGENTS, {limit: 100}],
+    (fetcher) => getAgents({...agentsEndpoint, fetcher, limit: 100}),
+    {enabled: editable},
+  );
+  const assign: ResourceMutationResult<void, RoleAssignmentsVariables> = useResourceMutation(
+    ({assignments: changes, roleId: id}: RoleAssignmentsVariables, fetcher) =>
+      addRoleAssignments({...rolesEndpoint, assignments: changes, fetcher, roleId: id}),
+    () => [[RoleQueryKeys.ROLE_ASSIGNMENTS]],
+  );
+  const unassign: ResourceMutationResult<void, RoleAssignmentsVariables> = useResourceMutation(
+    ({assignments: changes, roleId: id}: RoleAssignmentsVariables, fetcher) =>
+      removeRoleAssignments({...rolesEndpoint, assignments: changes, fetcher, roleId: id}),
+    () => [[RoleQueryKeys.ROLE_ASSIGNMENTS]],
+  );
 
   const candidates: Partial<Record<'user' | 'group' | 'agent', IdentityCandidate[]>> = useMemo(
     () => ({

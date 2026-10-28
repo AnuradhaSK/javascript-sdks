@@ -110,7 +110,7 @@ describe('management API', () => {
       'getUserTypes',
       (fetcher: ApiFetcher) => getUserTypes({baseUrl, fetcher, limit: 30, offset: 30}),
       'GET',
-      `${baseUrl}/user-types?limit=30&offset=30`,
+      `${baseUrl}/user-types?include=display&limit=30&offset=30`,
     ],
   ])('%s sends the expected request', async (_name: string, run: Run, method: string, url: string) => {
     const fetcher: FetcherMock = createFetcher();
@@ -169,7 +169,7 @@ describe('management API', () => {
     [
       'getUserTypes',
       (fetcher: ApiFetcher) => getUserTypes({fetcher, limit: 10, url: 'https://rs.example.com/user-types'}),
-      'https://rs.example.com/user-types?limit=10',
+      'https://rs.example.com/user-types?include=display&limit=10',
     ],
   ])('%s uses the collection URL override instead of the base URL', async (_name: string, run: Run, url: string) => {
     const fetcher: FetcherMock = createFetcher();

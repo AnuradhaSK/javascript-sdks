@@ -2,7 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import ThunderIDError from './ThunderIDError';
+import {ServerError} from '../models/api';
 import parseApiErrorMessage from '../utils/parseApiErrorMessage';
+
+/**
+ * Reads the server's error envelope from a raw response body, when the body is one.
+ */
+const parseServerError = (body: string): ServerError | undefined => {
+  try {
+    const parsed: unknown = JSON.parse(body);
+
+    if (parsed && typeof parsed === 'object' && typeof (parsed as ServerError).code === 'string') {
+      return parsed as ServerError;
+    }
+  } catch {
+    // Not JSON: there is no envelope to read.
+  }
+
+  return undefined;
+};
 
 /**
  * Base class for all API-related errors in ThunderID. This class extends ThunderIDError
@@ -35,6 +53,13 @@ export default class ThunderIDAPIError extends ThunderIDError {
    * @param prefix - Optional prefix prepended to the resolved message
    * @constructor
    */
+  /**
+   * The error the server returned, when its response body was an error envelope: the server's own
+   * error code, and its message and description with their translation keys and parameters. Use it to
+   * show a message specific to the server's code.
+   */
+  public readonly serverError?: ServerError;
+
   constructor(
     message: string,
     code: string,
@@ -46,6 +71,8 @@ export default class ThunderIDAPIError extends ThunderIDError {
     const parsed: string = parseApiErrorMessage(message);
     const resolvedMessage: string = prefix ? `${prefix}: ${parsed}` : parsed;
     super(resolvedMessage, code, origin);
+
+    this.serverError = parseServerError(message);
 
     Object.defineProperty(this, 'name', {
       configurable: true,

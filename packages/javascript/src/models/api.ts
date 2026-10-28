@@ -61,3 +61,25 @@ export interface ApiError {
   description: string;
   message: string;
 }
+
+/**
+ * A localizable message in a server error: its translation key, its English text, and the values its
+ * placeholders take.
+ */
+export interface ServerErrorMessage {
+  defaultValue?: string;
+  key?: string;
+  params?: Record<string, string>;
+}
+
+/**
+ * The error envelope the ThunderID server returns with a failed request.
+ */
+export interface ServerError {
+  /**
+   * The server's error code, such as `USR-1027`.
+   */
+  code: string;
+  description?: ServerErrorMessage;
+  message?: ServerErrorMessage;
+}

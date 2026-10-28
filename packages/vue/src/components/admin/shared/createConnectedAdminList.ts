@@ -48,7 +48,7 @@ export interface ConnectedAdminListDefinition<TData, TRow> {
 }
 
 /**
- * Creates a list that fetches its own pages through a management composable and renders the given
+ * Creates a list that fetches its own pages through `useResourceQuery` and renders the given
  * presentational list. Server errors are mapped to translated messages; raw server text is never shown.
  *
  * @param definition - What the list fetches and renders.

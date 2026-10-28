@@ -2,22 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  getAgents,
+  getApplications,
+  getUsers,
+  type ManagementRequestConfig,
   useFlow,
-  useGetAgents,
-  useGetApplications,
-  useGetUsers,
   useI18n,
+  useManagementRequestConfig,
   useTheme,
   useThunderID,
   useTranslation,
   useUser,
 } from '@thunderid/react';
 import {ReactElement, useState} from 'react';
-import ManagementHooks from './ManagementHooks';
+import ManagementApi from './ManagementApi';
 import EventLog from '../components/EventLog';
 import {HookCard, QueryCard} from '../components/HookCard';
 import {describeError, track} from '../lib/events';
 import {sdkSignIn, sdkSignOut} from '../lib/sdk';
+import useApiQuery from '../lib/useApiQuery';
 
 const Hooks = (): ReactElement => {
   const sdk = useThunderID();
@@ -26,9 +29,12 @@ const Hooks = (): ReactElement => {
   const theme = useTheme();
   const flow = useFlow();
   const {t} = useTranslation();
-  const users = useGetUsers({limit: 5}, {enabled: false});
-  const applications = useGetApplications({limit: 5}, {enabled: false});
-  const agents = useGetAgents({limit: 5}, {enabled: false});
+  const usersConfig: ManagementRequestConfig = useManagementRequestConfig('users');
+  const applicationsConfig: ManagementRequestConfig = useManagementRequestConfig('applications');
+  const agentsConfig: ManagementRequestConfig = useManagementRequestConfig('agents');
+  const users = useApiQuery(() => getUsers({...usersConfig, limit: 5}), {enabled: false});
+  const applications = useApiQuery(() => getApplications({...applicationsConfig, limit: 5}), {enabled: false});
+  const agents = useApiQuery(() => getAgents({...agentsConfig, limit: 5}), {enabled: false});
   const [error, setError] = useState<string | null>(null);
 
   const call = (label: string, run: () => Promise<unknown>): void => {
@@ -44,7 +50,8 @@ const Hooks = (): ReactElement => {
         <div>
           <h1>Hooks</h1>
           <p>
-            Live values from every hook <span className="pg-accent">@thunderid/react</span> exposes. Functions are shown
+            Live values from every hook <span className="pg-accent">@thunderid/react</span> exposes, then the management
+            API functions called with <span className="pg-mono">useManagementRequestConfig</span>. Functions are shown
             as signatures; use the buttons to call them.
           </p>
         </div>
@@ -155,10 +162,10 @@ const Hooks = (): ReactElement => {
           signature="FlowContextValue: current step, title, messages for embedded flows"
           value={flow}
         />
-        <QueryCard name="useGetUsers()" query={users} />
-        <QueryCard name="useGetApplications()" query={applications} />
-        <QueryCard name="useGetAgents()" query={agents} />
-        <ManagementHooks agents={agents.data} />
+        <QueryCard name="getUsers()" query={users} />
+        <QueryCard name="getApplications()" query={applications} />
+        <QueryCard name="getAgents()" query={agents} />
+        <ManagementApi agents={agents.data} />
         <EventLog />
       </div>
     </main>

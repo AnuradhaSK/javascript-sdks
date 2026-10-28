@@ -1,10 +1,11 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {Role, RoleQueryKeys, getRole, toManagementErrorMessage} from '@thunderid/browser';
 import {FC, ReactElement} from 'react';
 import BaseRolePermissions, {BaseRolePermissionsProps} from './BaseRolePermissions';
-import useGetRole from '../../../hooks/management/roles/useGetRole';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
 
 export type RolePermissionsProps = Omit<BaseRolePermissionsProps, 'error' | 'isLoading' | 'permissions'> & {
@@ -25,7 +26,12 @@ const RolePermissions: FC<RolePermissionsProps> = ({
   ...rest
 }: RolePermissionsProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
-  const role = useGetRole(roleId);
+  const endpoint: ManagementEndpoint = useManagementEndpoint('roles');
+  const role: ResourceQueryResult<Role> = useResourceQuery(
+    [RoleQueryKeys.ROLE, roleId],
+    (fetcher) => getRole({...endpoint, fetcher, roleId}),
+    {enabled: Boolean(roleId)},
+  );
 
   return (
     <BaseRolePermissions

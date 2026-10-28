@@ -5,7 +5,9 @@
 /* eslint-disable vue/one-component-per-file */
 
 import type {
+  Application,
   BasicAgent,
+  BasicApplication,
   Group,
   GroupMember,
   ManagedUser,
@@ -23,9 +25,15 @@ import {
   AgentCreate,
   AgentDetails,
   AgentList,
+  ApplicationCreate,
+  ApplicationDetails,
+  ApplicationList,
   BaseAgentCreate,
   BaseAgentDetails,
   BaseAgentList,
+  BaseApplicationCreate,
+  BaseApplicationDetails,
+  BaseApplicationList,
   BaseGroupCreate,
   BaseGroupList,
   BaseGroupMembers,
@@ -147,6 +155,42 @@ const SAMPLE_AGENTS: BasicAgent[] = [
   {clientId: 'agt_triage', id: 'agt_2', name: 'Ticket triage', ouHandle: 'acme', ouId: 'ou_acme', type: 'worker'},
   {clientId: 'agt_reports', id: 'agt_3', name: 'Report builder', ouHandle: 'acme', ouId: 'ou_acme', type: 'worker'},
 ];
+
+const SAMPLE_APPLICATIONS: BasicApplication[] = [
+  {clientId: 'portal-web', id: 'app_portal', name: 'Customer portal', template: 'browser'},
+  {clientId: 'billing-api', id: 'app_billing', name: 'Billing service', template: 'm2m'},
+  {clientId: 'acme-mobile', id: 'app_mobile', name: 'Acme mobile', template: 'mobile'},
+];
+
+const SAMPLE_APPLICATION: Application = {
+  description: 'Self-service portal for customers',
+  id: 'app_portal',
+  inboundAuthConfig: [
+    {
+      config: {
+        clientId: 'portal-web',
+        grantTypes: ['authorization_code', 'refresh_token'],
+        redirectUris: ['https://portal.acme.io/callback'],
+        responseTypes: ['code'],
+      },
+      type: 'oauth2',
+    },
+  ],
+  name: 'Customer portal',
+  ouId: 'ou_acme',
+  template: 'browser',
+  url: 'https://portal.acme.io',
+};
+
+/** A secret shown in the "secret shown once" stories. Sample only, never a real credential. */
+const SAMPLE_SECRET = 'sample-secret-5f1c9e2a';
+
+const SHOW_SECRET: PropControl = {
+  control: 'bool',
+  description: 'Passes clientSecret, the secret shown once (base only).',
+  name: 'showSecret',
+  type: 'boolean',
+};
 
 const SAMPLE_MEMBERSHIPS: MembershipGroup[] = [
   {id: 'grp_eng', name: 'Engineering', ouId: 'ou_acme'},
@@ -691,6 +735,52 @@ const ribbonCard = (child: VNode): VNode =>
     [h('div', {style: {padding: '20px'}}, [h(Button, {variant: 'outline'}, {default: () => 'Sign in'})]), child],
   );
 
+/**
+ * The details story with its actions on for the sample application too, plus a read-only story.
+ */
+const applicationDetailsDef = (spec: DetailsSpec): ComponentDef => {
+  const def: ComponentDef = detailsDef(spec);
+
+  return {
+    ...def,
+    controls: def.controls.map((control: PropControl) =>
+      spec.liveFlags.includes(control.name)
+        ? {
+            ...control,
+            description: `Turns on ${control.name} actions (onUpdate, onDelete, onRegenerateSecret on the base).`,
+          }
+        : control,
+    ),
+    defaults: {...def.defaults, ...Object.fromEntries(spec.liveFlags.map((flag: string) => [flag, true]))},
+    stories: [
+      def.stories[0],
+      {
+        args: Object.fromEntries(spec.liveFlags.map((flag: string) => [flag, false])),
+        id: 'readonly',
+        name: 'Read only',
+      },
+      ...def.stories.slice(1),
+    ],
+  };
+};
+
+/**
+ * Adds the "client secret shown once" control and story to an application create or details story,
+ * whose base variant `renderBase` draws with the secret.
+ */
+const withSecretStory = (
+  def: ComponentDef,
+  storyName: string,
+  renderBase: (args: Args, action: Action, clientSecret: string | null) => VNode,
+): ComponentDef => ({
+  ...def,
+  controls: [...def.controls, SHOW_SECRET],
+  defaults: {...def.defaults, showSecret: false},
+  render: (args: Args, action: Action) =>
+    isLive(args) ? def.render(args, action) : renderBase(args, action, bool(args, 'showSecret') ? SAMPLE_SECRET : null),
+  stories: [def.stories[0], {args: {showSecret: true}, id: 'secret', name: storyName}, ...def.stories.slice(1)],
+});
+
 const sampleDetailsScript = (name: string, value: unknown): string[] => [
   `const ${name} = ref(${literal(value)});`,
   `const groups = ref(${literal(SAMPLE_MEMBERSHIPS.slice(0, 1))});`,
@@ -971,4 +1061,72 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     liveFlags: ['deletable'],
     name: 'AgentDetails',
   }),
+  listDef({
+    base: BaseApplicationList,
+    id: 'applicationlist',
+    live: ApplicationList,
+    name: 'ApplicationList',
+    rows: SAMPLE_APPLICATIONS,
+    rowsProp: 'applications',
+    selectedProp: 'selectedApplicationId',
+  }),
+  withSecretStory(
+    createDef({
+      base: BaseApplicationCreate,
+      baseExtra: [':client-secret="clientSecret"', '@secret-dismiss="clientSecret = null"'],
+      baseScript: ['// Set from the created application, then cleared once copied.', 'const clientSecret = ref(null);'],
+      id: 'applicationcreate',
+      live: ApplicationCreate,
+      name: 'ApplicationCreate',
+    }),
+    'Client secret shown once',
+    (args: Args, action: Action, clientSecret: string | null) =>
+      narrow(
+        480,
+        h(BaseApplicationCreate, {
+          clientSecret,
+          error: optional(args, 'error') ?? null,
+          isSubmitting: bool(args, 'isSubmitting'),
+          onCancel: () => action('cancel'),
+          onSecretDismiss: () => action('secretDismiss'),
+          onSubmit: (submission: unknown) => action('submit', JSON.stringify(submission)),
+          title: optional(args, 'title'),
+        }),
+      ),
+  ),
+  withSecretStory(
+    applicationDetailsDef({
+      base: BaseApplicationDetails,
+      baseExtra: [
+        ':application="application"',
+        ':client-secret="clientSecret"',
+        '@update="handleUpdate"',
+        '@regenerate-secret="handleRegenerateSecret"',
+        '@secret-dismiss="clientSecret = null"',
+      ],
+      baseProps: {application: SAMPLE_APPLICATION},
+      baseScript: [`const application = ref(${literal(SAMPLE_APPLICATION)});`, 'const clientSecret = ref(null);'],
+      id: 'applicationdetails',
+      idProp: 'applicationId',
+      live: ApplicationDetails,
+      liveFlags: ['editable', 'deletable', 'secretRegenerable'],
+      name: 'ApplicationDetails',
+    }),
+    'Regenerated secret',
+    (args: Args, action: Action, clientSecret: string | null) =>
+      narrow(
+        560,
+        h(BaseApplicationDetails, {
+          ...stateProps(args),
+          application: SAMPLE_APPLICATION,
+          clientSecret,
+          onDelete: bool(args, 'deletable') ? () => action('delete') : undefined,
+          onRegenerateSecret: bool(args, 'secretRegenerable') ? () => action('regenerateSecret') : undefined,
+          onSecretDismiss: () => action('secretDismiss'),
+          onUpdate: bool(args, 'editable')
+            ? (changes: unknown) => action('update', JSON.stringify(changes))
+            : undefined,
+        }),
+      ),
+  ),
 ];

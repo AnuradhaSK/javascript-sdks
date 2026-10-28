@@ -56,9 +56,9 @@ export interface ThunderIDContext {
   // ── HTTP ──
   http: {
     /**
-     * Transport supplied through `ThunderIDProvider`'s `http.fetcher` prop, used by the management
-     * composables (`useGetUsers`, `useCreateGroup`, and so on) only. A `fetcher` passed to an
-     * individual composable takes precedence over it.
+     * Transport supplied through `ThunderIDProvider`'s `http.fetcher` prop, used for management
+     * operations only: by the admin components (`UserList`, `GroupCreate`, and so on) and by
+     * `useManagementRequestConfig`.
      */
     fetcher?: ApiFetcher;
     request: (requestConfig?: HttpRequestConfig) => Promise<HttpResponse<any>>;

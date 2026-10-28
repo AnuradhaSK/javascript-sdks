@@ -30,7 +30,7 @@ const getUserTypes = async ({limit, offset, ...config}: GetUserTypesConfig): Pro
     failureMessage: 'Failed to fetch user types',
     method: 'GET',
     operation: 'getUserTypes',
-    query: {limit, offset},
+    query: {include: 'display', limit, offset},
   });
 
 export default getUserTypes;

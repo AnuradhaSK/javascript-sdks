@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {createResourceInvalidator} from '@thunderid/browser';
+import {type ResourceInvalidator, createResourceInvalidator} from '@thunderid/browser';
 import {getDefaultI18nBundles, substituteTranslationParams} from '@thunderid/browser';
 import {type Mock, vi} from 'vitest';
 import {ref} from 'vue';
@@ -17,7 +17,7 @@ export const jsonResponse = (data: unknown, status = 200): Response =>
     text: () => Promise.resolve(JSON.stringify(data)),
   }) as Response;
 
-/** The transport the management composables call, mocked. */
+/** The transport the management API functions call, mocked. */
 export type MockFetcher = Mock<(url: string, init: RequestInit) => Promise<Response>>;
 
 export const translate = (key: string, params?: Record<string, string | number>): string => {
@@ -31,11 +31,11 @@ export const translate = (key: string, params?: Record<string, string | number>)
 export interface ManagementTestContext {
   fetcher: MockFetcher;
   provide: Record<symbol, unknown>;
-  thunderID: {getAccessToken: Mock<() => Promise<string>>};
+  thunderID: {getAccessToken: Mock<() => Promise<string>>; invalidator: ResourceInvalidator};
 }
 
 /**
- * Builds the injected contexts the management composables and admin components read, with a mock
+ * Builds the injected contexts the management query layer and admin components read, with a mock
  * `fetcher` standing in for the network.
  */
 export const createManagementContext = ({

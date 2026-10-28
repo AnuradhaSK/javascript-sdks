@@ -137,10 +137,10 @@ const ThunderIDProvider: Component = defineComponent({
     },
     /** Instance ID for multi-instance support. */
     /**
-     * HTTP options. `http.fetcher` is the transport used by the management composables
-     * (`useGetUsers`, `useCreateGroup`, and so on) and applies to management operations only.
+     * HTTP options. `http.fetcher` is the transport used for management operations only: by the
+     * admin components (`UserList`, `GroupCreate`, and so on) and by `useManagementRequestConfig`.
      * Defaults to the SDK's authenticated HTTP client, which attaches the signed-in user's access
-     * token. A `fetcher` passed to an individual composable takes precedence over this one.
+     * token.
      */
     http: {
       default: undefined,

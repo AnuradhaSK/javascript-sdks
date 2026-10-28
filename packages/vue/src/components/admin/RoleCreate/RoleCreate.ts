@@ -1,12 +1,12 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {RoleQueryKeys, createRole, toManagementErrorMessage} from '@thunderid/browser';
 import type {Role, CreateRoleRequest} from '@thunderid/browser';
 import {type Component, type ComputedRef, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import BaseRoleCreate, {type RoleCreateSubmission} from './BaseRoleCreate';
-import useCreateRole from '../../../composables/management/roles/useCreateRole';
-import type {ResourceMutationResult} from '../../../composables/management/useResourceMutation';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
 import {type AdminFormProps, adminFormProps} from '../shared/adminFormProps';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 import useDefaultOuId from '../shared/useDefaultOuId';
@@ -40,9 +40,12 @@ const RoleCreate: Component = defineComponent({
   setup(props: RoleCreateProps, {emit, slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
     const resolvedOuId: ComputedRef<string | undefined> = useDefaultOuId(() => props.ouId);
-    const creation: ResourceMutationResult<Role, CreateRoleRequest> = useCreateRole({
-      onSuccess: (created: Role): void => emit('created', created),
-    });
+    const endpoint: ManagementEndpoint = useManagementEndpoint('roles');
+    const creation: ResourceMutationResult<Role, CreateRoleRequest> = useResourceMutation(
+      (payload: CreateRoleRequest, fetcher) => createRole({...endpoint, fetcher, payload}),
+      () => [[RoleQueryKeys.ROLES], [RoleQueryKeys.ROLE_ASSIGNMENTS]],
+      {onSuccess: (created: Role): void => emit('created', created)},
+    );
 
     const handleSubmit = ({description, name}: RoleCreateSubmission): void => {
       if (resolvedOuId.value) {

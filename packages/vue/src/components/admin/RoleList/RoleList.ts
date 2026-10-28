@@ -1,10 +1,12 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {RoleQueryKeys, getRoles} from '@thunderid/browser';
 import type {RoleListResponse, RoleSummary} from '@thunderid/browser';
 import type {Component} from 'vue';
 import BaseRoleList from './BaseRoleList';
-import useGetRoles from '../../../composables/management/roles/useGetRoles';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import createConnectedAdminList from '../shared/createConnectedAdminList';
 
 /**
@@ -23,7 +25,22 @@ const RoleList: Component = createConnectedAdminList<RoleListResponse, RoleSumma
   base: BaseRoleList,
   errorKey: 'admin.roles.list.error',
   name: 'RoleList',
-  query: (params: () => Record<string, unknown>) => useGetRoles(() => params() as {limit?: number; offset?: number}),
+  query: (params: () => Record<string, unknown>): ResourceQueryResult<RoleListResponse> => {
+    const endpoint: ManagementEndpoint = useManagementEndpoint('roles');
+
+    return useResourceQuery(
+      () => {
+        const {limit, offset} = params() as {limit?: number; offset?: number};
+
+        return [RoleQueryKeys.ROLES, {limit, offset}];
+      },
+      (fetcher) => {
+        const {limit, offset} = params() as {limit?: number; offset?: number};
+
+        return getRoles({...endpoint, fetcher, limit, offset});
+      },
+    );
+  },
   rows: (data: RoleListResponse | undefined) => data?.roles ?? [],
   rowsProp: 'roles',
   selectedProp: 'selectedRoleId',

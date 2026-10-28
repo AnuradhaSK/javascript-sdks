@@ -1,10 +1,12 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {UserQueryKeys, getUsers} from '@thunderid/browser';
 import type {ApiFilteringParams, ManagedUser, ManagedUserListResponse} from '@thunderid/browser';
 import type {Component} from 'vue';
 import BaseUserList from './BaseUserList';
-import useGetUsers from '../../../composables/management/users/useGetUsers';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import createConnectedAdminList from '../shared/createConnectedAdminList';
 import type {AdminTranslate} from '../shared/useAdminTranslation';
 
@@ -26,7 +28,22 @@ const UserList: Component = createConnectedAdminList<ManagedUserListResponse, Ma
   errorKey: 'admin.users.list.error',
   extraProps: {filter: {default: undefined, type: String}},
   name: 'UserList',
-  query: (params: () => Record<string, unknown>) => useGetUsers(() => params() as ApiFilteringParams),
+  query: (params: () => Record<string, unknown>): ResourceQueryResult<ManagedUserListResponse> => {
+    const endpoint: ManagementEndpoint = useManagementEndpoint('users');
+
+    return useResourceQuery(
+      () => {
+        const {filter, limit, offset} = params() as ApiFilteringParams;
+
+        return [UserQueryKeys.USERS, {filter, limit, offset}];
+      },
+      (fetcher) => {
+        const {filter, limit, offset} = params() as ApiFilteringParams;
+
+        return getUsers({...endpoint, fetcher, filter, limit, offset});
+      },
+    );
+  },
   rows: (data: ManagedUserListResponse | undefined) => data?.users ?? [],
   rowsProp: 'users',
   searchAttributes: (t: AdminTranslate) => [

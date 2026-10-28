@@ -27,7 +27,7 @@ const getAgentTypes = async ({limit, offset, ...config}: GetAgentTypesConfig): P
     failureMessage: 'Failed to fetch agent types',
     method: 'GET',
     operation: 'getAgentTypes',
-    query: {limit, offset},
+    query: {include: 'display', limit, offset},
   });
 
 export default getAgentTypes;

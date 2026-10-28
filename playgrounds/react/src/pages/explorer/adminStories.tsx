@@ -6,10 +6,19 @@ import {
   AgentCreate,
   AgentDetails,
   AgentList,
+  type Application,
+  ApplicationCreate,
+  type ApplicationCreateSubmission,
+  ApplicationDetails,
+  ApplicationList,
+  type ApplicationUpdateSubmission,
   Attribution,
   BaseAgentCreate,
   BaseAgentDetails,
   BaseAgentList,
+  BaseApplicationCreate,
+  BaseApplicationDetails,
+  BaseApplicationList,
   BaseGroupCreate,
   BaseGroupList,
   BaseRoleCreate,
@@ -19,6 +28,7 @@ import {
   BaseUserDetails,
   BaseUserList,
   type BasicAgent,
+  type BasicApplication,
   Card,
   type Group,
   GroupCreate,
@@ -39,6 +49,8 @@ import {
   RESOURCE_SERVER_NAMES,
   SAMPLE_AGENT,
   SAMPLE_AGENTS,
+  SAMPLE_APPLICATION,
+  SAMPLE_APPLICATIONS,
   SAMPLE_GROUPS,
   SAMPLE_MEMBERSHIPS,
   SAMPLE_PERMISSIONS,
@@ -1026,6 +1038,215 @@ const STORIES: ComponentDef[] = [
       {id: 'base', name: 'Sample agent'},
       {args: {isLoading: true}, id: 'loading', name: 'Loading'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs agentId)'},
+    ],
+  },
+  {
+    code: (args: Args) => listCode(args, 'ApplicationList', 'applications', 'selectedApplicationId'),
+    controls: LIST_CONTROLS,
+    defaults: LIST_DEFAULTS,
+    group: 'Admin: applications',
+    id: 'applicationlist',
+    live: true,
+    name: 'ApplicationList',
+    render: (args: Args, action: Action) =>
+      isLive(args) ? (
+        <Narrow width={720}>
+          <ApplicationList {...liveListProps(args, action)} />
+        </Narrow>
+      ) : (
+        <Paged<BasicApplication>
+          args={args}
+          action={action}
+          rows={SAMPLE_APPLICATIONS}
+          getId={(application: BasicApplication) => application.id}
+          render={({offset, onPageChange, onSelect, rows, selectedId, total}) => (
+            <BaseApplicationList
+              {...baseListProps(args)}
+              applications={rows}
+              totalResults={total}
+              offset={offset}
+              onPageChange={onPageChange}
+              onSelect={onSelect}
+              selectedApplicationId={selectedId}
+            />
+          )}
+        />
+      ),
+    stories: listStories('Live (GET /applications)'),
+  },
+  {
+    code: (args: Args) =>
+      isLive(args)
+        ? {
+            imports: ['ApplicationCreate'],
+            jsx: jsx('ApplicationCreate', pick(args, 'title', 'ouId'), {extra: ['onCreated={handleCreated}']}),
+          }
+        : {
+            imports: ['BaseApplicationCreate'],
+            jsx: jsx('BaseApplicationCreate', pick(args, 'title', 'isSubmitting', 'error'), {
+              extra: [
+                'onSubmit={handleSubmit}',
+                'onCancel={close}',
+                ...(bool(args, 'showSecret') ? ['clientSecret={createdSecret}', 'onSecretDismiss={clearSecret}'] : []),
+              ],
+            }),
+          },
+    controls: [
+      SOURCE_CONTROL,
+      TITLE,
+      {
+        control: 'bool',
+        description: 'Base only: disables the form while saving.',
+        name: 'isSubmitting',
+        type: 'boolean',
+      },
+      ERROR,
+      {
+        control: 'bool',
+        description: 'Base only: passes clientSecret, which shows the secret once in place of the form.',
+        name: 'showSecret',
+        type: 'string | null',
+      },
+      OU_ID,
+    ],
+    defaults: {error: '', isSubmitting: false, ouId: '', showSecret: false, source: 'base', title: ''},
+    group: 'Admin: applications',
+    id: 'applicationcreate',
+    live: true,
+    name: 'ApplicationCreate',
+    render: (args: Args, action: Action) => (
+      <Narrow width={480}>
+        {isLive(args) ? (
+          <ApplicationCreate
+            title={str(args, 'title') || undefined}
+            ouId={str(args, 'ouId') || undefined}
+            onCreated={(application: Application) => action('onCreated', application.id)}
+            onCancel={() => action('onCancel')}
+          />
+        ) : (
+          <BaseApplicationCreate
+            title={str(args, 'title') || undefined}
+            isSubmitting={bool(args, 'isSubmitting')}
+            error={str(args, 'error') || null}
+            clientSecret={bool(args, 'showSecret') ? 'sample-client-secret-1f9c' : null}
+            onSecretDismiss={() => action('onSecretDismiss')}
+            onSubmit={(application: ApplicationCreateSubmission) => action('onSubmit', JSON.stringify(application))}
+            onCancel={() => action('onCancel')}
+          />
+        )}
+      </Narrow>
+    ),
+    stories: [
+      {id: 'base', name: 'Empty form'},
+      {args: {showSecret: true}, id: 'secret', name: 'Client secret shown once'},
+      {args: {error: 'An application with this name already exists.'}, id: 'error', name: 'Error'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (POST /applications)'},
+    ],
+  },
+  {
+    code: (args: Args) =>
+      isLive(args)
+        ? {
+            imports: ['ApplicationDetails'],
+            jsx: jsx('ApplicationDetails', pick(args, 'applicationId', 'editable', 'deletable', 'secretRegenerable'), {
+              extra: ['onDeleted={backToList}'],
+            }),
+          }
+        : {
+            imports: ['BaseApplicationDetails'],
+            jsx: jsx('BaseApplicationDetails', pick(args, 'isLoading', 'error'), {
+              extra: [
+                'application={application}',
+                ...(bool(args, 'editable') ? ['onUpdate={saveApplication}'] : []),
+                ...(bool(args, 'deletable') ? ['onDelete={deleteApplication}'] : []),
+                ...(bool(args, 'secretRegenerable')
+                  ? [
+                      'onRegenerateSecret={regenerateSecret}',
+                      'clientSecret={newSecret}',
+                      'onSecretDismiss={clearSecret}',
+                    ]
+                  : []),
+              ],
+            }),
+          },
+    controls: [
+      SOURCE_CONTROL,
+      idControl('applicationId'),
+      {control: 'bool', description: 'Shows the edit button (onUpdate).', name: 'editable', type: 'boolean'},
+      {control: 'bool', description: 'Shows the delete button (onDelete).', name: 'deletable', type: 'boolean'},
+      {
+        control: 'bool',
+        description: 'Shows the regenerate client secret button (onRegenerateSecret).',
+        name: 'secretRegenerable',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: 'Base only: passes clientSecret, a regenerated secret shown once.',
+        name: 'showSecret',
+        type: 'string | null',
+      },
+      LOADING,
+      ERROR,
+    ],
+    defaults: {
+      applicationId: '',
+      deletable: true,
+      editable: true,
+      error: '',
+      isLoading: false,
+      secretRegenerable: true,
+      showSecret: false,
+      source: 'base',
+    },
+    group: 'Admin: applications',
+    id: 'applicationdetails',
+    live: true,
+    name: 'ApplicationDetails',
+    render: (args: Args, action: Action) => {
+      if (isLive(args)) {
+        if (!str(args, 'applicationId')) return <RequiresId name="applicationId" />;
+
+        return (
+          <Narrow width={560}>
+            <ApplicationDetails
+              applicationId={str(args, 'applicationId')}
+              editable={bool(args, 'editable')}
+              deletable={bool(args, 'deletable')}
+              secretRegenerable={bool(args, 'secretRegenerable')}
+              onDeleted={() => action('onDeleted')}
+            />
+          </Narrow>
+        );
+      }
+
+      return (
+        <Narrow width={560}>
+          <BaseApplicationDetails
+            application={SAMPLE_APPLICATION}
+            isLoading={bool(args, 'isLoading')}
+            error={str(args, 'error') || null}
+            clientSecret={bool(args, 'showSecret') ? 'sample-client-secret-7a2e' : null}
+            onSecretDismiss={() => action('onSecretDismiss')}
+            onUpdate={
+              bool(args, 'editable')
+                ? (changes: ApplicationUpdateSubmission) => action('onUpdate', JSON.stringify(changes))
+                : undefined
+            }
+            onDelete={bool(args, 'deletable') ? () => action('onDelete', SAMPLE_APPLICATION.id) : undefined}
+            onRegenerateSecret={
+              bool(args, 'secretRegenerable') ? () => action('onRegenerateSecret', SAMPLE_APPLICATION.id) : undefined
+            }
+          />
+        </Narrow>
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Sample application'},
+      {args: {deletable: false, editable: false, secretRegenerable: false}, id: 'readonly', name: 'Read only'},
+      {args: {showSecret: true}, id: 'secret', name: 'Regenerated secret'},
+      {args: {isLoading: true}, id: 'loading', name: 'Loading'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs applicationId)'},
     ],
   },
 ];

@@ -1,31 +1,61 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {Group, ManagedUser, RoleResourcePermissions} from '@thunderid/browser';
+import {AgentQueryKeys, ApplicationQueryKeys, GroupQueryKeys, RoleQueryKeys, UserQueryKeys} from '@thunderid/browser';
+import type {
+  Application,
+  BasicApplication,
+  Group,
+  ManagedUser,
+  ResourceQueryKey,
+  RoleResourcePermissions,
+} from '@thunderid/browser';
 import {mount} from '@vue/test-utils';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {h, nextTick} from 'vue';
+import AgentCreate from '../../../components/admin/AgentCreate/AgentCreate';
+import type {BaseAgentCreateRenderProps} from '../../../components/admin/AgentCreate/BaseAgentCreate';
+import AgentDetails from '../../../components/admin/AgentDetails/AgentDetails';
 import BaseAgentDetails from '../../../components/admin/AgentDetails/BaseAgentDetails';
-import AgentList from '../../../components/admin/AgentList/AgentList';
 import type {BaseAgentDetailsRenderProps} from '../../../components/admin/AgentDetails/BaseAgentDetails';
+import AgentList from '../../../components/admin/AgentList/AgentList';
+import ApplicationCreate from '../../../components/admin/ApplicationCreate/ApplicationCreate';
+import BaseApplicationCreate from '../../../components/admin/ApplicationCreate/BaseApplicationCreate';
+import type {BaseApplicationCreateRenderProps} from '../../../components/admin/ApplicationCreate/BaseApplicationCreate';
+import ApplicationDetails from '../../../components/admin/ApplicationDetails/ApplicationDetails';
+import BaseApplicationDetails from '../../../components/admin/ApplicationDetails/BaseApplicationDetails';
+import type {BaseApplicationDetailsRenderProps} from '../../../components/admin/ApplicationDetails/BaseApplicationDetails';
+import ApplicationList from '../../../components/admin/ApplicationList/ApplicationList';
+import BaseApplicationList from '../../../components/admin/ApplicationList/BaseApplicationList';
 import BaseGroupCreate from '../../../components/admin/GroupCreate/BaseGroupCreate';
 import type {BaseGroupCreateRenderProps} from '../../../components/admin/GroupCreate/BaseGroupCreate';
+import GroupCreate from '../../../components/admin/GroupCreate/GroupCreate';
 import GroupList from '../../../components/admin/GroupList/GroupList';
 import BaseGroupMembers from '../../../components/admin/GroupMembers/BaseGroupMembers';
 import type {BaseGroupMembersRenderProps} from '../../../components/admin/GroupMembers/BaseGroupMembers';
-import RoleCreate from '../../../components/admin/RoleCreate/RoleCreate';
+import GroupMembers from '../../../components/admin/GroupMembers/GroupMembers';
+import type {BaseRoleAssignmentsRenderProps} from '../../../components/admin/RoleAssignments/BaseRoleAssignments';
 import RoleAssignments from '../../../components/admin/RoleAssignments/RoleAssignments';
+import RoleCreate from '../../../components/admin/RoleCreate/RoleCreate';
+import RoleList from '../../../components/admin/RoleList/RoleList';
 import BaseRolePermissions from '../../../components/admin/RolePermissions/BaseRolePermissions';
 import type {BaseRolePermissionsRenderProps} from '../../../components/admin/RolePermissions/BaseRolePermissions';
+import RolePermissions from '../../../components/admin/RolePermissions/RolePermissions';
 import type {AdminListRenderProps} from '../../../components/admin/shared/createAdminList';
 import BaseUserCreate from '../../../components/admin/UserCreate/BaseUserCreate';
 import type {BaseUserCreateRenderProps} from '../../../components/admin/UserCreate/BaseUserCreate';
+import UserCreate from '../../../components/admin/UserCreate/UserCreate';
 import BaseUserDetails from '../../../components/admin/UserDetails/BaseUserDetails';
 import type {BaseUserDetailsRenderProps} from '../../../components/admin/UserDetails/BaseUserDetails';
 import UserDetails from '../../../components/admin/UserDetails/UserDetails';
 import BaseUserList from '../../../components/admin/UserList/BaseUserList';
 import UserList from '../../../components/admin/UserList/UserList';
-import {createManagementContext, jsonResponse, translate} from '../../helpers/managementContext';
+import {
+  type ManagementTestContext,
+  createManagementContext,
+  jsonResponse,
+  translate,
+} from '../../helpers/managementContext';
 import {chooseOption, findAllSelectControls} from '../../helpers/selectControl';
 
 const mounted: {unmount: () => void}[] = [];
@@ -46,6 +76,18 @@ const mountWith = (
 
   return {context, wrapper};
 };
+
+/** The keys the queries mounted on a context subscribed with, in order. */
+const subscribedKeysOf = (context: ManagementTestContext) => {
+  const subscribe = vi.spyOn(context.thunderID.invalidator, 'subscribe');
+
+  return (): ResourceQueryKey[] =>
+    subscribe.mock.calls.map((call) => JSON.parse(JSON.stringify(call[0])) as ResourceQueryKey);
+};
+
+/** The key prefixes a spied `invalidate` was called with, in order. */
+const invalidatedKeys = (invalidate: {mock: {calls: unknown[][]}}): unknown[] =>
+  invalidate.mock.calls.map((call) => call[0]);
 
 const users = [
   {attributes: {given_name: 'Jane', family_name: 'Doe'}, id: 'u1', ouHandle: 'default', ouId: 'ou-1', type: 'person'},
@@ -290,6 +332,7 @@ describe('admin components (vue)', () => {
 
     it("RoleCreate creates the role in the signed-in user's organization unit and emits created", async () => {
       const context = createManagementContext();
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
       context.fetcher.mockResolvedValue(jsonResponse({id: 'r1', name: 'Auditor', ouId: 'ou-1', permissions: []}, 201));
       const {wrapper} = mountWith(RoleCreate, {}, context);
 
@@ -300,6 +343,380 @@ describe('admin components (vue)', () => {
       expect(context.fetcher.mock.calls[0][0]).toBe('https://thunder.example/roles');
       expect(JSON.parse(context.fetcher.mock.calls[0][1].body as string)).toEqual({name: 'Auditor', ouId: 'ou-1'});
       expect(wrapper.emitted('created')![0][0]).toMatchObject({id: 'r1'});
+      expect(invalidatedKeys(invalidate)).toEqual([[RoleQueryKeys.ROLES], [RoleQueryKeys.ROLE_ASSIGNMENTS]]);
+    });
+  });
+
+  describe('connected components data loading and mutations', () => {
+    const page = {count: 0, startIndex: 1, totalResults: 0};
+
+    /** Answers each request with an empty page of every list shape, or the given resource. */
+    const respondWith =
+      (resolve: (url: URL, init: RequestInit) => unknown = () => undefined) =>
+      (url: string, init: RequestInit): Promise<Response> => {
+        const body: unknown = resolve(new URL(url), init);
+
+        if (body === null) return Promise.resolve(jsonResponse(null, 204));
+
+        return Promise.resolve(
+          jsonResponse(
+            body ?? {...page, agents: [], assignments: [], groups: [], members: [], roles: [], types: [], users: []},
+          ),
+        );
+      };
+
+    const requests = (context: ManagementTestContext): string[] =>
+      context.fetcher.mock.calls.map((call) => {
+        const url = new URL(call[0]);
+
+        return `${call[1].method ?? 'GET'} ${url.pathname}${url.search}`;
+      });
+
+    const subscribedKeys = (context: ManagementTestContext) => {
+      const subscribe = vi.spyOn(context.thunderID.invalidator, 'subscribe');
+
+      return (): ResourceQueryKey[] =>
+        subscribe.mock.calls.map((call) => JSON.parse(JSON.stringify(call[0])) as ResourceQueryKey);
+    };
+
+    it('RoleList fetches a page of roles under the roles key', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      context.fetcher.mockImplementation(
+        respondWith(() => ({...page, roles: [{id: 'r1', name: 'Auditor', ouId: 'ou-1'}], totalResults: 1})),
+      );
+      const {wrapper} = mountWith(RoleList, {}, context);
+
+      await vi.waitFor(() => expect(wrapper.text()).toContain('Auditor'));
+      expect(requests(context)).toEqual(['GET /roles?include=display&limit=20&offset=0']);
+      expect(keys()).toEqual([[RoleQueryKeys.ROLES, {limit: 20, offset: 0}]]);
+    });
+
+    it('UserDetails keys the user and their groups, and updates through PUT', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(
+        respondWith((url, init) => (url.pathname === '/users/u2' || init.method === 'PUT' ? users[1] : undefined)),
+      );
+      let renderProps: BaseUserDetailsRenderProps | undefined;
+      mountWith(UserDetails, {editable: true, userId: 'u2'}, context, {
+        default: (props: BaseUserDetailsRenderProps) => {
+          renderProps = props;
+
+          return h('span', props.displayName);
+        },
+      });
+
+      await vi.waitFor(() => expect(renderProps?.user?.id).toBe('u2'));
+      expect(keys()).toEqual([
+        [UserQueryKeys.USER, 'u2'],
+        [GroupQueryKeys.MEMBERSHIPS, 'user', 'u2', {limit: 100}],
+      ]);
+      expect(requests(context)).toEqual(
+        expect.arrayContaining(['GET /users/u2?include=display', 'GET /users/u2/groups?limit=100']),
+      );
+
+      renderProps!.onUpdate!({email: 'john@example.com'});
+
+      await vi.waitFor(() => expect(invalidate).toHaveBeenCalled());
+      const update = context.fetcher.mock.calls.find((call) => call[1].method === 'PUT')!;
+      expect(update[0]).toBe('https://thunder.example/users/u2');
+      expect(JSON.parse(update[1].body as string)).toEqual({
+        attributes: {email: 'john@example.com'},
+        ouId: 'ou-1',
+        type: 'person',
+      });
+      expect(invalidatedKeys(invalidate)).toEqual([[UserQueryKeys.USER, 'u2'], [UserQueryKeys.USERS]]);
+    });
+
+    it('UserDetails invalidates the users lists after a delete', async () => {
+      const context = createManagementContext();
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(
+        respondWith((url, init) =>
+          init.method === 'DELETE' ? null : url.pathname === '/users/u2' ? users[1] : undefined,
+        ),
+      );
+      let renderProps: BaseUserDetailsRenderProps | undefined;
+      const {wrapper} = mountWith(UserDetails, {deletable: true, userId: 'u2'}, context, {
+        default: (props: BaseUserDetailsRenderProps) => {
+          renderProps = props;
+
+          return h('span', props.displayName);
+        },
+      });
+
+      await vi.waitFor(() => expect(renderProps?.user?.id).toBe('u2'));
+      renderProps!.onDelete!();
+
+      await vi.waitFor(() => expect(wrapper.emitted('deleted')).toHaveLength(1));
+      expect(invalidatedKeys(invalidate)).toEqual([[UserQueryKeys.USERS]]);
+    });
+
+    it('AgentDetails loads the agent, its groups and roles, and deletes it', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(
+        respondWith((url, init) => {
+          if (init.method === 'DELETE') return null;
+          if (url.pathname === '/agents/a1') return {id: 'a1', name: 'Concierge', ouId: 'ou-1', type: 'assistant'};
+          if (url.pathname === '/agents/a1/roles') return {...page, roles: ['viewer']};
+
+          return {...page, groups: [{id: 'g1', name: 'Ops', ouId: 'ou-1'}]};
+        }),
+      );
+      let renderProps: BaseAgentDetailsRenderProps | undefined;
+      const {wrapper} = mountWith(AgentDetails, {agentId: 'a1', deletable: true}, context, {
+        default: (props: BaseAgentDetailsRenderProps) => {
+          renderProps = props;
+
+          return h('span', props.agent?.name);
+        },
+      });
+
+      await vi.waitFor(() => {
+        expect(renderProps?.agent?.name).toBe('Concierge');
+        expect(renderProps?.roles).toEqual(['viewer']);
+        expect(renderProps?.groups.map((group) => group.name)).toEqual(['Ops']);
+      });
+      expect(keys()).toEqual([
+        [AgentQueryKeys.AGENT, 'a1'],
+        [GroupQueryKeys.MEMBERSHIPS, 'agent', 'a1', {limit: 100}],
+        [RoleQueryKeys.ROLE_ASSIGNMENTS, 'agent', 'a1', {limit: 100}],
+      ]);
+      expect(requests(context)).toEqual(
+        expect.arrayContaining([
+          'GET /agents/a1?include=display',
+          'GET /agents/a1/groups?limit=100',
+          'GET /agents/a1/roles?limit=100',
+        ]),
+      );
+
+      renderProps!.onDelete!();
+
+      await vi.waitFor(() => expect(wrapper.emitted('deleted')).toHaveLength(1));
+      expect(requests(context)).toContain('DELETE /agents/a1');
+      expect(invalidatedKeys(invalidate)).toEqual([[AgentQueryKeys.AGENTS]]);
+    });
+
+    it('GroupCreate creates the group and invalidates group and membership lists', async () => {
+      const context = createManagementContext();
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockResolvedValue(jsonResponse({id: 'g1', name: 'Ops', ouId: 'ou-1'}, 201));
+      const {wrapper} = mountWith(GroupCreate, {}, context);
+
+      await wrapper.findAll('input')[0].setValue('Ops');
+      await wrapper.find('form').trigger('submit');
+
+      await vi.waitFor(() => expect(wrapper.emitted('created')).toHaveLength(1));
+      expect(requests(context)).toEqual(['POST /groups']);
+      expect(JSON.parse(context.fetcher.mock.calls[0][1].body as string)).toEqual({name: 'Ops', ouId: 'ou-1'});
+      expect(invalidatedKeys(invalidate)).toEqual([[GroupQueryKeys.GROUPS], [GroupQueryKeys.MEMBERSHIPS]]);
+    });
+
+    it('AgentCreate offers the agent types and creates the agent', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(
+        respondWith((_url, init) =>
+          init.method === 'POST'
+            ? {id: 'a1', name: 'Concierge', ouId: 'ou-1', type: 'assistant'}
+            : {...page, types: [{displayName: 'Assistant', handle: 'assistant'}]},
+        ),
+      );
+      let renderProps: BaseAgentCreateRenderProps | undefined;
+      const {wrapper} = mountWith(AgentCreate, {}, context, {
+        default: (props: BaseAgentCreateRenderProps) => {
+          renderProps = props;
+
+          return h('span', props.agentTypes.map((option) => option.label).join(','));
+        },
+      });
+
+      await vi.waitFor(() => expect(wrapper.text()).toBe('Assistant'));
+      expect(requests(context)).toEqual(['GET /agent-types?include=display&limit=100']);
+      expect(keys()).toEqual([[AgentQueryKeys.AGENT_TYPES, {limit: 100}]]);
+
+      renderProps!.handleInputChange('name', 'Concierge');
+      renderProps!.handleInputChange('type', 'assistant');
+      await nextTick();
+      renderProps!.handleSubmit();
+
+      await vi.waitFor(() => expect(wrapper.emitted('created')).toHaveLength(1));
+      const create = context.fetcher.mock.calls.find((call) => call[1].method === 'POST')!;
+      expect(create[0]).toBe('https://thunder.example/agents');
+      expect(JSON.parse(create[1].body as string)).toMatchObject({name: 'Concierge', ouId: 'ou-1', type: 'assistant'});
+      expect(invalidatedKeys(invalidate)).toEqual([[AgentQueryKeys.AGENTS]]);
+    });
+
+    it('UserCreate offers the user types and creates the user', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(
+        respondWith((_url, init) =>
+          init.method === 'POST' ? users[1] : {...page, types: [{displayName: 'Person', handle: 'person'}]},
+        ),
+      );
+      let renderProps: BaseUserCreateRenderProps | undefined;
+      const {wrapper} = mountWith(UserCreate, {}, context, {
+        default: (props: BaseUserCreateRenderProps) => {
+          renderProps = props;
+
+          return h('span', props.userTypes.map((option) => option.label).join(','));
+        },
+      });
+
+      await vi.waitFor(() => expect(wrapper.text()).toBe('Person'));
+      expect(requests(context)).toEqual(['GET /user-types?include=display&limit=100']);
+      expect(keys()).toEqual([[UserQueryKeys.USER_TYPES, {limit: 100}]]);
+
+      renderProps!.handleInputChange('username', 'john');
+      renderProps!.handleInputChange('email', 'john@example.com');
+      await nextTick();
+      renderProps!.handleSubmit();
+
+      await vi.waitFor(() => expect(wrapper.emitted('created')).toHaveLength(1));
+      const create = context.fetcher.mock.calls.find((call) => call[1].method === 'POST')!;
+      expect(create[0]).toBe('https://thunder.example/users');
+      expect(JSON.parse(create[1].body as string)).toEqual({
+        attributes: {email: 'john@example.com', username: 'john'},
+        ouId: 'ou-1',
+        type: 'person',
+      });
+      expect(invalidatedKeys(invalidate)).toEqual([[UserQueryKeys.USERS]]);
+    });
+
+    it('GroupMembers loads members, fetches candidates only when editable, and adds and removes members', async () => {
+      const readOnly = createManagementContext();
+      const readOnlyKeys = subscribedKeys(readOnly);
+      readOnly.fetcher.mockImplementation(respondWith());
+      mountWith(GroupMembers, {groupId: 'g1'}, readOnly);
+
+      await vi.waitFor(() => expect(readOnly.fetcher).toHaveBeenCalled());
+      await nextTick();
+      expect(requests(readOnly)).toEqual(['GET /groups/g1/members?include=display&limit=100']);
+      expect(readOnlyKeys()).toEqual([[GroupQueryKeys.GROUP_MEMBERS, 'g1', {limit: 100}]]);
+
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(
+        respondWith((_url, init) => (init.method === 'POST' ? {id: 'g1', name: 'Ops', ouId: 'ou-1'} : undefined)),
+      );
+      let renderProps: BaseGroupMembersRenderProps | undefined;
+      mountWith(GroupMembers, {editable: true, groupId: 'g1'}, context, {
+        default: (props: BaseGroupMembersRenderProps) => {
+          renderProps = props;
+
+          return h('span');
+        },
+      });
+
+      await vi.waitFor(() => expect(context.fetcher).toHaveBeenCalledTimes(3));
+      expect(requests(context)).toEqual(
+        expect.arrayContaining([
+          'GET /groups/g1/members?include=display&limit=100',
+          'GET /users?include=display&limit=100',
+          'GET /agents?include=display&limit=100',
+        ]),
+      );
+      expect(keys()).toEqual([
+        [GroupQueryKeys.GROUP_MEMBERS, 'g1', {limit: 100}],
+        [UserQueryKeys.USERS, {limit: 100}],
+        [AgentQueryKeys.AGENTS, {limit: 100}],
+      ]);
+      const membershipKeys = [
+        [GroupQueryKeys.GROUP, 'g1'],
+        [GroupQueryKeys.GROUP_MEMBERS, 'g1'],
+        [GroupQueryKeys.MEMBERSHIPS],
+        [RoleQueryKeys.ROLE_ASSIGNMENTS],
+      ];
+
+      renderProps!.onAdd!({id: 'u1', type: 'user'});
+      await vi.waitFor(() => expect(invalidate).toHaveBeenCalledTimes(4));
+      expect(requests(context)).toContain('POST /groups/g1/members/add');
+      expect(invalidatedKeys(invalidate)).toEqual(membershipKeys);
+
+      invalidate.mockClear();
+      renderProps!.onRemove!({display: 'Jane Doe', id: 'u1', type: 'user'});
+      await vi.waitFor(() => expect(invalidate).toHaveBeenCalledTimes(4));
+      expect(requests(context)).toContain('POST /groups/g1/members/remove');
+      expect(invalidatedKeys(invalidate)).toEqual(membershipKeys);
+    });
+
+    it('RoleAssignments loads assignments and candidates, and assigns and unassigns', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(respondWith((_url, init) => (init.method === 'POST' ? null : undefined)));
+      let renderProps: BaseRoleAssignmentsRenderProps | undefined;
+      mountWith(RoleAssignments, {editable: true, roleId: 'r1'}, context, {
+        default: (props: BaseRoleAssignmentsRenderProps) => {
+          renderProps = props;
+
+          return h('span');
+        },
+      });
+
+      await vi.waitFor(() => expect(context.fetcher).toHaveBeenCalledTimes(4));
+      expect(requests(context)).toEqual(
+        expect.arrayContaining([
+          'GET /roles/r1/assignments?include=display&limit=100',
+          'GET /users?include=display&limit=100',
+          'GET /groups?include=display&limit=100',
+          'GET /agents?include=display&limit=100',
+        ]),
+      );
+      expect(keys()).toEqual([
+        [RoleQueryKeys.ROLE_ASSIGNMENTS, 'r1', {limit: 100}],
+        [UserQueryKeys.USERS, {limit: 100}],
+        [GroupQueryKeys.GROUPS, {limit: 100}],
+        [AgentQueryKeys.AGENTS, {limit: 100}],
+      ]);
+
+      renderProps!.onTypeFilterChange!('group');
+      await vi.waitFor(() =>
+        expect(keys()).toContainEqual([RoleQueryKeys.ROLE_ASSIGNMENTS, 'r1', {limit: 100, type: 'group'}]),
+      );
+
+      renderProps!.onAssign!({id: 'g1', type: 'group'});
+      await vi.waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1));
+      expect(requests(context)).toContain('POST /roles/r1/assignments/add');
+      expect(invalidatedKeys(invalidate)).toEqual([[RoleQueryKeys.ROLE_ASSIGNMENTS]]);
+
+      renderProps!.onUnassign!({display: 'Ops', id: 'g1', type: 'group'});
+      await vi.waitFor(() => expect(invalidate).toHaveBeenCalledTimes(2));
+      expect(requests(context)).toContain('POST /roles/r1/assignments/remove');
+      expect(invalidatedKeys(invalidate)).toEqual([[RoleQueryKeys.ROLE_ASSIGNMENTS], [RoleQueryKeys.ROLE_ASSIGNMENTS]]);
+    });
+
+    it('RolePermissions loads the role under its key', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      context.fetcher.mockResolvedValue(
+        jsonResponse({
+          id: 'r1',
+          name: 'Auditor',
+          ouId: 'ou-1',
+          permissions: [{permissions: ['read'], resourceServerId: 'rs-1'}],
+        }),
+      );
+      let renderProps: BaseRolePermissionsRenderProps | undefined;
+      mountWith(RolePermissions, {roleId: 'r1'}, context, {
+        default: (props: BaseRolePermissionsRenderProps) => {
+          renderProps = props;
+
+          return h('span');
+        },
+      });
+
+      await vi.waitFor(() => expect(renderProps?.permissions).toHaveLength(1));
+      expect(requests(context)).toEqual(['GET /roles/r1?include=display']);
+      expect(keys()).toEqual([[RoleQueryKeys.ROLE, 'r1']]);
     });
   });
 
@@ -474,7 +891,7 @@ describe('admin components (vue)', () => {
 
   describe('search and filters', () => {
     const lastUrl = (context: ReturnType<typeof createManagementContext>): URL =>
-      new URL(context.fetcher.mock.calls[context.fetcher.mock.calls.length - 1][0] as string);
+      new URL(context.fetcher.mock.calls[context.fetcher.mock.calls.length - 1][0]);
 
     it('searches users on the server by the chosen attribute and clears the search', async () => {
       const context = createManagementContext();
@@ -531,6 +948,406 @@ describe('admin components (vue)', () => {
       await chooseOption(findAllSelectControls(wrapper)[0], translate('admin.common.identity_types.group'));
 
       await vi.waitFor(() => expect(lastUrl(context).searchParams.get('type')).toBe('group'));
+    });
+  });
+
+  describe('applications', () => {
+    const application = {
+      description: 'Customer portal',
+      id: 'app-1',
+      inboundAuthConfig: [
+        {
+          config: {
+            clientId: 'portal-client',
+            clientSecret: 'stored-secret',
+            grantTypes: ['authorization_code', 'refresh_token'],
+            redirectUris: ['https://portal.example/callback'],
+            responseTypes: ['code'],
+          },
+          type: 'oauth2',
+        },
+      ],
+      name: 'Portal',
+      ouId: 'ou-1',
+      template: 'browser',
+      url: 'https://portal.example',
+    };
+    const listPage = {
+      applications: [{clientId: 'portal-client', id: 'app-1', name: 'Portal', template: 'browser'}],
+      count: 1,
+      totalResults: 1,
+    };
+
+    const routeApplications =
+      (created: unknown = application) =>
+      (url: string, init: RequestInit): Promise<Response> => {
+        const {pathname} = new URL(url);
+
+        if (init.method === 'DELETE') return Promise.resolve(jsonResponse(null, 204));
+        if (init.method === 'POST') return Promise.resolve(jsonResponse(created, 201));
+        if (init.method === 'PUT') return Promise.resolve(jsonResponse(JSON.parse(init.body as string)));
+        if (pathname === '/applications/app-1') return Promise.resolve(jsonResponse(application));
+
+        return Promise.resolve(jsonResponse(listPage));
+      };
+
+    const requestsOf = (context: ManagementTestContext): string[] =>
+      context.fetcher.mock.calls.map((call) => {
+        const url = new URL(call[0]);
+
+        return `${call[1].method ?? 'GET'} ${url.pathname}${url.search}`;
+      });
+
+    const field = (wrapper: {find: (selector: string) => {setValue: (value: string) => Promise<void>}}, name: string) =>
+      wrapper.find(`input[name$="-${name}"]`);
+
+    const buttonNamed = (wrapper: {findAll: (selector: string) => {text: () => string}[]}, label: string) =>
+      wrapper.findAll('button').find((button) => button.text() === label) as unknown as {
+        attributes: (name: string) => string | undefined;
+        trigger: (event: string) => Promise<void>;
+      };
+
+    it('BaseApplicationList shows each application with its client ID and type', () => {
+      const {wrapper} = mountWith(BaseApplicationList, {applications: listPage.applications});
+
+      expect(wrapper.find('caption').text()).toBe(translate('admin.applications.list.title'));
+      expect(wrapper.findAll('th').map((th) => th.text())).toEqual([
+        translate('admin.applications.list.columns.name'),
+        translate('admin.applications.list.columns.client_id'),
+        translate('admin.applications.list.columns.type'),
+      ]);
+      expect(wrapper.find('tbody tr').text()).toContain('portal-client');
+      expect(wrapper.find('tbody tr').text()).toContain('browser');
+    });
+
+    it('BaseApplicationList shows a translated status column only when the server reports a status', () => {
+      const {wrapper} = mountWith(BaseApplicationList, {
+        applications: [
+          {id: 'app-1', name: 'Portal', status: {value: 'ACTIVE'}},
+          {id: 'app-2', name: 'Legacy', status: {value: 'SUSPENDED'}},
+        ],
+      });
+
+      expect(wrapper.findAll('th').map((th) => th.text())).toContain(
+        translate('admin.applications.list.columns.status'),
+      );
+      const rows = wrapper.findAll('tbody tr');
+      expect(rows[0].text()).toContain(translate('admin.applications.status.active'));
+      expect(rows[1].text()).toContain(translate('admin.applications.status.suspended'));
+
+      const {wrapper: withoutStatus} = mountWith(BaseApplicationList, {applications: listPage.applications});
+      expect(withoutStatus.findAll('th').map((th) => th.text())).not.toContain(
+        translate('admin.applications.list.columns.status'),
+      );
+    });
+
+    it('ApplicationList fetches a page under the applications key and hands it to its slot', async () => {
+      const context = createManagementContext();
+      context.fetcher.mockImplementation(routeApplications());
+      const {wrapper} = mountWith(ApplicationList, {limit: 5}, context, {
+        default: (props: AdminListRenderProps<BasicApplication> & {applications: BasicApplication[]}) =>
+          h(
+            'p',
+            `${props.applications.map((row) => row.name).join()} ${props.columns.map((column) => column.id).join()}`,
+          ),
+      });
+
+      await vi.waitFor(() => expect(wrapper.text()).toBe('Portal name,clientId,type'));
+      expect(requestsOf(context)).toEqual(['GET /applications?limit=5&offset=0']);
+    });
+
+    it('BaseApplicationCreate needs a redirect URI for the authorization code grant and emits the OAuth basics', async () => {
+      const {wrapper} = mountWith(BaseApplicationCreate, {});
+      const submit = () => buttonNamed(wrapper, translate('admin.applications.create.submit'));
+
+      await field(wrapper, 'name').setValue(' Portal ');
+      expect(submit().attributes('disabled')).toBeDefined();
+      await field(wrapper, 'redirectUris').setValue('https://a.example/cb, https://b.example/cb');
+      expect(submit().attributes('disabled')).toBeUndefined();
+      await wrapper.find('input[name$="-public-client"]').setValue(true);
+      await wrapper.find('form').trigger('submit');
+
+      expect(wrapper.emitted('submit')?.[0]).toEqual([
+        {
+          description: undefined,
+          grantTypes: ['authorization_code', 'refresh_token'],
+          logoUrl: undefined,
+          name: 'Portal',
+          publicClient: true,
+          redirectUris: ['https://a.example/cb', 'https://b.example/cb'],
+          url: undefined,
+        },
+      ]);
+
+      await wrapper.find('input[name$="-grant-type-client_credentials"]').setValue(true);
+      expect(submit().attributes('disabled')).toBeDefined();
+    });
+
+    it('BaseApplicationCreate hands its slot the values, setters and grant types', async () => {
+      let form: BaseApplicationCreateRenderProps | undefined;
+      const {wrapper} = mountWith(BaseApplicationCreate, {}, createManagementContext(), {
+        default: (props: BaseApplicationCreateRenderProps) => {
+          form = props;
+
+          return h('p', props.grantTypeOptions.map((option) => option.label).join(','));
+        },
+      });
+
+      expect(wrapper.text()).toBe(
+        ['authorization_code', 'refresh_token', 'client_credentials']
+          .map((grantType) => translate(`admin.applications.grant_types.${grantType}`))
+          .join(','),
+      );
+      form!.handleInputChange('name', 'Daemon');
+      form!.handleGrantTypesChange(['client_credentials']);
+      await nextTick();
+      expect(form!.isValid).toBe(true);
+      form!.handleSubmit();
+      expect(wrapper.emitted('submit')?.[0][0]).toMatchObject({grantTypes: ['client_credentials'], name: 'Daemon'});
+    });
+
+    it('ApplicationCreate creates the application and shows the returned secret once before emitting created', async () => {
+      const context = createManagementContext();
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(
+        routeApplications({
+          ...application,
+          id: 'app-9',
+          inboundAuthConfig: [{config: {clientSecret: 's3cr3t', grantTypes: [], responseTypes: []}, type: 'oauth2'}],
+        }),
+      );
+      const {wrapper} = mountWith(ApplicationCreate, {}, context);
+
+      await field(wrapper, 'name').setValue('Portal');
+      await field(wrapper, 'redirectUris').setValue('https://p.example/cb');
+      await wrapper.find('form').trigger('submit');
+
+      await vi.waitFor(() =>
+        expect(wrapper.findAll('input').some((input) => (input.element as HTMLInputElement).value === 's3cr3t')).toBe(
+          true,
+        ),
+      );
+      expect(wrapper.emitted('created')).toBeUndefined();
+      expect(requestsOf(context)).toEqual(['POST /applications']);
+      expect(context.fetcher.mock.calls[0][0]).toBe('https://thunder.example/applications');
+      expect(JSON.parse(context.fetcher.mock.calls[0][1].body as string)).toEqual({
+        inboundAuthConfig: [
+          {
+            config: {
+              grantTypes: ['authorization_code', 'refresh_token'],
+              publicClient: false,
+              redirectUris: ['https://p.example/cb'],
+              responseTypes: ['code'],
+              tokenEndpointAuthMethod: 'client_secret_basic',
+            },
+            type: 'oauth2',
+          },
+        ],
+        name: 'Portal',
+        ouId: 'ou-1',
+      });
+      expect(invalidatedKeys(invalidate)).toEqual([[ApplicationQueryKeys.APPLICATIONS]]);
+
+      await buttonNamed(wrapper, translate('admin.applications.secret.done')).trigger('click');
+
+      expect(wrapper.emitted('created')?.[0][0]).toMatchObject({id: 'app-9'});
+      expect(wrapper.text()).not.toContain('s3cr3t');
+      expect((wrapper.find('input[name$="-name"]').element as HTMLInputElement).value).toBe('');
+    });
+
+    it('BaseApplicationDetails shows the OAuth configuration without the stored secret and no actions by default', () => {
+      const {wrapper} = mountWith(BaseApplicationDetails, {application});
+
+      expect(wrapper.find('h2').text()).toBe('Portal');
+      expect(wrapper.find(`ul[aria-label="${translate('admin.applications.fields.redirect_uris')}"]`).text()).toContain(
+        'https://portal.example/callback',
+      );
+      expect(wrapper.html()).not.toContain('stored-secret');
+      expect(wrapper.findAll('button').map((button) => button.text())).not.toEqual(
+        expect.arrayContaining([
+          translate('admin.applications.details.edit.action'),
+          translate('admin.applications.details.delete.action'),
+          translate('admin.applications.details.secret.action'),
+        ]),
+      );
+    });
+
+    it('BaseApplicationDetails confirms deletion and secret regeneration, and edits the OAuth basics', async () => {
+      const onDelete = vi.fn();
+      const onRegenerateSecret = vi.fn();
+      const onUpdate = vi.fn();
+      const {wrapper} = mountWith(BaseApplicationDetails, {application, onDelete, onRegenerateSecret, onUpdate});
+
+      await buttonNamed(wrapper, translate('admin.applications.details.secret.action')).trigger('click');
+      expect(onRegenerateSecret).not.toHaveBeenCalled();
+      await wrapper.find('[role="group"]').findAll('button')[1].trigger('click');
+      expect(onRegenerateSecret).toHaveBeenCalledTimes(1);
+
+      await buttonNamed(wrapper, translate('admin.applications.details.delete.action')).trigger('click');
+      const confirm = wrapper
+        .findAll('[role="group"]')
+        .find(
+          (group) =>
+            group.attributes('aria-label') === translate('admin.applications.details.delete.confirm', {name: 'Portal'}),
+        )!;
+      expect(onDelete).not.toHaveBeenCalled();
+      await confirm.findAll('button')[1].trigger('click');
+      expect(onDelete).toHaveBeenCalledTimes(1);
+
+      await buttonNamed(wrapper, translate('admin.applications.details.edit.action')).trigger('click');
+      await field(wrapper, 'name').setValue('Portal 2');
+      await wrapper.find('input[name$="-grant-type-refresh_token"]').setValue(false);
+      await wrapper.find('form').trigger('submit');
+      expect(onUpdate).toHaveBeenCalledWith({
+        description: 'Customer portal',
+        grantTypes: ['authorization_code'],
+        logoUrl: undefined,
+        name: 'Portal 2',
+        redirectUris: ['https://portal.example/callback'],
+        url: 'https://portal.example',
+      });
+    });
+
+    it('BaseApplicationDetails hands its slot only the allowed actions and never the stored secret', () => {
+      let details: BaseApplicationDetailsRenderProps | undefined;
+      mountWith(
+        BaseApplicationDetails,
+        {
+          application: {
+            ...application,
+            inboundAuthConfig: [{config: {grantTypes: [], publicClient: true, responseTypes: []}, type: 'oauth2'}],
+          },
+          onDelete: vi.fn(),
+          onRegenerateSecret: vi.fn(),
+        },
+        createManagementContext(),
+        {
+          default: (props: BaseApplicationDetailsRenderProps) => {
+            details = props;
+
+            return h('span', props.application?.name);
+          },
+        },
+      );
+
+      expect(details!.onDelete).toBeTypeOf('function');
+      expect(details!.onUpdate).toBeUndefined();
+      // A public client has no secret to regenerate.
+      expect(details!.onRegenerateSecret).toBeUndefined();
+
+      mountWith(
+        BaseApplicationDetails,
+        {application: {...application, isReadOnly: true}, onDelete: vi.fn()},
+        undefined,
+        {
+          default: (props: BaseApplicationDetailsRenderProps) => {
+            details = props;
+
+            return h('span');
+          },
+        },
+      );
+      expect(details!.onDelete).toBeUndefined();
+      expect(details!.oauth).not.toHaveProperty('clientSecret');
+    });
+
+    it('ApplicationDetails loads the application, saves an edit as a full update and invalidates its keys', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeysOf(context);
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(routeApplications());
+      let details: BaseApplicationDetailsRenderProps | undefined;
+      mountWith(ApplicationDetails, {applicationId: 'app-1', editable: true}, context, {
+        default: (props: BaseApplicationDetailsRenderProps) => {
+          details = props;
+
+          return h('span', props.application?.name);
+        },
+      });
+
+      await vi.waitFor(() => expect(details?.application?.name).toBe('Portal'));
+      expect(keys()).toEqual([[ApplicationQueryKeys.APPLICATION, 'app-1']]);
+      expect(requestsOf(context)).toEqual(['GET /applications/app-1']);
+      expect(details!.onDelete).toBeUndefined();
+      expect(details!.onRegenerateSecret).toBeUndefined();
+
+      details!.onUpdate!({
+        grantTypes: ['authorization_code'],
+        name: 'Portal 2',
+        redirectUris: ['https://portal.example/callback'],
+      });
+
+      await vi.waitFor(() => expect(requestsOf(context)).toContain('PUT /applications/app-1'));
+      const put = context.fetcher.mock.calls.find((call) => call[1].method === 'PUT')!;
+      const {id, ...rest} = application;
+      void id;
+      expect(JSON.parse(put[1].body as string)).toEqual({
+        ...rest,
+        description: undefined,
+        inboundAuthConfig: [
+          {
+            ...rest.inboundAuthConfig[0],
+            config: {...rest.inboundAuthConfig[0].config, grantTypes: ['authorization_code']},
+          },
+        ],
+        name: 'Portal 2',
+        url: undefined,
+      });
+      await vi.waitFor(() =>
+        expect(invalidatedKeys(invalidate)).toEqual([
+          [ApplicationQueryKeys.APPLICATION, 'app-1'],
+          [ApplicationQueryKeys.APPLICATIONS],
+        ]),
+      );
+    });
+
+    it('ApplicationDetails regenerates the client secret and shows the new one once', async () => {
+      const context = createManagementContext();
+      context.fetcher.mockImplementation(routeApplications());
+      const {wrapper} = mountWith(ApplicationDetails, {applicationId: 'app-1', secretRegenerable: true}, context);
+
+      await vi.waitFor(() => expect(wrapper.find('h2').text()).toBe('Portal'));
+      await buttonNamed(wrapper, translate('admin.applications.details.secret.action')).trigger('click');
+      await wrapper.find('[role="group"]').findAll('button')[1].trigger('click');
+
+      await vi.waitFor(() => expect(requestsOf(context)).toContain('PUT /applications/app-1'));
+      const put = context.fetcher.mock.calls.find((call) => call[1].method === 'PUT')!;
+      const saved = JSON.parse(put[1].body as string) as Application;
+      const secret: string = saved.inboundAuthConfig![0].config.clientSecret!;
+      expect(secret).not.toBe('stored-secret');
+      await vi.waitFor(() =>
+        expect(wrapper.findAll('input').some((input) => (input.element as HTMLInputElement).value === secret)).toBe(
+          true,
+        ),
+      );
+
+      await buttonNamed(wrapper, translate('admin.applications.secret.done')).trigger('click');
+      expect(wrapper.findAll('input').some((input) => (input.element as HTMLInputElement).value === secret)).toBe(
+        false,
+      );
+    });
+
+    it('ApplicationDetails deletes through the API and shows translated server errors', async () => {
+      const context = createManagementContext();
+      const invalidate = vi.spyOn(context.thunderID.invalidator, 'invalidate');
+      context.fetcher.mockImplementation(routeApplications());
+      const {wrapper} = mountWith(ApplicationDetails, {applicationId: 'app-1', deletable: true}, context);
+
+      await vi.waitFor(() => expect(wrapper.find('h2').text()).toBe('Portal'));
+      await buttonNamed(wrapper, translate('admin.applications.details.delete.action')).trigger('click');
+      await wrapper.find('[role="group"]').findAll('button')[1].trigger('click');
+
+      await vi.waitFor(() => expect(wrapper.emitted('deleted')).toHaveLength(1));
+      expect(requestsOf(context)).toContain('DELETE /applications/app-1');
+      expect(invalidatedKeys(invalidate)).toEqual([[ApplicationQueryKeys.APPLICATIONS]]);
+
+      const refused = createManagementContext();
+      refused.fetcher.mockResolvedValue(jsonResponse({code: 'APP-1', message: 'raw server detail'}, 403));
+      const {wrapper: denied} = mountWith(ApplicationDetails, {applicationId: 'app-1'}, refused);
+
+      await vi.waitFor(() => expect(denied.find('[role="alert"]').exists()).toBe(true));
+      expect(denied.find('[role="alert"]').text()).toBe(translate('admin.common.errors.forbidden'));
+      expect(denied.text()).not.toContain('raw server detail');
     });
   });
 });

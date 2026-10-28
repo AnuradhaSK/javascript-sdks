@@ -1,10 +1,11 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {RoleListResponse, RoleQueryKeys, getRoles, toManagementErrorMessage} from '@thunderid/browser';
 import {FC, ReactElement, useState} from 'react';
 import BaseRoleList, {BaseRoleListProps} from './BaseRoleList';
-import useGetRoles from '../../../hooks/management/roles/useGetRoles';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
 
 export type RoleListProps = Omit<
@@ -23,7 +24,11 @@ export type RoleListProps = Omit<
 const RoleList: FC<RoleListProps> = ({limit = 20, preferences, ...rest}: RoleListProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
   const [offset, setOffset] = useState<number>(0);
-  const {data, error, isLoading} = useGetRoles({limit, offset});
+  const endpoint: ManagementEndpoint = useManagementEndpoint('roles');
+  const {data, error, isLoading}: ResourceQueryResult<RoleListResponse> = useResourceQuery(
+    [RoleQueryKeys.ROLES, {limit, offset}],
+    (fetcher) => getRoles({...endpoint, fetcher, limit, offset}),
+  );
 
   return (
     <BaseRoleList

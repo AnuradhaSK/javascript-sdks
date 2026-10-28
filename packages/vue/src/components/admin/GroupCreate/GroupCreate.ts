@@ -1,12 +1,12 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {GroupQueryKeys, createGroup, toManagementErrorMessage} from '@thunderid/browser';
 import type {Group, CreateGroupRequest} from '@thunderid/browser';
 import {type Component, type ComputedRef, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import BaseGroupCreate, {type GroupCreateSubmission} from './BaseGroupCreate';
-import useCreateGroup from '../../../composables/management/groups/useCreateGroup';
-import type {ResourceMutationResult} from '../../../composables/management/useResourceMutation';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
 import {type AdminFormProps, adminFormProps} from '../shared/adminFormProps';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 import useDefaultOuId from '../shared/useDefaultOuId';
@@ -40,9 +40,12 @@ const GroupCreate: Component = defineComponent({
   setup(props: GroupCreateProps, {emit, slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
     const resolvedOuId: ComputedRef<string | undefined> = useDefaultOuId(() => props.ouId);
-    const creation: ResourceMutationResult<Group, CreateGroupRequest> = useCreateGroup({
-      onSuccess: (created: Group): void => emit('created', created),
-    });
+    const endpoint: ManagementEndpoint = useManagementEndpoint('groups');
+    const creation: ResourceMutationResult<Group, CreateGroupRequest> = useResourceMutation(
+      (payload: CreateGroupRequest, fetcher) => createGroup({...endpoint, fetcher, payload}),
+      () => [[GroupQueryKeys.GROUPS], [GroupQueryKeys.MEMBERSHIPS]],
+      {onSuccess: (created: Group): void => emit('created', created)},
+    );
 
     const handleSubmit = ({description, name}: GroupCreateSubmission): void => {
       if (resolvedOuId.value) {

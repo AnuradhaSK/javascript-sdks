@@ -17,18 +17,41 @@ export interface ManagementEndpoint {
 }
 
 /**
+ * The management collections an app can call through the SDK's API functions.
+ */
+export type ManagementCollection = Extract<
+  ResourceEndpointKey,
+  | 'agents'
+  | 'agentTypes'
+  | 'applications'
+  | 'configurationVersions'
+  | 'connections'
+  | 'design'
+  | 'export'
+  | 'flows'
+  | 'gateways'
+  | 'groups'
+  | 'i18n'
+  | 'import'
+  | 'notificationTemplates'
+  | 'organizationUnits'
+  | 'resourceServers'
+  | 'roles'
+  | 'secrets'
+  | 'serverConfig'
+  | 'users'
+  | 'userTypes'
+  | 'variables'
+>;
+
+/**
  * Resolves where a management resource collection lives, honoring the provider's `endpoints`
  * override so the management API can run on a different host from the authorization server.
  *
  * @param key - The resource collection.
  * @returns The base URL and optional collection URL override.
  */
-const useManagementEndpoint = (
-  key: Extract<
-    ResourceEndpointKey,
-    'agents' | 'agentTypes' | 'applications' | 'flows' | 'groups' | 'roles' | 'users' | 'userTypes'
-  >,
-): ManagementEndpoint => {
+const useManagementEndpoint = (key: ManagementCollection): ManagementEndpoint => {
   const {baseUrl, endpoints} = useThunderID();
 
   return {baseUrl, url: resolveResourceEndpoint(key, {endpoints})};

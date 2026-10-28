@@ -1,12 +1,20 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toEqualityFilter, toManagementErrorMessage, SelectOption} from '@thunderid/browser';
+import {
+  AgentListResponse,
+  AgentQueryKeys,
+  SelectOption,
+  getAgents,
+  toEqualityFilter,
+  toManagementErrorMessage,
+} from '@thunderid/browser';
 import {FC, ReactElement, useState} from 'react';
 import BaseAgentList, {BaseAgentListProps} from './BaseAgentList';
-import {AdminSearchValue} from '../shared/AdminSearch';
-import useGetAgents from '../../../hooks/management/agents/useGetAgents';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
+import {AdminSearchValue} from '../shared/AdminSearch';
 
 export type AgentListProps = Omit<
   BaseAgentListProps,
@@ -39,11 +47,12 @@ const AgentList: FC<AgentListProps> = ({
   const [offset, setOffset] = useState<number>(0);
   const [search, setSearch] = useState<AdminSearchValue | null>(null);
   const attributes: SelectOption[] = searchAttributes ?? [{label: t('admin.agents.list.search.name'), value: 'name'}];
-  const {data, error, isLoading} = useGetAgents({
-    filter: search ? toEqualityFilter(search.attribute, search.value) : undefined,
-    limit,
-    offset,
-  });
+  const endpoint: ManagementEndpoint = useManagementEndpoint('agents');
+  const filter: string | undefined = search ? toEqualityFilter(search.attribute, search.value) : undefined;
+  const {data, error, isLoading}: ResourceQueryResult<AgentListResponse> = useResourceQuery(
+    [AgentQueryKeys.AGENTS, {filter, limit, offset}],
+    (fetcher) => getAgents({...endpoint, fetcher, filter, limit, offset}),
+  );
 
   return (
     <BaseAgentList

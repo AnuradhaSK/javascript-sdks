@@ -9,8 +9,10 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
+import MuiCheckbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CssBaseline from '@mui/material/CssBaseline';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import {ThemeProvider, createTheme} from '@mui/material/styles';
@@ -22,6 +24,8 @@ import {
   type AdminSearchValue,
   type BaseAgentCreateRenderProps,
   type BaseAgentDetailsRenderProps,
+  type BaseApplicationCreateRenderProps,
+  type BaseApplicationDetailsRenderProps,
   type BaseGroupCreateRenderProps,
   type BaseRolePermissionsRenderProps,
   type BaseUserCreateRenderProps,
@@ -403,6 +407,113 @@ export const AgentCard = (details: BaseAgentDetailsRenderProps): ReactElement =>
     <ChipRow color="primary" items={details.groups.map((group) => ({id: group.id, label: group.name}))} />
     <Typography variant="overline">Roles</Typography>
     <ChipRow items={details.roles.map((role: string) => ({id: role, label: role}))} />
+  </DetailsCard>
+);
+
+/** A client secret shown once, with the button that confirms it was copied. */
+const SecretAlert = ({onDismiss = undefined, secret}: {onDismiss?: () => void; secret: string}): ReactElement => (
+  <MuiAlert
+    severity="warning"
+    action={
+      onDismiss && (
+        <Button color="inherit" size="small" onClick={onDismiss}>
+          Done
+        </Button>
+      )
+    }
+  >
+    Copy the client secret now: <code>{secret}</code>
+  </MuiAlert>
+);
+
+/** The application form's render props drawn with MUI inputs and checkboxes. */
+export const ApplicationForm = (form: BaseApplicationCreateRenderProps): ReactElement =>
+  form.clientSecret ? (
+    <SecretAlert secret={form.clientSecret} onDismiss={form.onSecretDismiss} />
+  ) : (
+    <FormCard
+      title="New application"
+      submitLabel="Create application"
+      error={form.error}
+      isSubmitting={form.isSubmitting}
+      isValid={form.isValid}
+      onCancel={form.onCancel}
+      onSubmit={form.handleSubmit}
+    >
+      <TextField
+        label="Name"
+        required
+        size="small"
+        value={form.values.name}
+        onChange={(event) => form.handleInputChange('name', event.target.value)}
+      />
+      <TextField
+        label="Redirect URIs"
+        helperText="Comma separated"
+        size="small"
+        value={form.values.redirectUris}
+        onChange={(event) => form.handleInputChange('redirectUris', event.target.value)}
+      />
+      <Stack direction="row" useFlexGap flexWrap="wrap">
+        {form.grantTypeOptions.map((option: {label: string; value: string}) => (
+          <FormControlLabel
+            key={option.value}
+            label={option.label}
+            control={
+              <MuiCheckbox
+                size="small"
+                checked={form.values.grantTypes.includes(option.value)}
+                onChange={(event) =>
+                  form.handleGrantTypesChange(
+                    event.target.checked
+                      ? [...form.values.grantTypes, option.value]
+                      : form.values.grantTypes.filter((value: string) => value !== option.value),
+                  )
+                }
+              />
+            }
+          />
+        ))}
+      </Stack>
+      <FormControlLabel
+        label="Public client"
+        control={
+          <MuiCheckbox
+            size="small"
+            checked={form.values.publicClient}
+            onChange={(event) => form.handlePublicClientChange(event.target.checked)}
+          />
+        }
+      />
+    </FormCard>
+  );
+
+/** The application details' render props drawn as an MUI card. */
+export const ApplicationCard = (details: BaseApplicationDetailsRenderProps): ReactElement => (
+  <DetailsCard
+    title={details.application?.name}
+    subheader={details.oauth?.clientId}
+    isLoading={details.isLoading}
+    isDeleting={details.isDeleting}
+    onDelete={details.onDelete}
+  >
+    {details.error && <MuiAlert severity="error">{details.error}</MuiAlert>}
+    {details.clientSecret && <SecretAlert secret={details.clientSecret} onDismiss={details.onSecretDismiss} />}
+    {details.application?.description && <Typography variant="body2">{details.application.description}</Typography>}
+    <Typography variant="overline">Grant types</Typography>
+    <ChipRow
+      color="primary"
+      items={(details.oauth?.grantTypes ?? []).map((grant: string) => ({id: grant, label: grant}))}
+    />
+    <Typography variant="overline">Redirect URIs</Typography>
+    <ChipRow items={(details.oauth?.redirectUris ?? []).map((uri: string) => ({id: uri, label: uri}))} />
+    {details.onRegenerateSecret && (
+      <Box>
+        <Button size="small" loading={details.isRegeneratingSecret} onClick={details.onRegenerateSecret}>
+          Regenerate client secret
+        </Button>
+      </Box>
+    )}
   </DetailsCard>
 );
 

@@ -1,10 +1,11 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {GroupListResponse, GroupQueryKeys, getGroups, toManagementErrorMessage} from '@thunderid/browser';
 import {FC, ReactElement, useState} from 'react';
 import BaseGroupList, {BaseGroupListProps} from './BaseGroupList';
-import useGetGroups from '../../../hooks/management/groups/useGetGroups';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
 
 export type GroupListProps = Omit<
@@ -23,7 +24,11 @@ export type GroupListProps = Omit<
 const GroupList: FC<GroupListProps> = ({limit = 20, preferences, ...rest}: GroupListProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
   const [offset, setOffset] = useState<number>(0);
-  const {data, error, isLoading} = useGetGroups({limit, offset});
+  const endpoint: ManagementEndpoint = useManagementEndpoint('groups');
+  const {data, error, isLoading}: ResourceQueryResult<GroupListResponse> = useResourceQuery(
+    [GroupQueryKeys.GROUPS, {limit, offset}],
+    (fetcher) => getGroups({...endpoint, fetcher, limit, offset}),
+  );
 
   return (
     <BaseGroupList

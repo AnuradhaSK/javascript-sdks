@@ -33,6 +33,7 @@ const getRole = async ({roleId, ...config}: GetRoleConfig): Promise<Role> =>
     id: roleId,
     method: 'GET',
     operation: 'getRole',
+    query: {include: 'display'},
   });
 
 export default getRole;

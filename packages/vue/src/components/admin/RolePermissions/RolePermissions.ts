@@ -1,12 +1,12 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage} from '@thunderid/browser';
+import {RoleQueryKeys, getRole, toManagementErrorMessage} from '@thunderid/browser';
 import type {Preferences, Role} from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import BaseRolePermissions from './BaseRolePermissions';
-import useGetRole from '../../../composables/management/roles/useGetRole';
-import type {ResourceQueryResult} from '../../../composables/management/useResourceQuery';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 
 type RolePermissionsProps = Readonly<{
@@ -44,7 +44,12 @@ const RolePermissions: Component = defineComponent({
   },
   setup(props: RolePermissionsProps, {slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
-    const role: ResourceQueryResult<Role> = useGetRole(() => props.roleId);
+    const endpoint: ManagementEndpoint = useManagementEndpoint('roles');
+    const role: ResourceQueryResult<Role> = useResourceQuery(
+      () => [RoleQueryKeys.ROLE, props.roleId],
+      (fetcher) => getRole({...endpoint, fetcher, roleId: props.roleId}),
+      {enabled: () => Boolean(props.roleId)},
+    );
 
     return (): VNode =>
       h(

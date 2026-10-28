@@ -78,6 +78,23 @@ export const REFRESH_TOKEN_ISSUING_GRANTS: readonly string[] = [
 ];
 
 /**
+ * The grant types the application forms offer. Each is labelled by `admin.applications.grant_types.<value>`.
+ */
+export const APPLICATION_GRANT_TYPES: readonly string[] = [
+  OAuth2GrantTypes.AUTHORIZATION_CODE,
+  OAuth2GrantTypes.REFRESH_TOKEN,
+  OAuth2GrantTypes.CLIENT_CREDENTIALS,
+];
+
+/**
+ * The grant types a new application starts with in the application forms.
+ */
+export const DEFAULT_APPLICATION_GRANT_TYPES: readonly string[] = [
+  OAuth2GrantTypes.AUTHORIZATION_CODE,
+  OAuth2GrantTypes.REFRESH_TOKEN,
+];
+
+/**
  * OAuth 2.0 response types an application can be configured with.
  */
 export type OAuth2ResponseType = 'code' | 'token' | 'id_token' | 'code token' | 'code id_token' | 'token id_token';
@@ -243,6 +260,19 @@ export interface InboundAuthConfig {
 }
 
 /**
+ * The access status values of an application. Applications are never locked.
+ */
+export type ApplicationAccessStatusValue = 'ACTIVE' | 'SUSPENDED';
+
+/**
+ * An application's effective access status. The server computes it when the application is read or
+ * updated, and never accepts it on a write.
+ */
+export interface ApplicationAccessStatus {
+  value?: ApplicationAccessStatusValue;
+}
+
+/**
  * An application registered in ThunderID.
  */
 export interface Application {
@@ -270,6 +300,10 @@ export interface Application {
   recoveryFlowId?: string;
   registrationFlowId?: string;
   signOutFlowId?: string;
+  /**
+   * The effective access status, set by the server.
+   */
+  status?: ApplicationAccessStatus;
   template?: string;
   themeId?: string;
   tosUri?: string;
@@ -294,6 +328,7 @@ export type BasicApplication = Pick<
   | 'type'
   | 'template'
   | 'isReadOnly'
+  | 'status'
 > & {
   clientId?: string;
 };
@@ -308,11 +343,41 @@ export interface ApplicationListResponse {
 }
 
 /**
- * The payload used to create or update an application. The server generates `id` and timestamps.
+ * The payload used to create or update an application. The server generates `id`, the timestamps and
+ * the access `status`.
  */
-export type CreateApplicationRequest = Omit<Application, 'id' | 'createdAt' | 'updatedAt'>;
+export type CreateApplicationRequest = Omit<Application, 'id' | 'createdAt' | 'updatedAt' | 'status'>;
 
 /**
  * The payload used to update an application.
  */
 export type UpdateApplicationRequest = CreateApplicationRequest;
+
+/**
+ * The general fields and OAuth basics the application forms collect.
+ */
+export interface ApplicationSubmission {
+  description?: string;
+  grantTypes: string[];
+  logoUrl?: string;
+  name: string;
+  /**
+   * Whether the client is public: it gets no client secret and must use PKCE. Only set on create.
+   */
+  publicClient?: boolean;
+  redirectUris: string[];
+  url?: string;
+}
+
+/**
+ * What the server read from a client ID metadata document (CIMD): the client's name and links, and the
+ * OAuth configuration it declares.
+ */
+export interface CimdPreviewResponse {
+  contacts?: string[];
+  inboundAuthConfig: InboundAuthConfig[];
+  name: string;
+  policyUri?: string;
+  tosUri?: string;
+  url?: string;
+}

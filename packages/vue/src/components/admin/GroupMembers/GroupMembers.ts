@@ -1,7 +1,19 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {resolveManagedIdentityName, toManagementErrorMessage} from '@thunderid/browser';
+import {
+  AgentQueryKeys,
+  GroupQueryKeys,
+  RoleQueryKeys,
+  UserQueryKeys,
+  addGroupMembers,
+  getAgents,
+  getGroupMembers,
+  getUsers,
+  removeGroupMembers,
+  resolveManagedIdentityName,
+  toManagementErrorMessage,
+} from '@thunderid/browser';
 import type {
   AgentListResponse,
   BasicAgent,
@@ -11,18 +23,13 @@ import type {
   ManagedUser,
   ManagedUserListResponse,
   Preferences,
+  ResourceQueryKey,
 } from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import BaseGroupMembers from './BaseGroupMembers';
-import useGetAgents from '../../../composables/management/agents/useGetAgents';
-import useAddGroupMembers, {
-  type GroupMembersVariables,
-} from '../../../composables/management/groups/useAddGroupMembers';
-import useGetGroupMembers from '../../../composables/management/groups/useGetGroupMembers';
-import useRemoveGroupMembers from '../../../composables/management/groups/useRemoveGroupMembers';
-import type {ResourceMutationResult} from '../../../composables/management/useResourceMutation';
-import type {ResourceQueryResult} from '../../../composables/management/useResourceQuery';
-import useGetUsers from '../../../composables/management/users/useGetUsers';
+import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
+import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
+import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
 import type {IdentityCandidate} from '../shared/IdentityPicker';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 
@@ -34,6 +41,11 @@ type GroupMembersProps = Readonly<{
   preferences: Preferences | undefined;
   title: string | undefined;
 }>;
+
+interface GroupMembersVariables {
+  groupId: string;
+  members: Pick<GroupMember, 'id' | 'type'>[];
+}
 
 /**
  * Lists a group's members and, unless `editable` is `false`, lets the signed-in user add users and
@@ -62,16 +74,42 @@ const GroupMembers: Component = defineComponent({
   },
   setup(props: GroupMembersProps, {slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
-    const members: ResourceQueryResult<GroupMemberListResponse> = useGetGroupMembers(() => props.groupId, {
-      limit: 100,
-    });
-    const users: ResourceQueryResult<ManagedUserListResponse> = useGetUsers(
-      {limit: 100},
-      {enabled: () => props.editable},
+    const groupsEndpoint: ManagementEndpoint = useManagementEndpoint('groups');
+    const usersEndpoint: ManagementEndpoint = useManagementEndpoint('users');
+    const agentsEndpoint: ManagementEndpoint = useManagementEndpoint('agents');
+    const editable = (): boolean => props.editable;
+    // Membership changes the roles a member inherits, so role assignment lists are refetched too.
+    const invalidatedByMembership = ({groupId}: GroupMembersVariables): ResourceQueryKey[] => [
+      [GroupQueryKeys.GROUP, groupId],
+      [GroupQueryKeys.GROUP_MEMBERS, groupId],
+      [GroupQueryKeys.MEMBERSHIPS],
+      [RoleQueryKeys.ROLE_ASSIGNMENTS],
+    ];
+    const members: ResourceQueryResult<GroupMemberListResponse> = useResourceQuery(
+      () => [GroupQueryKeys.GROUP_MEMBERS, props.groupId, {limit: 100}],
+      (fetcher) => getGroupMembers({...groupsEndpoint, fetcher, groupId: props.groupId, limit: 100}),
+      {enabled: () => Boolean(props.groupId)},
     );
-    const agents: ResourceQueryResult<AgentListResponse> = useGetAgents({limit: 100}, {enabled: () => props.editable});
-    const add: ResourceMutationResult<Group, GroupMembersVariables> = useAddGroupMembers();
-    const remove: ResourceMutationResult<Group, GroupMembersVariables> = useRemoveGroupMembers();
+    const users: ResourceQueryResult<ManagedUserListResponse> = useResourceQuery(
+      () => [UserQueryKeys.USERS, {limit: 100}],
+      (fetcher) => getUsers({...usersEndpoint, fetcher, limit: 100}),
+      {enabled: editable},
+    );
+    const agents: ResourceQueryResult<AgentListResponse> = useResourceQuery(
+      () => [AgentQueryKeys.AGENTS, {limit: 100}],
+      (fetcher) => getAgents({...agentsEndpoint, fetcher, limit: 100}),
+      {enabled: editable},
+    );
+    const add: ResourceMutationResult<Group, GroupMembersVariables> = useResourceMutation(
+      ({groupId, members: added}: GroupMembersVariables, fetcher) =>
+        addGroupMembers({...groupsEndpoint, fetcher, groupId, members: added}),
+      invalidatedByMembership,
+    );
+    const remove: ResourceMutationResult<Group, GroupMembersVariables> = useResourceMutation(
+      ({groupId, members: removed}: GroupMembersVariables, fetcher) =>
+        removeGroupMembers({...groupsEndpoint, fetcher, groupId, members: removed}),
+      invalidatedByMembership,
+    );
 
     return (): VNode => {
       const candidates: Partial<Record<'user' | 'agent', IdentityCandidate[]>> = {

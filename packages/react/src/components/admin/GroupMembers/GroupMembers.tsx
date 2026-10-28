@@ -2,21 +2,48 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AgentListResponse,
+  AgentQueryKeys,
+  BasicAgent,
+  Group,
+  GroupMember,
+  GroupMemberListResponse,
+  GroupQueryKeys,
+  ManagedUser,
+  ManagedUserListResponse,
+  ResourceQueryKey,
+  RoleQueryKeys,
+  UserQueryKeys,
+  addGroupMembers,
+  getAgents,
+  getGroupMembers,
+  getUsers,
+  removeGroupMembers,
   resolveManagedIdentityName,
   toManagementErrorMessage,
-  BasicAgent,
-  GroupMember,
-  ManagedUser,
 } from '@thunderid/browser';
 import {FC, ReactElement, useMemo} from 'react';
 import BaseGroupMembers, {BaseGroupMembersProps} from './BaseGroupMembers';
-import useGetAgents from '../../../hooks/management/agents/useGetAgents';
-import useAddGroupMembers from '../../../hooks/management/groups/useAddGroupMembers';
-import useGetGroupMembers from '../../../hooks/management/groups/useGetGroupMembers';
-import useRemoveGroupMembers from '../../../hooks/management/groups/useRemoveGroupMembers';
-import useGetUsers from '../../../hooks/management/users/useGetUsers';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceMutation, {ResourceMutationResult} from '../../../hooks/management/useResourceMutation';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
 import {IdentityCandidate} from '../shared/IdentityPicker';
+
+interface GroupMembersVariables {
+  groupId: string;
+  members: Pick<GroupMember, 'id' | 'type'>[];
+}
+
+/**
+ * Query keys to refetch after a group's membership changes.
+ */
+const getMembershipInvalidatedKeys = ({groupId}: GroupMembersVariables): ResourceQueryKey[] => [
+  [GroupQueryKeys.GROUP, groupId],
+  [GroupQueryKeys.GROUP_MEMBERS, groupId],
+  [GroupQueryKeys.MEMBERSHIPS],
+  [RoleQueryKeys.ROLE_ASSIGNMENTS],
+];
 
 export type GroupMembersProps = Omit<
   BaseGroupMembersProps,
@@ -45,11 +72,34 @@ const GroupMembers: FC<GroupMembersProps> = ({
   ...rest
 }: GroupMembersProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
-  const members = useGetGroupMembers(groupId, {limit: 100});
-  const users = useGetUsers({limit: 100}, {enabled: editable});
-  const agents = useGetAgents({limit: 100}, {enabled: editable});
-  const add = useAddGroupMembers();
-  const remove = useRemoveGroupMembers();
+  const groupsEndpoint: ManagementEndpoint = useManagementEndpoint('groups');
+  const usersEndpoint: ManagementEndpoint = useManagementEndpoint('users');
+  const agentsEndpoint: ManagementEndpoint = useManagementEndpoint('agents');
+  const members: ResourceQueryResult<GroupMemberListResponse> = useResourceQuery(
+    [GroupQueryKeys.GROUP_MEMBERS, groupId, {limit: 100}],
+    (fetcher) => getGroupMembers({...groupsEndpoint, fetcher, groupId, limit: 100}),
+    {enabled: Boolean(groupId)},
+  );
+  const users: ResourceQueryResult<ManagedUserListResponse> = useResourceQuery(
+    [UserQueryKeys.USERS, {limit: 100}],
+    (fetcher) => getUsers({...usersEndpoint, fetcher, limit: 100}),
+    {enabled: editable},
+  );
+  const agents: ResourceQueryResult<AgentListResponse> = useResourceQuery(
+    [AgentQueryKeys.AGENTS, {limit: 100}],
+    (fetcher) => getAgents({...agentsEndpoint, fetcher, limit: 100}),
+    {enabled: editable},
+  );
+  const add: ResourceMutationResult<Group, GroupMembersVariables> = useResourceMutation(
+    ({groupId: id, members: changes}: GroupMembersVariables, fetcher) =>
+      addGroupMembers({...groupsEndpoint, fetcher, groupId: id, members: changes}),
+    getMembershipInvalidatedKeys,
+  );
+  const remove: ResourceMutationResult<Group, GroupMembersVariables> = useResourceMutation(
+    ({groupId: id, members: changes}: GroupMembersVariables, fetcher) =>
+      removeGroupMembers({...groupsEndpoint, fetcher, groupId: id, members: changes}),
+    getMembershipInvalidatedKeys,
+  );
 
   const candidates: Partial<Record<'user' | 'agent', IdentityCandidate[]>> = useMemo(
     () => ({

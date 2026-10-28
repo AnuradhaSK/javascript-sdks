@@ -6,10 +6,17 @@ import {
   AgentCreate,
   AgentDetails,
   AgentList,
+  Application,
+  ApplicationCreate,
+  ApplicationDetails,
+  ApplicationList,
   Attribution,
   BaseAgentCreate,
   BaseAgentDetails,
   BaseAgentList,
+  BaseApplicationCreate,
+  BaseApplicationDetails,
+  BaseApplicationList,
   BaseGroupCreate,
   BaseGroupList,
   BaseGroupMembers,
@@ -21,6 +28,7 @@ import {
   BaseUserDetails,
   BaseUserList,
   BasicAgent,
+  BasicApplication,
   Card,
   Group,
   GroupCreate,
@@ -39,10 +47,12 @@ import {
   RoleResourcePermissions,
   RoleSummary,
   Typography,
-  useGetAgents,
-  useGetGroups,
-  useGetRoles,
-  useGetUsers,
+  getAgents,
+  getApplications,
+  getGroups,
+  getRoles,
+  getUsers,
+  useManagementRequestConfig,
   UserCreate,
   UserDetails,
   UserList,
@@ -54,6 +64,7 @@ import ListHost from './ListHost';
 import {bool, handler, num, omit, quoted, SOURCE_CONTROL, str, tpl} from './storyKit';
 import type {Action, Args, ComponentDef, PropControl, Snippet} from './types';
 import {narrow} from './widgets';
+import useApiQuery from '../../lib/useApiQuery';
 
 // Stories for the management (admin) components, the DataTable primitive they share, and
 // Attribution. Base stories render sample data; live stories call the management API with the
@@ -114,6 +125,35 @@ const SAMPLE_AGENT: Agent = {
   description: 'Books flights and hotels for employees',
   owner: 'usr_8f2c41',
 };
+
+const SAMPLE_APPLICATIONS: BasicApplication[] = [
+  {clientId: 'portal-web', id: 'app_portal', name: 'Customer portal', template: 'browser'},
+  {clientId: 'billing-api', id: 'app_billing', name: 'Billing service', template: 'm2m'},
+  {clientId: 'acme-mobile', id: 'app_mobile', name: 'Acme mobile', template: 'mobile'},
+];
+
+const SAMPLE_APPLICATION: Application = {
+  description: 'Self-service portal for customers',
+  id: 'app_portal',
+  inboundAuthConfig: [
+    {
+      config: {
+        clientId: 'portal-web',
+        grantTypes: ['authorization_code', 'refresh_token'],
+        redirectUris: ['https://portal.acme.io/callback'],
+        responseTypes: ['code'],
+      },
+      type: 'oauth2',
+    },
+  ],
+  name: 'Customer portal',
+  ouId: OU,
+  template: 'browser',
+  url: 'https://portal.acme.io',
+};
+
+/** A secret shown in the "secret shown once" stories. Sample only, never a real credential. */
+const SAMPLE_SECRET = 'sample-secret-5f1c9e2a';
 
 const SAMPLE_MEMBERSHIPS: MembershipGroup[] = SAMPLE_GROUPS.slice(0, 2).map(({id, name, ouId}: Group) => ({
   id,
@@ -197,8 +237,12 @@ interface ListSpec {
   live: Component;
   liveTag: string;
   name: string;
-  /** Composable whose page the Base snippet renders, for the Code panel. */
-  pageComposable: string;
+  /** Collection whose request config the Base snippet takes, for the Code panel. */
+  collection: string;
+  /** API function whose page the Base snippet renders, for the Code panel. */
+  pageFunction: string;
+  /** Type of the page the API function returns. */
+  pageType: string;
   rows: {id: string}[];
   rowsKey: string;
   rowsProp: string;
@@ -228,11 +272,31 @@ const listStory = (spec: ListSpec): ComponentDef => {
       }
 
       return {
-        imports: [spec.baseTag, spec.pageComposable],
+        imports: [spec.baseTag, spec.pageFunction, spec.pageType, 'useManagementRequestConfig'],
         script: [
+          `const config = useManagementRequestConfig('${spec.collection}');`,
           'const offset = ref(0);',
           ...(bool(args, 'selectable') ? ['const selectedId = ref<string>();'] : []),
-          `const {data, error, isLoading} = ${spec.pageComposable}(() => ({limit: ${num(args, 'limit')}, offset: offset.value}));`,
+          `const data = ref<${spec.pageType}>();`,
+          'const error = ref<Error | null>(null);',
+          'const isLoading = ref(false);',
+          '',
+          '// Any data layer works here, such as TanStack Query; this one is a plain watch.',
+          'watch(',
+          '  offset,',
+          '  async (next: number) => {',
+          '    isLoading.value = true;',
+          '    try {',
+          `      data.value = await ${spec.pageFunction}({...config, limit: ${num(args, 'limit')}, offset: next});`,
+          '      error.value = null;',
+          '    } catch (caught) {',
+          '      error.value = caught as Error;',
+          '    } finally {',
+          '      isLoading.value = false;',
+          '    }',
+          '  },',
+          '  {immediate: true},',
+          ');',
         ],
         template: tpl(spec.baseTag, omit(shared, 'limit'), {
           extra: [
@@ -250,7 +314,7 @@ const listStory = (spec: ListSpec): ComponentDef => {
             ...extra,
           ],
         }),
-        vueImports: ['ref'],
+        vueImports: ['ref', 'watch'],
       };
     },
     controls: [
@@ -540,7 +604,9 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     live: UserList,
     liveTag: 'UserList',
     name: 'UserList',
-    pageComposable: 'useGetUsers',
+    collection: 'users',
+    pageFunction: 'getUsers',
+    pageType: 'ManagedUserListResponse',
     rows: SAMPLE_USERS,
     rowsKey: 'users',
     rowsProp: 'users',
@@ -568,11 +634,28 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
             }),
           }
         : {
-            imports: ['BaseUserDetails', 'useGetUser', 'useGetUserGroups'],
+            imports: [
+              'BaseUserDetails',
+              'getUser',
+              'getUserGroups',
+              'ManagedUser',
+              'MembershipGroupListResponse',
+              'useManagementRequestConfig',
+            ],
             script: [
+              "const config = useManagementRequestConfig('users');",
               `const userId = '${SAMPLE_USERS[0].id}';`,
-              'const {data: user, isLoading} = useGetUser(userId);',
-              'const {data: groups} = useGetUserGroups(userId);',
+              'const user = ref<ManagedUser>();',
+              'const groups = ref<MembershipGroupListResponse>();',
+              'const isLoading = ref(true);',
+              '',
+              'onMounted(async () => {',
+              '  [user.value, groups.value] = await Promise.all([',
+              '    getUser({...config, userId}),',
+              '    getUserGroups({...config, userId}),',
+              '  ]);',
+              '  isLoading.value = false;',
+              '});',
               ...(bool(args, 'editable')
                 ? ['const handleUpdate = (attributes: Record<string, unknown>): void => {};']
                 : []),
@@ -591,6 +674,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                 ],
               },
             ),
+            vueImports: ['onMounted', 'ref'],
           },
     controls: [
       SOURCE_CONTROL,
@@ -617,7 +701,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               explicit: str(args, 'userId'),
               noun: 'user',
               pick: firstOf<ManagedUser>('users'),
-              query: () => useGetUsers({limit: 1}),
+              query: () => useApiQuery(() => getUsers({...useManagementRequestConfig('users'), limit: 1})),
               render: (userId: string): VNode =>
                 h(UserDetails, {
                   deletable: bool(args, 'deletable'),
@@ -652,7 +736,9 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     live: GroupList,
     liveTag: 'GroupList',
     name: 'GroupList',
-    pageComposable: 'useGetGroups',
+    collection: 'groups',
+    pageFunction: 'getGroups',
+    pageType: 'GroupListResponse',
     rows: SAMPLE_GROUPS,
     rowsKey: 'groups',
     rowsProp: 'groups',
@@ -727,7 +813,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               explicit: str(args, 'groupId'),
               noun: 'group',
               pick: firstOf<Group>('groups'),
-              query: () => useGetGroups({limit: 1}),
+              query: () => useApiQuery(() => getGroups({...useManagementRequestConfig('groups'), limit: 1})),
               render: (groupId: string): VNode =>
                 h(GroupMembers, {...heading(args), editable: bool(args, 'editable'), groupId, key: groupId}),
             })
@@ -760,7 +846,9 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     live: RoleList,
     liveTag: 'RoleList',
     name: 'RoleList',
-    pageComposable: 'useGetRoles',
+    collection: 'roles',
+    pageFunction: 'getRoles',
+    pageType: 'RoleListResponse',
     rows: SAMPLE_ROLES,
     rowsKey: 'roles',
     rowsProp: 'roles',
@@ -840,7 +928,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               explicit: str(args, 'roleId'),
               noun: 'role',
               pick: firstOf<RoleSummary>('roles'),
-              query: () => useGetRoles({limit: 1}),
+              query: () => useApiQuery(() => getRoles({...useManagementRequestConfig('roles'), limit: 1})),
               render: (roleId: string): VNode =>
                 h(RoleAssignments, {...heading(args), editable: bool(args, 'editable'), key: roleId, roleId}),
             })
@@ -880,9 +968,16 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
             script: bool(args, 'named') ? [`const names = ${literal(RESOURCE_SERVER_NAMES)};`] : [],
           }
         : {
-            imports: ['BaseRolePermissions', 'useGetRole'],
+            imports: ['BaseRolePermissions', 'getRole', 'Role', 'useManagementRequestConfig'],
             script: [
-              `const {data: role, isLoading} = useGetRole('${SAMPLE_ROLES[0].id}');`,
+              "const config = useManagementRequestConfig('roles');",
+              'const role = ref<Role>();',
+              'const isLoading = ref(true);',
+              '',
+              'onMounted(async () => {',
+              `  role.value = await getRole({...config, roleId: '${SAMPLE_ROLES[0].id}'});`,
+              '  isLoading.value = false;',
+              '});',
               ...(bool(args, 'named') ? [`const names = ${literal(RESOURCE_SERVER_NAMES)};`] : []),
             ],
             template: tpl('BaseRolePermissions', omit(args, 'source', 'roleId', 'named', 'isLoading'), {
@@ -892,6 +987,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                 ...(bool(args, 'named') ? [':resource-server-names="names"'] : []),
               ],
             }),
+            vueImports: ['onMounted', 'ref'],
           },
     controls: [
       SOURCE_CONTROL,
@@ -920,7 +1016,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               explicit: str(args, 'roleId'),
               noun: 'role',
               pick: firstOf<RoleSummary>('roles'),
-              query: () => useGetRoles({limit: 1}),
+              query: () => useApiQuery(() => getRoles({...useManagementRequestConfig('roles'), limit: 1})),
               render: (roleId: string): VNode =>
                 h(RolePermissions, {...heading(args), key: roleId, resourceServerNames: names, roleId}),
             })
@@ -946,7 +1042,9 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     live: AgentList,
     liveTag: 'AgentList',
     name: 'AgentList',
-    pageComposable: 'useGetAgents',
+    collection: 'agents',
+    pageFunction: 'getAgents',
+    pageType: 'AgentListResponse',
     rows: SAMPLE_AGENTS,
     rowsKey: 'agents',
     rowsProp: 'agents',
@@ -974,12 +1072,32 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
             }),
           }
         : {
-            imports: ['BaseAgentDetails', 'useGetAgent', 'useGetAgentGroups', 'useGetAgentRoles'],
+            imports: [
+              'Agent',
+              'AgentRoleListResponse',
+              'BaseAgentDetails',
+              'getAgent',
+              'getAgentGroups',
+              'getAgentRoles',
+              'MembershipGroupListResponse',
+              'useManagementRequestConfig',
+            ],
             script: [
+              "const config = useManagementRequestConfig('agents');",
               `const agentId = '${SAMPLE_AGENTS[0].id}';`,
-              'const {data: agent, isLoading} = useGetAgent(agentId);',
-              'const {data: groups} = useGetAgentGroups(agentId);',
-              'const {data: roles} = useGetAgentRoles(agentId);',
+              'const agent = ref<Agent>();',
+              'const groups = ref<MembershipGroupListResponse>();',
+              'const roles = ref<AgentRoleListResponse>();',
+              'const isLoading = ref(true);',
+              '',
+              'onMounted(async () => {',
+              '  [agent.value, groups.value, roles.value] = await Promise.all([',
+              '    getAgent({...config, agentId}),',
+              '    getAgentGroups({...config, agentId}),',
+              '    getAgentRoles({...config, agentId}),',
+              '  ]);',
+              '  isLoading.value = false;',
+              '});',
               ...(bool(args, 'deletable') ? handler('handleDelete') : []),
             ],
             template: tpl(
@@ -995,6 +1113,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                 ],
               },
             ),
+            vueImports: ['onMounted', 'ref'],
           },
     controls: [
       SOURCE_CONTROL,
@@ -1020,7 +1139,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               explicit: str(args, 'agentId'),
               noun: 'agent',
               pick: firstOf<BasicAgent>('agents'),
-              query: () => useGetAgents({limit: 1}),
+              query: () => useApiQuery(() => getAgents({...useManagementRequestConfig('agents'), limit: 1})),
               render: (agentId: string): VNode =>
                 h(AgentDetails, {
                   agentId,
@@ -1043,6 +1162,269 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       {args: {isLoading: true}, id: 'loading', name: 'Loading'},
       {args: {error: 'The agent could not be deleted.'}, id: 'error', name: 'With error'},
       {args: {source: 'live'}, id: 'live', name: 'Live (first agent)'},
+    ],
+  },
+  listStory({
+    base: BaseApplicationList,
+    baseTag: 'BaseApplicationList',
+    id: 'applicationlist',
+    live: ApplicationList,
+    liveTag: 'ApplicationList',
+    name: 'ApplicationList',
+    collection: 'applications',
+    pageFunction: 'getApplications',
+    pageType: 'ApplicationListResponse',
+    rows: SAMPLE_APPLICATIONS,
+    rowsKey: 'applications',
+    rowsProp: 'applications',
+    selectedProp: 'selectedApplicationId',
+  }),
+  {
+    code: (args: Args): Snippet => {
+      const shared: Args = omit(args, 'source', 'cancellable', 'isSubmitting', 'error', 'ouId', 'showSecret');
+      const cancel: string[] = bool(args, 'cancellable') ? ['@cancel="handleCancel"'] : [];
+      const cancelScript: string[] = bool(args, 'cancellable') ? handler('handleCancel') : [];
+
+      if (isLive(args)) {
+        return {
+          imports: ['ApplicationCreate', 'Application'],
+          script: ['const handleCreated = (application: Application): void => {};', ...cancelScript],
+          template: tpl(
+            'ApplicationCreate',
+            {...shared, ouId: str(args, 'ouId')},
+            {extra: ['@created="handleCreated"', ...cancel]},
+          ),
+        };
+      }
+
+      return {
+        imports: ['ApplicationCreateSubmission', 'BaseApplicationCreate'],
+        script: [
+          '// Set from the created application, then cleared once the user has copied it.',
+          'const clientSecret = ref<string | null>(null);',
+          'const handleSubmit = (submission: ApplicationCreateSubmission): void => {};',
+          ...cancelScript,
+        ],
+        template: tpl('BaseApplicationCreate', omit(args, 'source', 'cancellable', 'ouId', 'showSecret'), {
+          extra: [
+            ':client-secret="clientSecret"',
+            '@secret-dismiss="clientSecret = null"',
+            '@submit="handleSubmit"',
+            ...cancel,
+          ],
+        }),
+        vueImports: ['ref'],
+      };
+    },
+    controls: [
+      SOURCE_CONTROL,
+      ...titleControls,
+      {control: 'bool', description: 'Shows a cancel button (`@cancel`).', name: 'cancellable', type: 'boolean'},
+      {control: 'bool', description: 'Base only: shows the busy state.', name: 'isSubmitting', type: 'boolean'},
+      {control: 'text', description: 'Base only: form error, already translated.', name: 'error', type: 'string'},
+      {
+        control: 'bool',
+        description: 'Base only: passes clientSecret, so the form gives way to the secret shown once.',
+        name: 'showSecret',
+        type: 'boolean',
+      },
+      {
+        control: 'text',
+        description: "Live only: organization unit; empty uses the signed-in user's.",
+        name: 'ouId',
+        type: 'string',
+      },
+    ],
+    defaults: {
+      cancellable: true,
+      description: '',
+      error: '',
+      isSubmitting: false,
+      ouId: '',
+      showSecret: false,
+      source: 'base',
+      title: '',
+    },
+    group: 'Admin',
+    id: 'applicationcreate',
+    live: true,
+    name: 'ApplicationCreate',
+    render: (args: Args, action: Action): VNode => {
+      const onCancel: (() => void) | undefined = bool(args, 'cancellable') ? (): void => action('cancel') : undefined;
+
+      return narrow(
+        480,
+        isLive(args)
+          ? h(ApplicationCreate, {
+              ...heading(args),
+              onCancel,
+              onCreated: (created: Application) => action('created', quoted(created.id)),
+              ouId: str(args, 'ouId') || undefined,
+            })
+          : h(BaseApplicationCreate, {
+              ...heading(args),
+              clientSecret: bool(args, 'showSecret') ? SAMPLE_SECRET : null,
+              error: str(args, 'error') || null,
+              isSubmitting: bool(args, 'isSubmitting'),
+              onCancel,
+              onSecretDismiss: (): void => action('secret-dismiss'),
+              onSubmit: (submission: Record<string, unknown>) => action('submit', JSON.stringify(submission)),
+            }),
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Form'},
+      {args: {showSecret: true}, id: 'secret', name: 'Client secret shown once'},
+      {args: {error: 'An application with this name already exists.'}, id: 'error', name: 'With error'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (POST /applications)'},
+    ],
+  },
+  {
+    code: (args: Args): Snippet => {
+      const flags: string[] = ['editable', 'deletable', 'secretRegenerable'].filter((flag: string) => bool(args, flag));
+
+      if (isLive(args)) {
+        return {
+          imports: ['ApplicationDetails'],
+          script: handler('handleDeleted'),
+          template: tpl(
+            'ApplicationDetails',
+            {},
+            {
+              extra: [
+                `application-id="${str(args, 'applicationId') || SAMPLE_APPLICATIONS[0].id}"`,
+                ...flags.map((flag: string) => flag.replace(/[A-Z]/g, (char: string) => `-${char.toLowerCase()}`)),
+                '@deleted="handleDeleted"',
+              ],
+            },
+          ),
+        };
+      }
+
+      return {
+        imports: [
+          'Application',
+          'ApplicationUpdateSubmission',
+          'BaseApplicationDetails',
+          'getApplication',
+          'useManagementRequestConfig',
+        ],
+        script: [
+          "const config = useManagementRequestConfig('applications');",
+          `const applicationId = '${SAMPLE_APPLICATIONS[0].id}';`,
+          'const application = ref<Application>();',
+          'const clientSecret = ref<string | null>(null);',
+          'const isLoading = ref(true);',
+          '',
+          'onMounted(async () => {',
+          '  application.value = await getApplication({...config, applicationId});',
+          '  isLoading.value = false;',
+          '});',
+          ...(bool(args, 'editable')
+            ? ['const handleUpdate = (changes: ApplicationUpdateSubmission): void => {};']
+            : []),
+          ...(bool(args, 'deletable') ? handler('handleDelete') : []),
+          ...(bool(args, 'secretRegenerable') ? handler('handleRegenerateSecret') : []),
+        ],
+        template: tpl(
+          'BaseApplicationDetails',
+          {},
+          {
+            extra: [
+              ':application="application"',
+              ':client-secret="clientSecret"',
+              ':is-loading="isLoading"',
+              ...(bool(args, 'editable') ? ['@update="handleUpdate"'] : []),
+              ...(bool(args, 'deletable') ? ['@delete="handleDelete"'] : []),
+              ...(bool(args, 'secretRegenerable') ? ['@regenerate-secret="handleRegenerateSecret"'] : []),
+              '@secret-dismiss="clientSecret = null"',
+            ],
+          },
+        ),
+        vueImports: ['onMounted', 'ref'],
+      };
+    },
+    controls: [
+      SOURCE_CONTROL,
+      {control: 'bool', description: 'Offers editing (`@update` / `editable`).', name: 'editable', type: 'boolean'},
+      {control: 'bool', description: 'Offers deletion (`@delete` / `deletable`).', name: 'deletable', type: 'boolean'},
+      {
+        control: 'bool',
+        description: 'Offers client secret regeneration (`@regenerate-secret` / `secret-regenerable`).',
+        name: 'secretRegenerable',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: 'Base only: passes clientSecret, the new secret shown once.',
+        name: 'showSecret',
+        type: 'boolean',
+      },
+      idControl('applicationId', 'application'),
+      ...baseStateControls,
+    ],
+    defaults: {
+      applicationId: '',
+      deletable: true,
+      editable: true,
+      error: '',
+      isLoading: false,
+      secretRegenerable: true,
+      showSecret: false,
+      source: 'base',
+    },
+    group: 'Admin',
+    id: 'applicationdetails',
+    live: true,
+    name: 'ApplicationDetails',
+    render: (args: Args, action: Action): VNode =>
+      narrow(
+        640,
+        isLive(args)
+          ? h(FirstResource, {
+              explicit: str(args, 'applicationId'),
+              noun: 'application',
+              pick: firstOf<BasicApplication>('applications'),
+              query: () =>
+                useApiQuery(() => getApplications({...useManagementRequestConfig('applications'), limit: 1})),
+              render: (applicationId: string): VNode =>
+                h(ApplicationDetails, {
+                  applicationId,
+                  deletable: bool(args, 'deletable'),
+                  editable: bool(args, 'editable'),
+                  key: applicationId,
+                  onDeleted: () => action('deleted', quoted(applicationId)),
+                  secretRegenerable: bool(args, 'secretRegenerable'),
+                }),
+            })
+          : h(BaseApplicationDetails, {
+              application: SAMPLE_APPLICATION,
+              clientSecret: bool(args, 'showSecret') ? SAMPLE_SECRET : null,
+              error: str(args, 'error') || null,
+              isLoading: bool(args, 'isLoading'),
+              onDelete: bool(args, 'deletable')
+                ? (): void => action('delete', quoted(SAMPLE_APPLICATION.id))
+                : undefined,
+              onRegenerateSecret: bool(args, 'secretRegenerable')
+                ? (): void => action('regenerate-secret', quoted(SAMPLE_APPLICATION.id))
+                : undefined,
+              onSecretDismiss: (): void => action('secret-dismiss'),
+              onUpdate: bool(args, 'editable')
+                ? (changes: Record<string, unknown>): void => action('update', JSON.stringify(changes))
+                : undefined,
+            }),
+      ),
+    stories: [
+      {id: 'base', name: 'Sample application'},
+      {
+        args: {deletable: false, editable: false, secretRegenerable: false},
+        id: 'readonly',
+        name: 'Read only',
+      },
+      {args: {showSecret: true}, id: 'secret', name: 'Regenerated secret'},
+      {args: {isLoading: true}, id: 'loading', name: 'Loading'},
+      {args: {error: 'The application could not be deleted.'}, id: 'error', name: 'With error'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (first application)'},
     ],
   },
 ];

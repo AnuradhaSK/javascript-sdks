@@ -1,11 +1,22 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {toManagementErrorMessage, Agent, AgentType, SelectOption} from '@thunderid/browser';
+import {
+  Agent,
+  AgentQueryKeys,
+  AgentType,
+  AgentTypeListResponse,
+  CreateAgentRequest,
+  SelectOption,
+  createAgent,
+  getAgentTypes,
+  toManagementErrorMessage,
+} from '@thunderid/browser';
 import {FC, ReactElement, useMemo} from 'react';
 import BaseAgentCreate, {AgentCreateSubmission, BaseAgentCreateProps} from './BaseAgentCreate';
-import useCreateAgent from '../../../hooks/management/agents/useCreateAgent';
-import useGetAgentTypes from '../../../hooks/management/agents/useGetAgentTypes';
+import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
+import useResourceMutation, {ResourceMutationResult} from '../../../hooks/management/useResourceMutation';
+import useResourceQuery, {ResourceQueryResult} from '../../../hooks/management/useResourceQuery';
 import useTranslation from '../../../hooks/useTranslation';
 import useDefaultOuId from '../shared/useDefaultOuId';
 
@@ -41,8 +52,17 @@ const AgentCreate: FC<AgentCreateProps> = ({
 }: AgentCreateProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
   const resolvedOuId: string | undefined = useDefaultOuId(ouId);
-  const {data: agentTypes} = useGetAgentTypes({limit: 100});
-  const {error, isLoading, mutate} = useCreateAgent({onSuccess: onCreated});
+  const agentsEndpoint: ManagementEndpoint = useManagementEndpoint('agents');
+  const agentTypesEndpoint: ManagementEndpoint = useManagementEndpoint('agentTypes');
+  const {data: agentTypes}: ResourceQueryResult<AgentTypeListResponse> = useResourceQuery(
+    [AgentQueryKeys.AGENT_TYPES, {limit: 100}],
+    (fetcher) => getAgentTypes({...agentTypesEndpoint, fetcher, limit: 100}),
+  );
+  const {error, isLoading, mutate}: ResourceMutationResult<Agent, CreateAgentRequest> = useResourceMutation(
+    (payload: CreateAgentRequest, fetcher) => createAgent({...agentsEndpoint, fetcher, payload}),
+    () => [[AgentQueryKeys.AGENTS]],
+    {onSuccess: onCreated},
+  );
 
   const options: SelectOption[] = useMemo(
     () =>

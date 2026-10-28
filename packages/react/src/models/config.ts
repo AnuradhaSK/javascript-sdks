@@ -9,10 +9,9 @@ export type ThunderIDReactConfig = ThunderIDBrowserConfig & {
    */
   http?: {
     /**
-     * Transport used by the management hooks (`useGetApplications`, `useCreateUser`, and so on).
-     * Applies to management operations only. Defaults to the SDK's authenticated HTTP client,
-     * which attaches the signed-in user's access token. A `fetcher` passed to an individual hook
-     * takes precedence over this one.
+     * Transport used for management operations: by the admin components and by the request config
+     * `useManagementRequestConfig` returns. Defaults to the SDK's authenticated HTTP client, which
+     * attaches the signed-in user's access token.
      */
     fetcher?: ApiFetcher;
   };

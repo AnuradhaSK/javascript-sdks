@@ -4,12 +4,12 @@ A Nuxt 3 app that exercises every capability of `@thunderid/nuxt`, in the browse
 local ThunderID server. It links the SDK packages from this workspace (`workspace:*`), so it always runs the code you
 are changing. It is not published.
 
-| Page                         | What it does                                                                                                                                                                                                                                                                                                                       |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview (`/`)               | Capability checks for the client and the server (run one or run all, pass/fail with a reason, filters), a session card with an access token countdown read from the server session, the module configuration, the resolved management endpoints, and a live SDK event log.                                                         |
-| Components (`/components`)   | A component explorer: the components the module auto-imports (the admin components included), the primitives of `@thunderid/vue` (`DataTable` included) and `Attribution`, with stories, a viewport, theme, and grid toolbar, and Controls, Code (a Vue SFC generated from the props), Actions, and Accessibility panels.          |
-| Composables (`/composables`) | Live values of `useThunderID`, `useUser`, `useThunderIDI18n`, `useTheme`, `useFlowMeta`, and `useFlow`, then the management composables: `useGrantedPermissions`, `useManagementEndpoint`, the group, role, user type, agent type, user group and agent group/role queries, and `useCreateGroup` (shown, not run).                 |
-| Server (`/server`)           | The context the Nitro plugin built for the server render (`getThunderIDContext`), the session behind `useServerSession`, and an API explorer for every `/api/auth/*` route the module mounts (`POST /api/auth/management` included), the playground's own server routes, and the pages behind route middleware, with an SDK trace. |
+| Page                         | What it does                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview (`/`)               | Capability checks for the client and the server (run one or run all, pass/fail with a reason, filters), a session card with an access token countdown read from the server session, the module configuration, the resolved management endpoints, and a live SDK event log.                                                                                    |
+| Components (`/components`)   | A component explorer: the components the module auto-imports (the admin components included), the primitives of `@thunderid/vue` (`DataTable` included) and `Attribution`, with stories, a viewport, theme, and grid toolbar, and Controls, Code (a Vue SFC generated from the props), Actions, and Accessibility panels.                                     |
+| Composables (`/composables`) | Live values of `useThunderID`, `useUser`, `useThunderIDI18n`, `useTheme`, `useFlowMeta`, and `useFlow`, then the management API functions: `useGrantedPermissions`, `useManagementEndpoint`, `useManagementRequestConfig`, and the group, role, user type, agent type, user group and agent group/role reads called with it through a small local data layer. |
+| Server (`/server`)           | The context the Nitro plugin built for the server render (`getThunderIDContext`), the session behind `useServerSession`, and an API explorer for every `/api/auth/*` route the module mounts (`POST /api/auth/management` included), the playground's own server routes, and the pages behind route middleware, with an SDK trace.                            |
 
 The playground's own server code shows how an app uses the module:
 
@@ -104,16 +104,17 @@ The playground reports these instead of faking them:
 - No way to issue an expired copy of a session: the cookie is signed with `THUNDERID_SESSION_SECRET` and the module
   exposes no helper for it, so the API explorer's "Expired access token" identity is disabled.
 - The management route only relays users, user types, groups, roles, agents and agent types. `applications` is a
-  resource endpoint key and `useGetApplications` exists in `@thunderid/vue`, but the route answers 400 for it and the
-  module does not auto-import the application composables.
-- `DataTable`, `Attribution`, `useManagementEndpoint`, `useResourceQuery` and `useResourceMutation` are not
-  auto-imported with `management`; the playground imports them from `@thunderid/vue`.
+  resource endpoint key and `getApplications` exists in `@thunderid/vue`, but the route answers 400 for it.
+- The module still lists the management data composables (`useGetGroups`, `useCreateGroup`, ...) in
+  `MANAGEMENT_COMPOSABLES`, though `@thunderid/vue` no longer exports them; only `useGrantedPermissions` resolves.
+- `DataTable`, `Attribution`, `useManagementEndpoint` and `useManagementRequestConfig` are not auto-imported with
+  `management`; the playground imports them from `@thunderid/vue`.
 - The endpoint overrides have no env mapping in the module: `NUXT_PUBLIC_THUNDERID_ENDPOINTS_*` only works when the key
   is already in `nuxt.config.ts`, so the playground reads the variables in `nuxt.config.ts` itself.
 - `MANAGEMENT_COMPONENTS`, `MANAGEMENT_COMPOSABLES`, `NuxtAPIRoutes.MANAGEMENT`, the `ThunderIDManagementRequest` and
   `ThunderIDManagementResult` types, and `getManagementCollectionUrls` are not exported from `@thunderid/nuxt`, so the
   playground repeats the lists and the route path, and cannot show the route's allowlist itself.
-- The management composables are not SSR-aware: on a server render they report `isLoading` and fetch again in the
-  browser.
+- The playground's management data layer (`lib/useApiQuery.ts` and `lib/useApiMutation.ts`) is not SSR-aware: on a
+  server render it reports `isLoading` and fetches again in the browser.
 - An unauthenticated management request (401) is shown by the admin components as the generic "could not load" message;
   `toManagementErrorMessage` only distinguishes 403 and 404. `RESOURCE_ENDPOINT_KEYS` is not exported either.

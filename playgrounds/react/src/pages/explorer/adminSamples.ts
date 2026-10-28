@@ -3,6 +3,8 @@
 
 import type {
   Agent,
+  Application,
+  BasicApplication,
   BasicAgent,
   DataTableColumn,
   Group,
@@ -71,6 +73,33 @@ export const SAMPLE_AGENTS: BasicAgent[] = [
 ];
 
 export const SAMPLE_AGENT: Agent = {...SAMPLE_AGENTS[0], owner: 'usr-1'};
+
+export const SAMPLE_APPLICATIONS: BasicApplication[] = [
+  {clientId: 'portal_spa', description: 'Customer portal', id: 'app-1', name: 'Customer portal', template: 'browser'},
+  {clientId: 'billing_api', id: 'app-2', name: 'Billing service', template: 'm2m'},
+  {clientId: 'field_app', id: 'app-3', name: 'Field app', template: 'mobile'},
+  {clientId: 'ops_console', id: 'app-4', name: 'Ops console', template: 'fullstack'},
+];
+
+export const SAMPLE_APPLICATION: Application = {
+  description: 'Customer portal',
+  id: 'app-1',
+  inboundAuthConfig: [
+    {
+      config: {
+        clientId: 'portal_spa',
+        grantTypes: ['authorization_code', 'refresh_token'],
+        redirectUris: ['https://portal.example.com/callback'],
+        responseTypes: ['code'],
+      },
+      type: 'oauth2',
+    },
+  ],
+  name: 'Customer portal',
+  ouId: OU.ouId,
+  template: 'browser',
+  url: 'https://portal.example.com',
+};
 
 export const SAMPLE_MEMBERSHIPS: MembershipGroup[] = SAMPLE_GROUPS.slice(0, 2).map(({id, name, ouId}: Group) => ({
   id,

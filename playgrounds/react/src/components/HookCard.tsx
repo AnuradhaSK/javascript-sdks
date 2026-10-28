@@ -36,7 +36,7 @@ export interface QueryLike {
 
 interface QueryCardProps {
   children?: ReactNode;
-  /** Disables Fetch, for example while a hook that needs an ID has none. */
+  /** Disables Fetch, for example while a call that needs an ID has none. */
   disabled?: boolean;
   name: string;
   query: QueryLike;
@@ -48,7 +48,7 @@ export const QueryCard = ({
   disabled = false,
   name,
   query,
-  signature = '({limit}, {enabled: false}) => {data, error, isLoading, refetch}',
+  signature = '({...config, limit}) => Promise<page>',
 }: QueryCardProps): ReactElement => (
   <HookCard
     name={name}
@@ -68,7 +68,8 @@ export const QueryCard = ({
   >
     {children ?? (
       <p className="pg-empty">
-        Management hook. Calls the ThunderID management API with the signed-in user&apos;s token.
+        Management API function, called with useManagementRequestConfig() so the request carries the signed-in
+        user&apos;s token.
       </p>
     )}
   </HookCard>

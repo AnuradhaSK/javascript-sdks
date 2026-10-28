@@ -21,7 +21,27 @@ export interface ManagementEndpoint {
  */
 export type ManagementEndpointKey = Extract<
   ResourceEndpointKey,
-  'agents' | 'agentTypes' | 'applications' | 'groups' | 'roles' | 'users' | 'userTypes'
+  | 'agents'
+  | 'agentTypes'
+  | 'applications'
+  | 'configurationVersions'
+  | 'connections'
+  | 'design'
+  | 'export'
+  | 'flows'
+  | 'gateways'
+  | 'groups'
+  | 'i18n'
+  | 'import'
+  | 'notificationTemplates'
+  | 'organizationUnits'
+  | 'resourceServers'
+  | 'roles'
+  | 'secrets'
+  | 'serverConfig'
+  | 'users'
+  | 'userTypes'
+  | 'variables'
 >;
 
 /**
