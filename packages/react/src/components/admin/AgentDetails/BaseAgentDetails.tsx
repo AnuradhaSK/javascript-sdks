@@ -1,12 +1,13 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {Agent, MembershipGroup, Preferences} from '@thunderid/browser';
+import {AccountLifecycleAction, Agent, MembershipGroup, Preferences} from '@thunderid/browser';
 import {FC, ReactElement, ReactNode} from 'react';
 import useTranslation from '../../../hooks/useTranslation';
 import Alert from '../../primitives/Alert/Alert';
 import CopyableText from '../../primitives/CopyableText/CopyableText';
 import Spinner from '../../primitives/Spinner/Spinner';
+import {AccessStatusBadge, AccountLifecycleButtons} from '../shared/AccountLifecycleParts';
 import {ChipList, ConfirmButton, DetailList, Panel} from '../shared/AdminParts';
 import AdminSection from '../shared/AdminSection';
 import useAdminPartStyles from '../shared/useAdminPartStyles';
@@ -20,10 +21,19 @@ export interface BaseAgentDetailsRenderProps {
   groups: MembershipGroup[];
   isDeleting: boolean;
   isLoading: boolean;
+  isRunningLifecycleAction: boolean;
+  /**
+   * The account lifecycle actions offered for the agent. Empty when none is allowed.
+   */
+  lifecycleActions: AccountLifecycleAction[];
   /**
    * Deletes the agent. Undefined when deletion is not allowed, including for read-only agents.
    */
   onDelete?: () => void;
+  /**
+   * Runs an account lifecycle action, with the operator's note on a suspension. Undefined when none is allowed.
+   */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   roles: string[];
 }
 
@@ -46,10 +56,21 @@ export interface BaseAgentDetailsProps {
   groups?: MembershipGroup[];
   isDeleting?: boolean;
   isLoading?: boolean;
+  isRunningLifecycleAction?: boolean;
+  /**
+   * The account lifecycle actions to offer (suspend, unsuspend, unlock), shown only with `onLifecycleAction`. They change
+   * only runtime state, so they apply to read-only agents too.
+   */
+  lifecycleActions?: AccountLifecycleAction[];
   /**
    * Deletes the agent. The delete action is hidden when omitted.
    */
   onDelete?: () => void;
+  /**
+   * Runs an account lifecycle action. Suspending and unsuspending ask for confirmation first, and a
+   * suspension takes an optional operator note.
+   */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   preferences?: Preferences;
   /**
    * The names of the roles the agent holds, directly or through its groups.
@@ -70,7 +91,10 @@ const BaseAgentDetails: FC<BaseAgentDetailsProps> = ({
   groups = [],
   isDeleting = false,
   isLoading = false,
+  isRunningLifecycleAction = false,
+  lifecycleActions = [],
   onDelete,
+  onLifecycleAction,
   preferences,
   roles = [],
 }: BaseAgentDetailsProps): ReactElement => {
@@ -86,7 +110,10 @@ const BaseAgentDetails: FC<BaseAgentDetailsProps> = ({
           groups,
           isDeleting,
           isLoading,
+          isRunningLifecycleAction,
+          lifecycleActions: onLifecycleAction && agent ? lifecycleActions : [],
           onDelete: agent && !agent.isReadOnly ? onDelete : undefined,
+          onLifecycleAction: agent ? onLifecycleAction : undefined,
           roles,
         })}
       </div>
@@ -119,6 +146,10 @@ const BaseAgentDetails: FC<BaseAgentDetailsProps> = ({
     {label: t('admin.common.columns.organization_unit'), value: agent.ouHandle ?? agent.ouId},
   ];
 
+  if (agent.status) {
+    details.push({label: t('admin.common.columns.status'), value: <AccessStatusBadge status={agent.status.value} />});
+  }
+
   if (agent.clientId) {
     details.push({label: t('admin.agents.list.columns.client_id'), value: <CopyableText value={agent.clientId} />});
   }
@@ -133,6 +164,15 @@ const BaseAgentDetails: FC<BaseAgentDetailsProps> = ({
       actions={
         <>
           {actions}
+          {onLifecycleAction && (
+            <AccountLifecycleButtons
+              actions={lifecycleActions}
+              collectsOperatorNote
+              isRunning={isRunningLifecycleAction}
+              name={agent.name}
+              onAction={onLifecycleAction}
+            />
+          )}
           {onDelete && !agent.isReadOnly && (
             <ConfirmButton
               confirmText={t('admin.agents.details.delete.confirm', {name: agent.name})}

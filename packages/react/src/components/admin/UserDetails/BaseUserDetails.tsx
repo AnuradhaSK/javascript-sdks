@@ -1,7 +1,13 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {resolveManagedIdentityName, ManagedUser, MembershipGroup, Preferences} from '@thunderid/browser';
+import {
+  AccountLifecycleAction,
+  resolveManagedIdentityName,
+  ManagedUser,
+  MembershipGroup,
+  Preferences,
+} from '@thunderid/browser';
 import {ChangeEvent, FC, ReactElement, ReactNode, useState} from 'react';
 import useTranslation from '../../../hooks/useTranslation';
 import Alert from '../../primitives/Alert/Alert';
@@ -9,6 +15,7 @@ import {Avatar} from '../../primitives/Avatar/Avatar';
 import Button from '../../primitives/Button/Button';
 import Spinner from '../../primitives/Spinner/Spinner';
 import TextField from '../../primitives/TextField/TextField';
+import {AccessStatusBadge, AccountLifecycleButtons} from '../shared/AccountLifecycleParts';
 import {ChipList, ConfirmButton, DetailList, Panel} from '../shared/AdminParts';
 import AdminSection from '../shared/AdminSection';
 import useAdminPartStyles from '../shared/useAdminPartStyles';
@@ -29,11 +36,21 @@ export interface BaseUserDetailsRenderProps {
   groups: MembershipGroup[];
   isDeleting: boolean;
   isLoading: boolean;
+  isRunningLifecycleAction: boolean;
   isUpdating: boolean;
+  /**
+   * The account lifecycle actions offered for the user. Empty when none is allowed.
+   */
+  lifecycleActions: AccountLifecycleAction[];
   /**
    * Deletes the user. Undefined when deletion is not allowed, including for read-only users.
    */
   onDelete?: () => void;
+  /**
+   * Runs an account lifecycle action, with the operator's note on a suspension. Undefined when none is
+   * allowed.
+   */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   /**
    * Saves the given attributes. Undefined when editing is not allowed, including for read-only users.
    */
@@ -64,11 +81,22 @@ export interface BaseUserDetailsProps {
   hiddenAttributes?: string[];
   isDeleting?: boolean;
   isLoading?: boolean;
+  isRunningLifecycleAction?: boolean;
   isUpdating?: boolean;
+  /**
+   * The account lifecycle actions to offer (suspend, unsuspend, unlock), shown only with
+   * `onLifecycleAction`. They change only runtime state, so they apply to read-only users too.
+   */
+  lifecycleActions?: AccountLifecycleAction[];
   /**
    * Deletes the user. The delete action is hidden when omitted.
    */
   onDelete?: () => void;
+  /**
+   * Runs an account lifecycle action. Suspending and unsuspending ask for confirmation first, and a
+   * suspension takes an optional operator note.
+   */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   /**
    * Saves edited attributes. Text attributes become editable only when set. Receives every
    * attribute, edited or not.
@@ -99,8 +127,11 @@ const BaseUserDetails: FC<BaseUserDetailsProps> = ({
   hiddenAttributes = ['password'],
   isDeleting = false,
   isLoading = false,
+  isRunningLifecycleAction = false,
   isUpdating = false,
+  lifecycleActions = [],
   onDelete,
+  onLifecycleAction,
   onUpdate,
   preferences,
   user,
@@ -125,8 +156,11 @@ const BaseUserDetails: FC<BaseUserDetailsProps> = ({
           groups,
           isDeleting,
           isLoading,
+          isRunningLifecycleAction,
           isUpdating,
+          lifecycleActions: onLifecycleAction && user ? lifecycleActions : [],
           onDelete: isWritable ? onDelete : undefined,
+          onLifecycleAction: user ? onLifecycleAction : undefined,
           onUpdate: isWritable ? onUpdate : undefined,
           user,
         })}
@@ -172,6 +206,15 @@ const BaseUserDetails: FC<BaseUserDetailsProps> = ({
       actions={
         <>
           {actions}
+          {onLifecycleAction && (
+            <AccountLifecycleButtons
+              actions={lifecycleActions}
+              collectsOperatorNote
+              isRunning={isRunningLifecycleAction}
+              name={displayName}
+              onAction={onLifecycleAction}
+            />
+          )}
           {onDelete && !user.isReadOnly && (
             <ConfirmButton
               confirmText={t('admin.users.details.delete.confirm', {name: displayName})}
@@ -192,6 +235,7 @@ const BaseUserDetails: FC<BaseUserDetailsProps> = ({
       <div className={styles['row']}>
         <Avatar name={displayName} size={48} />
         <span className={styles['muted']}>{user.ouHandle ?? user.ouId}</span>
+        <AccessStatusBadge status={user.status?.value} />
       </div>
       <Panel
         title={t('admin.users.details.attributes')}

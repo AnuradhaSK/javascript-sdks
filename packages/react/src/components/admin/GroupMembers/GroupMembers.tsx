@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AdministrationMode,
   AgentListResponse,
   AgentQueryKeys,
   BasicAgent,
@@ -50,6 +51,12 @@ export type GroupMembersProps = Omit<
   'candidates' | 'error' | 'isLoading' | 'isMutating' | 'members' | 'onAdd' | 'onRemove'
 > & {
   /**
+   * How a member is removed. `flow` runs the administration flow the server configures for it, which can revoke
+   * grants and end sessions first. It needs `baseUrl`.
+   * @default 'native'
+   */
+  administrationMode?: AdministrationMode;
+  /**
    * Whether members can be added and removed from this view.
    * @default false
    */
@@ -66,6 +73,7 @@ export type GroupMembersProps = Omit<
  * ```
  */
 const GroupMembers: FC<GroupMembersProps> = ({
+  administrationMode,
   editable = false,
   groupId,
   preferences,
@@ -97,7 +105,7 @@ const GroupMembers: FC<GroupMembersProps> = ({
   );
   const remove: ResourceMutationResult<Group, GroupMembersVariables> = useResourceMutation(
     ({groupId: id, members: changes}: GroupMembersVariables, fetcher) =>
-      removeGroupMembers({...groupsEndpoint, fetcher, groupId: id, members: changes}),
+      removeGroupMembers({...groupsEndpoint, administrationMode, fetcher, groupId: id, members: changes}),
     getMembershipInvalidatedKeys,
   );
 

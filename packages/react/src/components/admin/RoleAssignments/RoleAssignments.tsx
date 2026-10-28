@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AdministrationMode,
   AgentListResponse,
   AgentQueryKeys,
   BasicAgent,
@@ -51,6 +52,12 @@ export type RoleAssignmentsProps = Omit<
   | 'typeFilter'
 > & {
   /**
+   * How an assignment is removed. `flow` runs the administration flow the server configures for it, which can revoke
+   * grants and end sessions first. It needs `baseUrl`.
+   * @default 'native'
+   */
+  administrationMode?: AdministrationMode;
+  /**
    * Whether assignments can be added and removed from this view.
    * @default false
    */
@@ -73,6 +80,7 @@ export type RoleAssignmentsProps = Omit<
  * ```
  */
 const RoleAssignments: FC<RoleAssignmentsProps> = ({
+  administrationMode,
   editable = false,
   filterable = true,
   preferences,
@@ -113,7 +121,7 @@ const RoleAssignments: FC<RoleAssignmentsProps> = ({
   );
   const unassign: ResourceMutationResult<void, RoleAssignmentsVariables> = useResourceMutation(
     ({assignments: changes, roleId: id}: RoleAssignmentsVariables, fetcher) =>
-      removeRoleAssignments({...rolesEndpoint, assignments: changes, fetcher, roleId: id}),
+      removeRoleAssignments({...rolesEndpoint, administrationMode, assignments: changes, fetcher, roleId: id}),
     () => [[RoleQueryKeys.ROLE_ASSIGNMENTS]],
   );
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  type AccountLifecycleAction,
   type Application,
   APPLICATION_GRANT_TYPES,
   type ApplicationSubmission,
@@ -27,6 +28,8 @@ import Alert from '../../primitives/Alert/Alert';
 import Button from '../../primitives/Button/Button';
 import CopyableText from '../../primitives/CopyableText/CopyableText';
 import Spinner from '../../primitives/Spinner/Spinner';
+import AccessStatusBadge from '../shared/AccessStatusBadge';
+import AccountLifecycleButtons from '../shared/AccountLifecycleButtons';
 import AdminSection from '../shared/AdminSection';
 import ChipList from '../shared/ChipList';
 import ClientSecretNotice from '../shared/ClientSecretNotice';
@@ -52,8 +55,11 @@ type BaseApplicationDetailsProps = Readonly<{
   isDeleting: boolean;
   isLoading: boolean;
   isRegeneratingSecret: boolean;
+  isRunningLifecycleAction: boolean;
   isUpdating: boolean;
+  lifecycleActions: AccountLifecycleAction[];
   onDelete: (() => void) | undefined;
+  onLifecycleAction: ((action: AccountLifecycleAction, operatorNote?: string) => void) | undefined;
   onRegenerateSecret: (() => void) | undefined;
   onSecretDismiss: (() => void) | undefined;
   onUpdate: ((application: ApplicationUpdateSubmission) => void) | undefined;
@@ -71,11 +77,16 @@ export interface BaseApplicationDetailsRenderProps {
   isDeleting: boolean;
   isLoading: boolean;
   isRegeneratingSecret: boolean;
+  isRunningLifecycleAction: boolean;
   isUpdating: boolean;
+  /** The account lifecycle actions offered for the application. Empty when none is allowed. */
+  lifecycleActions: AccountLifecycleAction[];
   /** The application's OAuth configuration, without its client secret. Undefined when it has no OAuth client. */
   oauth?: Omit<OAuth2Config, 'clientSecret'>;
   /** Deletes the application. Undefined when deletion is not allowed, including for read-only applications. */
   onDelete?: () => void;
+  /** Runs an account lifecycle action. Undefined when none is allowed. */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   /**
    * Gives the application a new client secret. Undefined when not allowed, for read-only applications
    * and for applications without a confidential OAuth client.
@@ -131,9 +142,24 @@ const BaseApplicationDetails: Component = defineComponent({
     isDeleting: {default: false, type: Boolean},
     isLoading: {default: false, type: Boolean},
     isRegeneratingSecret: {default: false, type: Boolean},
+    isRunningLifecycleAction: {default: false, type: Boolean},
     isUpdating: {default: false, type: Boolean},
+    /**
+     * The account lifecycle actions to offer (suspend, unsuspend; applications are never locked), shown
+     * only with `onLifecycleAction`. They change only runtime state, so they apply to read-only
+     * applications too.
+     */
+    lifecycleActions: {default: () => [], type: Array as PropType<AccountLifecycleAction[]>},
     /** Deletes the application. The delete action is hidden when omitted. Also available as `@delete`. */
     onDelete: {default: undefined, type: Function as PropType<() => void>},
+    /**
+     * Runs an account lifecycle action. Suspending and unsuspending ask for confirmation first. Also
+     * available as `@lifecycle-action`.
+     */
+    onLifecycleAction: {
+      default: undefined,
+      type: Function as PropType<(action: AccountLifecycleAction, operatorNote?: string) => void>,
+    },
     /**
      * Gives the application a new client secret. The regenerate action is hidden when omitted, and for
      * public clients, which have no secret. Also available as `@regenerate-secret`.
@@ -176,9 +202,12 @@ const BaseApplicationDetails: Component = defineComponent({
           isDeleting: props.isDeleting,
           isLoading: props.isLoading,
           isRegeneratingSecret: props.isRegeneratingSecret,
+          isRunningLifecycleAction: props.isRunningLifecycleAction,
           isUpdating: props.isUpdating,
+          lifecycleActions: props.onLifecycleAction && application ? props.lifecycleActions : [],
           oauth,
           onDelete: isWritable ? props.onDelete : undefined,
+          onLifecycleAction: application ? props.onLifecycleAction : undefined,
           onRegenerateSecret: canRegenerate ? props.onRegenerateSecret : undefined,
           onSecretDismiss: props.clientSecret ? props.onSecretDismiss : undefined,
           onUpdate: isWritable ? props.onUpdate : undefined,
@@ -227,6 +256,13 @@ const BaseApplicationDetails: Component = defineComponent({
         {label: t('admin.applications.fields.url'), value: application.url ?? notSet},
         {label: t('admin.applications.fields.logo_url'), value: application.logoUrl ?? notSet},
       ];
+
+      if (application.status?.value) {
+        overview.push({
+          label: t('admin.common.columns.status'),
+          value: h(AccessStatusBadge, {status: application.status.value, t}),
+        });
+      }
 
       const renderEditForm = (current: ApplicationFormValues): VNode =>
         h(
@@ -355,6 +391,15 @@ const BaseApplicationDetails: Component = defineComponent({
         {
           actions: (): (VNode | VNode[] | null | undefined)[] => [
             slots['actions']?.(),
+            props.onLifecycleAction
+              ? h(AccountLifecycleButtons, {
+                  actions: props.lifecycleActions,
+                  isRunning: props.isRunningLifecycleAction,
+                  name: application.name,
+                  onAction: props.onLifecycleAction,
+                  t,
+                })
+              : null,
             props.onDelete && isWritable
               ? h(
                   ConfirmButton,

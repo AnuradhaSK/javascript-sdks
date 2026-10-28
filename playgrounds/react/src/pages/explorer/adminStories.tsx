@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  type AccessStatusValue,
+  type AccountLifecycleAction,
+  type AdministrationMode,
   type Agent,
   AgentCreate,
   AgentDetails,
@@ -43,6 +46,7 @@ import {
   UserCreate,
   UserDetails,
   UserList,
+  getAccountLifecycleActions,
 } from '@thunderid/react';
 import {ReactElement} from 'react';
 import {
@@ -70,6 +74,15 @@ import {withCustomStory} from './customRenderStories';
 import {bool, jsx, num, SOURCE_CONTROL, str} from './storyHelpers';
 import {Narrow} from './StoryWidgets';
 import type {Action, Args, ComponentDef, PropControl, Snippet} from './types';
+
+/**
+ * Every user lifecycle flow configured, so the sample offers whatever its status allows.
+ */
+const ALL_USER_LIFECYCLE_FLOWS: Record<string, string> = {
+  userSuspendFlow: 'user-suspend',
+  userUnlockFlow: 'user-unlock',
+  userUnsuspendFlow: 'user-unsuspend',
+};
 
 const isLive = (args: Args): boolean => str(args, 'source') === 'live';
 
@@ -466,7 +479,11 @@ const STORIES: ComponentDef[] = [
       isLive(args)
         ? {
             imports: ['UserDetails'],
-            jsx: jsx('UserDetails', pick(args, 'userId', 'editable', 'deletable'), {extra: ['onDeleted={backToList}']}),
+            jsx: jsx(
+              'UserDetails',
+              pick(args, 'userId', 'editable', 'deletable', 'lifecycleActions', 'administrationMode'),
+              {extra: ['onDeleted={backToList}']},
+            ),
           }
         : {
             imports: ['BaseUserDetails'],
@@ -476,6 +493,9 @@ const STORIES: ComponentDef[] = [
                 'groups={groups}',
                 ...(bool(args, 'editable') ? ['onUpdate={saveAttributes}'] : []),
                 ...(bool(args, 'deletable') ? ['onDelete={deleteUser}'] : []),
+                ...(bool(args, 'lifecycleActions')
+                  ? ['lifecycleActions={lifecycleActions}', 'onLifecycleAction={runLifecycleAction}']
+                  : []),
               ],
             }),
           },
@@ -484,10 +504,38 @@ const STORIES: ComponentDef[] = [
       idControl('userId'),
       {control: 'bool', description: 'Allows editing string attributes (onUpdate).', name: 'editable', type: 'boolean'},
       {control: 'bool', description: 'Shows the delete button (onDelete).', name: 'deletable', type: 'boolean'},
+      {
+        control: 'bool',
+        description: 'Offers suspend, unsuspend and unlock through the configured administration flows.',
+        name: 'lifecycleActions',
+        type: 'boolean',
+      },
+      {
+        control: ['ACTIVE', 'LOCKED', 'SUSPENDED'],
+        description: "The sample user's access status, which decides the lifecycle actions offered (base only).",
+        name: 'status',
+        type: "'ACTIVE' | 'LOCKED' | 'SUSPENDED'",
+      },
+      {
+        control: ['native', 'flow'],
+        description: 'How the delete runs: the management API, or the configured user deletion flow (live only).',
+        name: 'administrationMode',
+        type: "'native' | 'flow'",
+      },
       LOADING,
       ERROR,
     ],
-    defaults: {deletable: true, editable: true, error: '', isLoading: false, source: 'base', userId: ''},
+    defaults: {
+      administrationMode: 'native',
+      deletable: true,
+      editable: true,
+      error: '',
+      isLoading: false,
+      lifecycleActions: true,
+      source: 'base',
+      status: 'LOCKED',
+      userId: '',
+    },
     group: 'Admin: users',
     id: 'userdetails',
     live: true,
@@ -502,16 +550,27 @@ const STORIES: ComponentDef[] = [
               userId={str(args, 'userId')}
               editable={bool(args, 'editable')}
               deletable={bool(args, 'deletable')}
+              lifecycleActions={bool(args, 'lifecycleActions')}
+              administrationMode={str(args, 'administrationMode') as AdministrationMode}
               onDeleted={() => action('onDeleted')}
             />
           </Narrow>
         );
       }
 
+      const status: AccessStatusValue = str(args, 'status') as AccessStatusValue;
+
       return (
         <Narrow width={560}>
           <BaseUserDetails
-            user={SAMPLE_USERS[0]}
+            user={{...SAMPLE_USERS[0], status: {value: status}}}
+            lifecycleActions={getAccountLifecycleActions('user', status, ALL_USER_LIFECYCLE_FLOWS)}
+            onLifecycleAction={
+              bool(args, 'lifecycleActions')
+                ? (lifecycleAction: AccountLifecycleAction, operatorNote?: string) =>
+                    action('onLifecycleAction', operatorNote ? `${lifecycleAction}: ${operatorNote}` : lifecycleAction)
+                : undefined
+            }
             groups={SAMPLE_MEMBERSHIPS}
             isLoading={bool(args, 'isLoading')}
             error={str(args, 'error') || null}
@@ -527,9 +586,11 @@ const STORIES: ComponentDef[] = [
     },
     stories: [
       {id: 'base', name: 'Sample user'},
-      {args: {deletable: false, editable: false}, id: 'readonly', name: 'Read only'},
+      {args: {deletable: false, editable: false, lifecycleActions: false}, id: 'readonly', name: 'Read only'},
+      {args: {status: 'SUSPENDED'}, id: 'suspended', name: 'Suspended'},
       {args: {isLoading: true}, id: 'loading', name: 'Loading'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs userId)'},
+      {args: {administrationMode: 'flow', source: 'live'}, id: 'live-flows', name: 'Live through administration flows'},
     ],
   },
   {

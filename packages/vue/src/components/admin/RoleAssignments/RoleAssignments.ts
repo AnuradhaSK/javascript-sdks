@@ -16,6 +16,7 @@ import {
   toManagementErrorMessage,
 } from '@thunderid/browser';
 import type {
+  AdministrationMode,
   AgentListResponse,
   BasicAgent,
   Group,
@@ -37,6 +38,7 @@ import type {IdentityCandidate} from '../shared/IdentityPicker';
 import useAdminTranslation, {type AdminTranslate} from '../shared/useAdminTranslation';
 
 type RoleAssignmentsProps = Readonly<{
+  administrationMode: AdministrationMode | undefined;
   className: string;
   description: string | undefined;
   editable: boolean;
@@ -63,6 +65,11 @@ interface RoleAssignmentsVariables {
 const RoleAssignments: Component = defineComponent({
   name: 'RoleAssignments',
   props: {
+    /**
+     * How an assignment is removed. `flow` runs the administration flow the server configures for it, which can revoke
+     * grants and end sessions first. It needs `baseUrl`. Defaults to `native`.
+     */
+    administrationMode: {default: undefined, type: String as PropType<AdministrationMode>},
     /** Extra CSS class added to the root element. */
     className: {default: '', type: String},
     /** Text shown under the title. */
@@ -121,7 +128,13 @@ const RoleAssignments: Component = defineComponent({
     );
     const unassign: ResourceMutationResult<void, RoleAssignmentsVariables> = useResourceMutation(
       ({roleId, assignments: removed}: RoleAssignmentsVariables, fetcher) =>
-        removeRoleAssignments({...rolesEndpoint, assignments: removed, fetcher, roleId}),
+        removeRoleAssignments({
+          ...rolesEndpoint,
+          administrationMode: props.administrationMode,
+          assignments: removed,
+          fetcher,
+          roleId,
+        }),
       () => [[RoleQueryKeys.ROLE_ASSIGNMENTS]],
     );
 

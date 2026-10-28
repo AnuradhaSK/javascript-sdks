@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AccountLifecycleAction,
   Application,
   APPLICATION_GRANT_TYPES,
   ApplicationSubmission,
@@ -17,6 +18,7 @@ import Alert from '../../primitives/Alert/Alert';
 import Button from '../../primitives/Button/Button';
 import CopyableText from '../../primitives/CopyableText/CopyableText';
 import Spinner from '../../primitives/Spinner/Spinner';
+import {AccessStatusBadge, AccountLifecycleButtons} from '../shared/AccountLifecycleParts';
 import {ChipList, ConfirmButton, DetailList, DetailListItem, Panel} from '../shared/AdminParts';
 import AdminSection from '../shared/AdminSection';
 import ApplicationFormFields, {ApplicationFormValues, ApplicationTextField} from '../shared/ApplicationFormFields';
@@ -43,7 +45,12 @@ export interface BaseApplicationDetailsRenderProps {
   isDeleting: boolean;
   isLoading: boolean;
   isRegeneratingSecret: boolean;
+  isRunningLifecycleAction: boolean;
   isUpdating: boolean;
+  /**
+   * The account lifecycle actions offered for the application. Empty when none is allowed.
+   */
+  lifecycleActions: AccountLifecycleAction[];
   /**
    * The application's OAuth configuration, without its client secret. Undefined when it has no OAuth client.
    */
@@ -52,6 +59,10 @@ export interface BaseApplicationDetailsRenderProps {
    * Deletes the application. Undefined when deletion is not allowed, including for read-only applications.
    */
   onDelete?: () => void;
+  /**
+   * Runs an account lifecycle action. Undefined when none is allowed.
+   */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   /**
    * Gives the application a new client secret. Undefined when not allowed, for read-only applications
    * and for applications without a confidential OAuth client.
@@ -87,11 +98,21 @@ export interface BaseApplicationDetailsProps {
   isDeleting?: boolean;
   isLoading?: boolean;
   isRegeneratingSecret?: boolean;
+  isRunningLifecycleAction?: boolean;
   isUpdating?: boolean;
+  /**
+   * The account lifecycle actions to offer (suspend, unsuspend; applications are never locked), shown only with `onLifecycleAction`. They change
+   * only runtime state, so they apply to read-only applications too.
+   */
+  lifecycleActions?: AccountLifecycleAction[];
   /**
    * Deletes the application. The delete action is hidden when omitted.
    */
   onDelete?: () => void;
+  /**
+   * Runs an account lifecycle action. Suspending and unsuspending ask for confirmation first.
+   */
+  onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
   /**
    * Gives the application a new client secret. The regenerate action is hidden when omitted, and for
    * public clients, which have no secret.
@@ -143,8 +164,11 @@ const BaseApplicationDetails: FC<BaseApplicationDetailsProps> = ({
   isDeleting = false,
   isLoading = false,
   isRegeneratingSecret = false,
+  isRunningLifecycleAction = false,
   isUpdating = false,
+  lifecycleActions = [],
   onDelete,
+  onLifecycleAction,
   onRegenerateSecret,
   onSecretDismiss,
   onUpdate,
@@ -176,9 +200,12 @@ const BaseApplicationDetails: FC<BaseApplicationDetailsProps> = ({
           isDeleting,
           isLoading,
           isRegeneratingSecret,
+          isRunningLifecycleAction,
           isUpdating,
+          lifecycleActions: onLifecycleAction && application ? lifecycleActions : [],
           oauth,
           onDelete: isWritable ? onDelete : undefined,
+          onLifecycleAction: application ? onLifecycleAction : undefined,
           onRegenerateSecret: canRegenerate ? onRegenerateSecret : undefined,
           onSecretDismiss: clientSecret ? onSecretDismiss : undefined,
           onUpdate: isWritable ? onUpdate : undefined,
@@ -219,6 +246,13 @@ const BaseApplicationDetails: FC<BaseApplicationDetailsProps> = ({
     {label: t('admin.applications.fields.logo_url'), value: application.logoUrl ?? notSet},
   ];
 
+  if (application.status?.value) {
+    overview.push({
+      label: t('admin.common.columns.status'),
+      value: <AccessStatusBadge status={application.status.value} />,
+    });
+  }
+
   const handleSave = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
 
@@ -242,6 +276,14 @@ const BaseApplicationDetails: FC<BaseApplicationDetailsProps> = ({
       actions={
         <>
           {actions}
+          {onLifecycleAction && (
+            <AccountLifecycleButtons
+              actions={lifecycleActions}
+              isRunning={isRunningLifecycleAction}
+              name={application.name}
+              onAction={onLifecycleAction}
+            />
+          )}
           {onDelete && isWritable && (
             <ConfirmButton
               confirmText={t('admin.applications.details.delete.confirm', {name: application.name})}

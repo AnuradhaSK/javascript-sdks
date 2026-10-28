@@ -60,6 +60,31 @@ export const AdministrationFlowConfigKey: {
 };
 
 /**
+ * The `flow` server-config key naming the flow of each account lifecycle action, by the kind of identity it
+ * acts on. Applications are never locked, so they have no unlock.
+ */
+export const AccountLifecycleFlowConfigKey: {
+  agent: {suspend: 'agentSuspendFlow'; unlock: 'agentUnlockFlow'; unsuspend: 'agentUnsuspendFlow'};
+  application: {suspend: 'applicationSuspendFlow'; unsuspend: 'applicationUnsuspendFlow'};
+  user: {suspend: 'userSuspendFlow'; unlock: 'userUnlockFlow'; unsuspend: 'userUnsuspendFlow'};
+} = {
+  agent: {
+    suspend: AdministrationFlowConfigKey.AGENT_SUSPEND,
+    unlock: AdministrationFlowConfigKey.AGENT_UNLOCK,
+    unsuspend: AdministrationFlowConfigKey.AGENT_UNSUSPEND,
+  },
+  application: {
+    suspend: AdministrationFlowConfigKey.APPLICATION_SUSPEND,
+    unsuspend: AdministrationFlowConfigKey.APPLICATION_UNSUSPEND,
+  },
+  user: {
+    suspend: AdministrationFlowConfigKey.USER_SUSPEND,
+    unlock: AdministrationFlowConfigKey.USER_UNLOCK,
+    unsuspend: AdministrationFlowConfigKey.USER_UNSUSPEND,
+  },
+};
+
+/**
  * Names of the inputs an administration flow reads. They avoid the execution request's top-level names
  * so a value cannot land in the wrong place.
  */

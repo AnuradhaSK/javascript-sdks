@@ -14,6 +14,7 @@ import {
 import type {Agent, AgentRoleListResponse, MembershipGroupListResponse, Preferences} from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import BaseAgentDetails from './BaseAgentDetails';
+import useAccountLifecycle, {type AccountLifecycleState} from '../../../composables/management/useAccountLifecycle';
 import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
 import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
 import useResourceQuery, {type ResourceQueryResult} from '../../../composables/management/useResourceQuery';
@@ -23,6 +24,7 @@ type AgentDetailsProps = Readonly<{
   agentId: string;
   className: string;
   deletable: boolean;
+  lifecycleActions: boolean;
   preferences: Preferences | undefined;
 }>;
 
@@ -46,6 +48,12 @@ const AgentDetails: Component = defineComponent({
     className: {default: '', type: String},
     /** Whether the agent can be deleted from this view. */
     deletable: {default: false, type: Boolean},
+    /**
+     * Whether the agent can be suspended, unsuspended and unlocked from this view. Each action runs
+     * through its administration flow and is offered only when the server configures that flow. Reading
+     * the configured flows needs a token that may read the server configuration.
+     */
+    lifecycleActions: {default: false, type: Boolean},
     /** Component-level preferences, for example `i18n.bundles` overrides. */
     preferences: {default: undefined, type: Object as PropType<Preferences>},
   },
@@ -74,6 +82,13 @@ const AgentDetails: Component = defineComponent({
       () => [[AgentQueryKeys.AGENTS]],
       {onSuccess: (): void => emit('deleted')},
     );
+    const lifecycle: AccountLifecycleState = useAccountLifecycle({
+      enabled: (): boolean => props.lifecycleActions,
+      invalidatedKeys: () => [[AgentQueryKeys.AGENT, props.agentId], [AgentQueryKeys.AGENTS]],
+      kind: 'agent',
+      status: () => agent.data.value?.status?.value,
+      subject: () => props.agentId,
+    });
 
     return (): VNode =>
       h(
@@ -83,11 +98,16 @@ const AgentDetails: Component = defineComponent({
           className: props.className,
           error:
             toManagementErrorMessage(t, agent.error.value, 'admin.agents.details.error') ??
-            toManagementErrorMessage(t, deletion.error.value, 'admin.agents.details.delete.error'),
+            toManagementErrorMessage(t, deletion.error.value, 'admin.agents.details.delete.error') ??
+            toManagementErrorMessage(t, lifecycle.error.value, 'admin.common.lifecycle.error') ??
+            toManagementErrorMessage(t, lifecycle.loadError.value, 'admin.common.lifecycle.load_error'),
           groups: groups.data.value?.groups ?? [],
           isDeleting: deletion.isLoading.value,
           isLoading: agent.isLoading.value,
+          isRunningLifecycleAction: lifecycle.isRunning.value,
+          lifecycleActions: lifecycle.actions.value,
           onDelete: props.deletable ? (): void => void deletion.mutate(props.agentId) : undefined,
+          onLifecycleAction: props.lifecycleActions ? lifecycle.run : undefined,
           preferences: props.preferences,
           roles: roles.data.value?.roles ?? [],
         },

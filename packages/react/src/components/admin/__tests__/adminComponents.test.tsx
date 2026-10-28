@@ -1287,3 +1287,239 @@ describe('applications', () => {
     expect((await screen.findByRole('alert')).textContent).not.toContain('raw server detail');
   });
 });
+
+describe('administration flows', () => {
+  interface FlowServer {
+    /**
+     * The `flow` server-config section, as configured handle by key.
+     */
+    configured?: Record<string, string>;
+    /**
+     * The response of every other request, by path.
+     */
+    resources?: Record<string, unknown>;
+  }
+
+  /**
+   * A fetcher that answers like the server: the flow configuration, the administration flow listing (one
+   * flow per configured handle, with the id `id-<handle>`), flow execution, and the given resources.
+   */
+  const createFlowServer = ({configured = {}, resources = {}}: FlowServer = {}): FetcherMock =>
+    vi.fn<ApiFetcher>().mockImplementation((url: string) => {
+      const {pathname} = new URL(url);
+
+      if (pathname === '/server-config/flow') {
+        return Promise.resolve(
+          respond({
+            merged: Object.fromEntries(
+              Object.entries(configured).map(([key, handle]: [string, string]) => [key, {defaultHandle: handle}]),
+            ),
+          }),
+        );
+      }
+      if (pathname === '/flows') {
+        return Promise.resolve(
+          respond({
+            flows: Object.values(configured).map((handle: string) => ({
+              flowType: 'ADMINISTRATION',
+              handle,
+              id: `id-${handle}`,
+            })),
+          }),
+        );
+      }
+      if (pathname === '/flow/execute') {
+        return Promise.resolve(respond({data: {additionalData: {}}, flowStatus: 'COMPLETE'}));
+      }
+      if (pathname.endsWith('/groups') || pathname.endsWith('/roles')) {
+        return Promise.resolve(respond({count: 0, groups: [], roles: [], startIndex: 1, totalResults: 0}));
+      }
+
+      return Promise.resolve(respond(resources[pathname] ?? {}));
+    });
+
+  const executions = (fetcher: FetcherMock): unknown[] =>
+    fetcher.mock.calls
+      .filter(([url]: [string, RequestInit]) => url === `${baseUrl}/flow/execute`)
+      .map(([, init]: [string, RequestInit]) => JSON.parse(init.body as string) as unknown);
+
+  const lockedUser: ManagedUser = {...users[0], status: {value: 'LOCKED'}};
+
+  describe('BaseUserDetails', () => {
+    it('shows the translated access status', () => {
+      renderWithProviders(<BaseUserDetails user={lockedUser} />);
+
+      expect(screen.getByText('Locked')).toBeTruthy();
+    });
+
+    it('offers no lifecycle actions without a handler', () => {
+      renderWithProviders(<BaseUserDetails user={lockedUser} lifecycleActions={['unlock', 'suspend']} />);
+
+      expect(screen.queryByRole('button', {name: 'Unlock'})).toBeNull();
+      expect(screen.queryByRole('button', {name: 'Suspend'})).toBeNull();
+    });
+
+    it('unlocks straight away, and asks for confirmation and an optional note before suspending', () => {
+      const onLifecycleAction: Mock = vi.fn();
+
+      renderWithProviders(
+        <BaseUserDetails
+          user={lockedUser}
+          lifecycleActions={['unlock', 'suspend']}
+          onLifecycleAction={onLifecycleAction}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', {name: 'Unlock'}));
+      expect(onLifecycleAction).toHaveBeenLastCalledWith('unlock');
+
+      fireEvent.click(screen.getByRole('button', {name: 'Suspend'}));
+      expect(onLifecycleAction).toHaveBeenCalledOnce();
+      const confirmation: HTMLElement = screen.getByRole('group', {name: /^Suspend Aiko Tanaka\?/});
+      fireEvent.change(within(confirmation).getByLabelText('Note (optional)'), {target: {value: ' Ticket 4521 '}});
+      fireEvent.click(within(confirmation).getByRole('button', {name: 'Suspend'}));
+
+      expect(onLifecycleAction).toHaveBeenLastCalledWith('suspend', 'Ticket 4521');
+    });
+
+    it('hands custom details the lifecycle actions, for read-only users too', () => {
+      const onLifecycleAction: Mock = vi.fn();
+      const seen: {actions?: string[]; run?: unknown} = {};
+
+      renderWithProviders(
+        <BaseUserDetails
+          user={{...lockedUser, isReadOnly: true}}
+          lifecycleActions={['unlock']}
+          onLifecycleAction={onLifecycleAction}
+        >
+          {({lifecycleActions, onLifecycleAction: run}): ReactNode => {
+            seen.actions = lifecycleActions;
+            seen.run = run;
+
+            return null;
+          }}
+        </BaseUserDetails>,
+      );
+
+      expect(seen.actions).toEqual(['unlock']);
+      expect(seen.run).toBe(onLifecycleAction);
+    });
+  });
+
+  describe('UserDetails', () => {
+    it('reads no flow configuration unless lifecycle actions are on', async () => {
+      const fetcher: FetcherMock = createFlowServer({resources: {'/users/u-1': lockedUser}});
+
+      renderWithProviders(<UserDetails userId="u-1" />, {fetcher});
+
+      await screen.findByRole('heading', {name: 'Aiko Tanaka'});
+      expect(fetcher.mock.calls.some(([url]: [string, RequestInit]) => url.includes('/server-config/'))).toBe(false);
+    });
+
+    it('says the account actions could not be loaded when the flow configuration cannot be read', async () => {
+      const server: FetcherMock = createFlowServer({resources: {'/users/u-1': lockedUser}});
+      const fetcher: FetcherMock = vi
+        .fn<ApiFetcher>()
+        .mockImplementation((url: string, init?: RequestInit) =>
+          url.includes('/server-config/') ? Promise.resolve(respond({}, 500)) : server(url, init),
+        );
+
+      renderWithProviders(<UserDetails userId="u-1" lifecycleActions />, {fetcher});
+
+      expect((await screen.findByRole('alert')).textContent).toBe('The account actions could not be loaded.');
+      expect(screen.queryByRole('button', {name: 'Unlock'})).toBeNull();
+    });
+
+    it('offers only the actions whose flow is configured, and runs one through its flow', async () => {
+      const fetcher: FetcherMock = createFlowServer({
+        configured: {userUnlockFlow: 'unlock-user'},
+        resources: {'/users/u-1': lockedUser},
+      });
+
+      renderWithProviders(<UserDetails userId="u-1" lifecycleActions />, {fetcher});
+
+      fireEvent.click(await screen.findByRole('button', {name: 'Unlock'}));
+      expect(screen.queryByRole('button', {name: 'Suspend'})).toBeNull();
+
+      await waitFor(() => expect(executions(fetcher)).toEqual([{flowId: 'id-unlock-user', inputs: {subject: 'u-1'}}]));
+    });
+
+    it('deletes through the user deletion flow in flow mode', async () => {
+      const fetcher: FetcherMock = createFlowServer({
+        configured: {userDeletionFlow: 'delete-user'},
+        resources: {'/users/u-1': users[0]},
+      });
+      const onDeleted: Mock = vi.fn();
+
+      renderWithProviders(<UserDetails userId="u-1" deletable administrationMode="flow" onDeleted={onDeleted} />, {
+        fetcher,
+      });
+
+      fireEvent.click(await screen.findByRole('button', {name: 'Delete user'}));
+      fireEvent.click(screen.getByRole('button', {name: 'Confirm'}));
+
+      await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
+      expect(executions(fetcher)).toEqual([{flowId: 'id-delete-user', inputs: {subject: 'u-1'}}]);
+      expect(fetcher.mock.calls.some(([, init]: [string, RequestInit]) => init?.method === 'DELETE')).toBe(false);
+    });
+  });
+
+  it('removes a group member through the membership removal flow in flow mode', async () => {
+    const fetcher: FetcherMock = createFlowServer({
+      configured: {groupMembershipRemovalFlow: 'remove-member'},
+      resources: {
+        '/groups/g-1/members': {
+          count: 1,
+          members: [{display: 'Aiko Tanaka', id: 'u-1', type: 'user'}],
+          startIndex: 1,
+          totalResults: 1,
+        },
+      },
+    });
+
+    renderWithProviders(<GroupMembers groupId="g-1" editable administrationMode="flow" />, {fetcher});
+
+    fireEvent.click(await screen.findByRole('button', {name: 'Remove Aiko Tanaka from the group'}));
+
+    await waitFor(() => expect(executions(fetcher)).toHaveLength(1));
+    expect(fetcher.mock.calls.some(([url]: [string, RequestInit]) => url.endsWith('/members/remove'))).toBe(false);
+  });
+
+  it('unsuspends an agent through its flow', async () => {
+    const fetcher: FetcherMock = createFlowServer({
+      configured: {agentSuspendFlow: 'suspend-agent', agentUnsuspendFlow: 'unsuspend-agent'},
+      resources: {
+        '/agents/a-1': {id: 'a-1', name: 'Billing bot', ouId: 'ou-1', status: {value: 'SUSPENDED'}, type: 'bot'},
+      },
+    });
+
+    renderWithProviders(<AgentDetails agentId="a-1" lifecycleActions />, {fetcher});
+
+    expect(await screen.findByText('Suspended')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', {name: 'Unsuspend'}));
+    expect(screen.queryByRole('button', {name: 'Suspend'})).toBeNull();
+    fireEvent.click(
+      within(screen.getByRole('group', {name: /^Unsuspend Billing bot\?/})).getByRole('button', {name: 'Unsuspend'}),
+    );
+
+    await waitFor(() =>
+      expect(executions(fetcher)).toEqual([{flowId: 'id-unsuspend-agent', inputs: {subject: 'a-1'}}]),
+    );
+  });
+
+  it('suspends an application without asking for an operator note', async () => {
+    const fetcher: FetcherMock = createFlowServer({
+      configured: {applicationSuspendFlow: 'suspend-app'},
+      resources: {'/applications/app-1': {id: 'app-1', name: 'Portal', status: {value: 'ACTIVE'}}},
+    });
+
+    renderWithProviders(<ApplicationDetails applicationId="app-1" lifecycleActions />, {fetcher});
+
+    fireEvent.click(await screen.findByRole('button', {name: 'Suspend'}));
+    const confirmation: HTMLElement = screen.getByRole('group', {name: /^Suspend Portal\?/});
+    expect(within(confirmation).queryByLabelText('Note (optional)')).toBeNull();
+    fireEvent.click(within(confirmation).getByRole('button', {name: 'Suspend'}));
+
+    await waitFor(() => expect(executions(fetcher)).toEqual([{flowId: 'id-suspend-app', inputs: {subject: 'app-1'}}]));
+  });
+});
