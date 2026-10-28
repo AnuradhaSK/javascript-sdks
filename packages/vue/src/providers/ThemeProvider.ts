@@ -34,8 +34,8 @@ import {
   type SetupContext,
   type VNode,
 } from 'vue';
-import {FLOW_META_KEY, THEME_KEY} from '../keys';
-import type {FlowMetaContextValue, ThemeContextValue} from '../models/contexts';
+import {FLOW_META_KEY, THEME_KEY, THEME_ROOT_KEY} from '../keys';
+import type {FlowMetaContextValue, ThemeContextValue, ThemeRootContextValue} from '../models/contexts';
 import buildThemeConfigFromFlowMeta from '../utils/buildThemeConfigFromFlowMeta';
 
 /**
@@ -155,26 +155,36 @@ const ThemeProvider: Component = defineComponent({
       colorScheme.value = colorScheme.value === 'light' ? 'dark' : 'light';
     };
 
-    // Apply CSS variables to DOM
-    const applyToDom = (theme: Theme): void => {
+    // Apply CSS variables and text direction to the document root.
+    const applyToRoot = (): void => {
       if (typeof document === 'undefined') return;
       const root: HTMLElement = document.documentElement;
       // Use the pre-computed cssVariables map from createTheme() which contains
       // correctly-named CSS variables (e.g. --thunderid-color-primary-main).
-      Object.entries(theme.cssVariables).forEach(([key, value]: [key: string, value: string]): void => {
+      Object.entries(resolvedTheme.value.cssVariables).forEach(([key, value]: [key: string, value: string]): void => {
         root.style.setProperty(key, value);
       });
+      root.dir = direction.value;
     };
 
-    watch(resolvedTheme, (theme: Theme): void => applyToDom(theme), {immediate: true});
+    // The innermost ThemeProvider owns the document root: an outer one stops writing its CSS variables
+    // and text direction while a nested one is mounted, and writes them again once it unmounts.
+    let claims = 0;
+    const themeRoot: ThemeRootContextValue = {
+      claim: (): (() => void) => {
+        claims += 1;
+        return (): void => {
+          claims -= 1;
+          if (claims === 0) applyToRoot();
+        };
+      },
+    };
+    const release: (() => void) | undefined = inject(THEME_ROOT_KEY, null)?.claim();
 
-    // Apply direction to document
     watch(
-      direction,
-      (dir: 'ltr' | 'rtl'): void => {
-        if (typeof document !== 'undefined') {
-          document.documentElement.dir = dir;
-        }
+      [resolvedTheme, direction],
+      (): void => {
+        if (claims === 0) applyToRoot();
       },
       {immediate: true},
     );
@@ -187,7 +197,15 @@ const ThemeProvider: Component = defineComponent({
       colorScheme.value = isDark ? 'dark' : 'light';
     };
 
-    onMounted((): void => {
+    const stopDetection = (): void => {
+      classObserver?.disconnect();
+      classObserver = null;
+      mediaQuery?.disconnect();
+      mediaQuery = null;
+    };
+
+    const startDetection = (): void => {
+      stopDetection();
       if (props.mode === 'branding') return;
 
       if (props.mode === 'class') {
@@ -198,11 +216,22 @@ const ThemeProvider: Component = defineComponent({
       } else if (props.mode === 'system') {
         mediaQuery = createMediaQueryListener(handleThemeChange);
       }
-    });
+    };
+
+    onMounted(startDetection);
+
+    // Follow a change of mode after mount, such as a host app's own color scheme toggle.
+    watch(
+      () => props.mode,
+      (): void => {
+        colorScheme.value = initColorScheme();
+        startDetection();
+      },
+    );
 
     onBeforeUnmount((): void => {
-      if (classObserver) classObserver.disconnect();
-      mediaQuery?.disconnect();
+      stopDetection();
+      release?.();
     });
 
     const context: ThemeContextValue = {
@@ -213,6 +242,7 @@ const ThemeProvider: Component = defineComponent({
     };
 
     provide(THEME_KEY, context);
+    provide(THEME_ROOT_KEY, themeRoot);
 
     return () => h('div', {style: 'display:contents'}, slots['default']?.());
   },
