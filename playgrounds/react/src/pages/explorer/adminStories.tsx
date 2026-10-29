@@ -877,7 +877,7 @@ const STORIES: ComponentDef[] = [
   {
     code: (args: Args) =>
       isLive(args)
-        ? {imports: ['RoleAssignments'], jsx: jsx('RoleAssignments', pick(args, 'roleId', 'editable', 'title'))}
+        ? {imports: ['RoleAssignments'], jsx: jsx('RoleAssignments', pick(args, 'roleId', 'ouId', 'editable', 'title'))}
         : {
             imports: ['BaseRoleAssignments'],
             jsx: jsx('BaseRoleAssignments', pick(args, 'title', 'isLoading', 'error'), {
@@ -896,12 +896,18 @@ const STORIES: ComponentDef[] = [
     controls: [
       SOURCE_CONTROL,
       idControl('roleId'),
+      {
+        control: 'text',
+        description: 'Live only: the organization unit the assignee picker lists from.',
+        name: 'ouId',
+        type: 'string',
+      },
       TITLE,
       {control: 'bool', description: 'Adds the assignee picker and remove buttons.', name: 'editable', type: 'boolean'},
       LOADING,
       ERROR,
     ],
-    defaults: {editable: true, error: '', isLoading: false, roleId: '', source: 'base', title: ''},
+    defaults: {editable: true, error: '', isLoading: false, ouId: '', roleId: '', source: 'base', title: ''},
     group: 'Admin: roles',
     id: 'roleassignments',
     live: true,
@@ -914,6 +920,7 @@ const STORIES: ComponentDef[] = [
         <Narrow width={640}>
           <RoleAssignments
             roleId={str(args, 'roleId')}
+            ouId={str(args, 'ouId') || undefined}
             editable={bool(args, 'editable')}
             title={str(args, 'title') || undefined}
           />

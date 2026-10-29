@@ -939,9 +939,16 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       isLive(args)
         ? {
             imports: ['RoleAssignments'],
-            template: tpl('RoleAssignments', omit(args, 'source', 'isLoading', 'isMutating', 'error', 'roleId'), {
-              extra: [`role-id="${str(args, 'roleId') || SAMPLE_ROLES[0].id}"`],
-            }),
+            template: tpl(
+              'RoleAssignments',
+              omit(args, 'source', 'isLoading', 'isMutating', 'error', 'roleId', 'ouId'),
+              {
+                extra: [
+                  `role-id="${str(args, 'roleId') || SAMPLE_ROLES[0].id}"`,
+                  ...(str(args, 'ouId') ? [`ou-id="${str(args, 'ouId')}"`] : []),
+                ],
+              },
+            ),
           }
         : {
             imports: ['BaseRoleAssignments', 'IdentityCandidate', 'RoleAssignment', 'RoleAssignmentInput'],
@@ -955,7 +962,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                   ]
                 : []),
             ],
-            template: tpl('BaseRoleAssignments', omit(args, 'source', 'editable', 'roleId'), {
+            template: tpl('BaseRoleAssignments', omit(args, 'source', 'editable', 'roleId', 'ouId'), {
               extra: [
                 ':assignments="assignments"',
                 ...(bool(args, 'editable')
@@ -970,6 +977,12 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       {control: 'bool', description: 'Shows the assign form and remove buttons.', name: 'editable', type: 'boolean'},
       idControl('roleId', 'role'),
       {
+        control: 'text',
+        description: 'Live only: the organization unit the assign form lists from.',
+        name: 'ouId',
+        type: 'string',
+      },
+      {
         control: 'bool',
         description: 'Base only: an assign or unassign is in flight.',
         name: 'isMutating',
@@ -983,6 +996,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       error: '',
       isLoading: false,
       isMutating: false,
+      ouId: '',
       roleId: '',
       source: 'base',
       title: '',
@@ -1001,7 +1015,13 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               pick: firstOf<RoleSummary>('roles'),
               query: () => useApiQuery(() => getRoles({...useManagementRequestConfig('roles'), limit: 1})),
               render: (roleId: string): VNode =>
-                h(RoleAssignments, {...heading(args), editable: bool(args, 'editable'), key: roleId, roleId}),
+                h(RoleAssignments, {
+                  ...heading(args),
+                  editable: bool(args, 'editable'),
+                  key: roleId,
+                  ouId: str(args, 'ouId') || undefined,
+                  roleId,
+                }),
             })
           : h(BaseRoleAssignments, {
               ...heading(args),
