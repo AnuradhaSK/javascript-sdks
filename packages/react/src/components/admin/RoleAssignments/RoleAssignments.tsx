@@ -25,6 +25,7 @@ import {
   getUsers,
   removeRoleAssignments,
   resolveManagedIdentityName,
+  toEqualityFilter,
   toManagementErrorMessage,
 } from '@thunderid/browser';
 import {FC, ReactElement, useMemo, useState} from 'react';
@@ -38,6 +39,14 @@ import {IdentityCandidate} from '../shared/IdentityPicker';
 interface RoleAssignmentsVariables {
   assignments: RoleAssignmentInput[];
   roleId: string;
+}
+
+/**
+ * A candidate page with the filter it was listed with.
+ */
+interface FilteredPage<T> {
+  filter: string | undefined;
+  page: T;
 }
 
 export type RoleAssignmentsProps = Omit<
@@ -68,6 +77,10 @@ export type RoleAssignmentsProps = Omit<
    * @default true
    */
   filterable?: boolean;
+  /**
+   * Organization unit the users, groups and agents offered for assignment are listed from.
+   */
+  ouId?: string;
   roleId: string;
 };
 
@@ -84,6 +97,7 @@ const RoleAssignments: FC<RoleAssignmentsProps> = ({
   administrationMode,
   editable = false,
   filterable = true,
+  ouId,
   preferences,
   roleId,
   ...rest
@@ -95,24 +109,25 @@ const RoleAssignments: FC<RoleAssignmentsProps> = ({
   const groupsEndpoint: ManagementEndpoint = useManagementEndpoint('groups');
   const agentsEndpoint: ManagementEndpoint = useManagementEndpoint('agents');
   const type: RoleAssigneeType | undefined = typeFilter ?? undefined;
+  const filter: string | undefined = toEqualityFilter('ouId', ouId);
   const assignments: ResourceQueryResult<RoleAssignmentListResponse> = useResourceQuery(
     [RoleQueryKeys.ROLE_ASSIGNMENTS, roleId, {limit: 100, type}],
     (fetcher) => getRoleAssignments({...rolesEndpoint, fetcher, limit: 100, roleId, type}),
     {enabled: Boolean(roleId)},
   );
-  const users: ResourceQueryResult<ManagedUserListResponse> = useResourceQuery(
-    [UserQueryKeys.USERS, {limit: 100}],
-    (fetcher) => getUsers({...usersEndpoint, fetcher, limit: 100}),
+  const users: ResourceQueryResult<FilteredPage<ManagedUserListResponse>> = useResourceQuery(
+    [UserQueryKeys.USERS, {filter, limit: 100}],
+    async (fetcher) => ({filter, page: await getUsers({...usersEndpoint, fetcher, filter, limit: 100})}),
     {enabled: editable},
   );
-  const groups: ResourceQueryResult<GroupListResponse> = useResourceQuery(
-    [GroupQueryKeys.GROUPS, {limit: 100}],
-    (fetcher) => getGroups({...groupsEndpoint, fetcher, limit: 100}),
+  const groups: ResourceQueryResult<FilteredPage<GroupListResponse>> = useResourceQuery(
+    [GroupQueryKeys.GROUPS, {filter, limit: 100}],
+    async (fetcher) => ({filter, page: await getGroups({...groupsEndpoint, fetcher, filter, limit: 100})}),
     {enabled: editable},
   );
-  const agents: ResourceQueryResult<AgentListResponse> = useResourceQuery(
-    [AgentQueryKeys.AGENTS, {limit: 100}],
-    (fetcher) => getAgents({...agentsEndpoint, fetcher, limit: 100}),
+  const agents: ResourceQueryResult<FilteredPage<AgentListResponse>> = useResourceQuery(
+    [AgentQueryKeys.AGENTS, {filter, limit: 100}],
+    async (fetcher) => ({filter, page: await getAgents({...agentsEndpoint, fetcher, filter, limit: 100})}),
     {enabled: editable},
   );
   const assign: ResourceMutationResult<void, RoleAssignmentsVariables> = useResourceMutation(
@@ -126,17 +141,23 @@ const RoleAssignments: FC<RoleAssignmentsProps> = ({
     () => [[RoleQueryKeys.ROLE_ASSIGNMENTS]],
   );
 
-  const candidates: Partial<Record<'user' | 'group' | 'agent', IdentityCandidate[]>> = useMemo(
-    () => ({
-      agent: (agents.data?.agents ?? []).map((agent: BasicAgent) => ({id: agent.id, label: getAgentName(agent)})),
-      group: (groups.data?.groups ?? []).map((group: Group) => ({id: group.id, label: group.name})),
-      user: (users.data?.users ?? []).map((user: ManagedUser) => ({
+  const candidates: Partial<Record<'user' | 'group' | 'agent', IdentityCandidate[]>> = useMemo(() => {
+    // A page listed for an earlier ouId stays in a query until the next one succeeds, so it is not offered.
+    const current = <T,>(data: FilteredPage<T> | undefined): T | undefined =>
+      data && data.filter === filter ? data.page : undefined;
+
+    return {
+      agent: (current(agents.data)?.agents ?? []).map((agent: BasicAgent) => ({
+        id: agent.id,
+        label: getAgentName(agent),
+      })),
+      group: (current(groups.data)?.groups ?? []).map((group: Group) => ({id: group.id, label: group.name})),
+      user: (current(users.data)?.users ?? []).map((user: ManagedUser) => ({
         id: user.id,
         label: resolveManagedIdentityName(user),
       })),
-    }),
-    [agents.data, groups.data, users.data],
-  );
+    };
+  }, [agents.data, filter, groups.data, users.data]);
 
   return (
     <BaseRoleAssignments

@@ -26,7 +26,7 @@ import GroupCreate from '../GroupCreate/GroupCreate';
 import GroupList from '../GroupList/GroupList';
 import BaseGroupMembers from '../GroupMembers/BaseGroupMembers';
 import GroupMembers from '../GroupMembers/GroupMembers';
-import BaseRoleAssignments from '../RoleAssignments/BaseRoleAssignments';
+import BaseRoleAssignments, {BaseRoleAssignmentsRenderProps} from '../RoleAssignments/BaseRoleAssignments';
 import RoleAssignments from '../RoleAssignments/RoleAssignments';
 import RoleList from '../RoleList/RoleList';
 import BaseRolePermissions from '../RolePermissions/BaseRolePermissions';
@@ -649,6 +649,92 @@ describe('search and filters', () => {
     await waitFor(() => {
       const url: string = fetcher.mock.calls[fetcher.mock.calls.length - 1][0];
       expect(new URL(url).searchParams.get('type')).toBe('group');
+    });
+  });
+
+  it('lists the candidates from the organization unit it is given', async () => {
+    const fetcher: FetcherMock = vi
+      .fn<ApiFetcher>()
+      .mockResolvedValue(respond({assignments: [], count: 0, startIndex: 1, totalResults: 0}));
+
+    renderWithProviders(<RoleAssignments roleId="r-1" ouId="ou-1" editable />, {fetcher});
+
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(4));
+    const filters: Record<string, string | null> = Object.fromEntries(
+      fetcher.mock.calls.map(([url]: [string, RequestInit]) => {
+        const {pathname, searchParams} = new URL(url);
+
+        return [pathname, searchParams.get('filter')];
+      }),
+    );
+    expect(filters).toEqual({
+      '/agents': 'ouId eq "ou-1"',
+      '/groups': 'ouId eq "ou-1"',
+      '/roles/r-1/assignments': null,
+      '/users': 'ouId eq "ou-1"',
+    });
+  });
+
+  it.each<[string, () => Promise<Response>]>([
+    ['is pending', () => new Promise<Response>(() => undefined)],
+    ['has failed', () => Promise.resolve(respond({}, 500))],
+  ])('offers no candidates from the previous organization unit while the new list %s', async (_state, listNext) => {
+    const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockImplementation((url: string) =>
+      new URL(url).searchParams.get('filter') === 'ouId eq "ou-2"'
+        ? listNext()
+        : Promise.resolve(
+            respond({
+              agents: [{attributes: {name: 'Deploy bot'}, id: 'ag-1'}],
+              assignments: [],
+              count: 1,
+              groups: [{id: 'g-1', name: 'Ops'}],
+              startIndex: 1,
+              totalResults: 1,
+              users: [{display: 'Aiko Tanaka', id: 'u-1'}],
+            }),
+          ),
+    );
+    let candidates: BaseRoleAssignmentsRenderProps['candidates'];
+    const view = (ouId: string): ReactElement => (
+      <RoleAssignments roleId="r-1" ouId={ouId} editable>
+        {(props: BaseRoleAssignmentsRenderProps) => {
+          candidates = props.candidates;
+
+          return null;
+        }}
+      </RoleAssignments>
+    );
+
+    const {rerender} = renderWithProviders(view('ou-1'), {fetcher});
+    await waitFor(() => expect(candidates?.user).toHaveLength(1));
+    expect(candidates?.group).toHaveLength(1);
+    expect(candidates?.agent).toHaveLength(1);
+
+    rerender(view('ou-2'));
+
+    await waitFor(() =>
+      expect(
+        fetcher.mock.calls
+          .filter(([url]: [string, RequestInit]) => url.includes('ou-2'))
+          .map(([url]) => new URL(url).pathname),
+      ).toEqual(expect.arrayContaining(['/users', '/groups', '/agents'])),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(candidates).toEqual({agent: [], group: [], user: []});
+  });
+
+  it('lists the candidates without a filter when no organization unit is given', async () => {
+    const fetcher: FetcherMock = vi
+      .fn<ApiFetcher>()
+      .mockResolvedValue(respond({assignments: [], count: 0, startIndex: 1, totalResults: 0}));
+
+    renderWithProviders(<RoleAssignments roleId="r-1" editable />, {fetcher});
+
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(4));
+    fetcher.mock.calls.forEach(([url]: [string, RequestInit]) => {
+      expect(new URL(url).searchParams.has('filter')).toBe(false);
     });
   });
 

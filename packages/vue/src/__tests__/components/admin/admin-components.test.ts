@@ -701,6 +701,72 @@ describe('admin components (vue)', () => {
       expect(invalidatedKeys(invalidate)).toEqual([[RoleQueryKeys.ROLE_ASSIGNMENTS], [RoleQueryKeys.ROLE_ASSIGNMENTS]]);
     });
 
+    it('RoleAssignments lists the candidates from the organization unit it is given', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      context.fetcher.mockImplementation(respondWith());
+      mountWith(RoleAssignments, {editable: true, ouId: 'ou-1', roleId: 'r1'}, context);
+
+      await vi.waitFor(() => expect(context.fetcher).toHaveBeenCalledTimes(4));
+      const filter = 'ouId eq "ou-1"';
+      const query: string = new URLSearchParams({filter, include: 'display', limit: '100'}).toString();
+      expect(requests(context)).toEqual(
+        expect.arrayContaining([
+          'GET /roles/r1/assignments?include=display&limit=100',
+          `GET /users?${query}`,
+          `GET /groups?${query}`,
+          `GET /agents?${query}`,
+        ]),
+      );
+      expect(keys()).toEqual([
+        [RoleQueryKeys.ROLE_ASSIGNMENTS, 'r1', {limit: 100}],
+        [UserQueryKeys.USERS, {filter, limit: 100}],
+        [GroupQueryKeys.GROUPS, {filter, limit: 100}],
+        [AgentQueryKeys.AGENTS, {filter, limit: 100}],
+      ]);
+    });
+
+    it.each<[string, () => Promise<Response>]>([
+      ['is pending', () => new Promise<Response>(() => undefined)],
+      ['has failed', () => Promise.resolve(jsonResponse({}, 500))],
+    ])(
+      'RoleAssignments offers no candidates from the previous organization unit while the new list %s',
+      async (_state, listNext) => {
+        const context = createManagementContext();
+        context.fetcher.mockImplementation((url: string, init: RequestInit) =>
+          new URL(url).searchParams.get('filter') === 'ouId eq "ou-2"'
+            ? listNext()
+            : respondWith(() => ({
+                ...page,
+                agents: [{attributes: {name: 'Deploy bot'}, id: 'ag-1'}],
+                assignments: [],
+                groups: [{id: 'g-1', name: 'Ops'}],
+                users: [{display: 'Aiko Tanaka', id: 'u-1'}],
+              }))(url, init),
+        );
+        let renderProps: BaseRoleAssignmentsRenderProps | undefined;
+        const {wrapper} = mountWith(RoleAssignments, {editable: true, ouId: 'ou-1', roleId: 'r1'}, context, {
+          default: (props: BaseRoleAssignmentsRenderProps) => {
+            renderProps = props;
+
+            return h('span');
+          },
+        });
+
+        await vi.waitFor(() => expect(renderProps?.candidates?.user).toHaveLength(1));
+        expect(renderProps?.candidates?.group).toHaveLength(1);
+        expect(renderProps?.candidates?.agent).toHaveLength(1);
+
+        await wrapper.setProps({ouId: 'ou-2'});
+
+        await vi.waitFor(() =>
+          expect(requests(context).filter((request: string) => request.includes('ou-2'))).toHaveLength(3),
+        );
+        await nextTick();
+        expect(renderProps?.candidates).toEqual({agent: [], group: [], user: []});
+      },
+    );
+
     it('RolePermissions loads the role under its key', async () => {
       const context = createManagementContext();
       const keys = subscribedKeys(context);

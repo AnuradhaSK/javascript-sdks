@@ -83,6 +83,12 @@ describe('roles and groups management API', () => {
       `${baseUrl}/groups?include=display&offset=10`,
     ],
     [
+      'getGroups with a filter',
+      (fetcher: ApiFetcher) => getGroups({baseUrl, fetcher, filter: 'ouId eq "ou-1"', limit: 10}),
+      'GET',
+      `${baseUrl}/groups?filter=ouId+eq+%22ou-1%22&include=display&limit=10`,
+    ],
+    [
       'getGroup',
       (fetcher: ApiFetcher) => getGroup({baseUrl, fetcher, groupId: 'g-1'}),
       'GET',
