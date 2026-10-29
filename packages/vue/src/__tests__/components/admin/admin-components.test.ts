@@ -655,6 +655,68 @@ describe('admin components (vue)', () => {
       expect(invalidatedKeys(invalidate)).toEqual(membershipKeys);
     });
 
+    it('GroupMembers lists the candidates from the organization unit it is given', async () => {
+      const context = createManagementContext();
+      const keys = subscribedKeys(context);
+      context.fetcher.mockImplementation(respondWith());
+      mountWith(GroupMembers, {editable: true, groupId: 'g1', ouId: 'ou-1'}, context);
+
+      await vi.waitFor(() => expect(context.fetcher).toHaveBeenCalledTimes(3));
+      const filter = 'ouId eq "ou-1"';
+      const query: string = new URLSearchParams({filter, include: 'display', limit: '100'}).toString();
+      expect(requests(context)).toEqual(
+        expect.arrayContaining([
+          'GET /groups/g1/members?include=display&limit=100',
+          `GET /users?${query}`,
+          `GET /agents?${query}`,
+        ]),
+      );
+      expect(keys()).toEqual([
+        [GroupQueryKeys.GROUP_MEMBERS, 'g1', {limit: 100}],
+        [UserQueryKeys.USERS, {filter, limit: 100}],
+        [AgentQueryKeys.AGENTS, {filter, limit: 100}],
+      ]);
+    });
+
+    it.each<[string, () => Promise<Response>]>([
+      ['is pending', () => new Promise<Response>(() => undefined)],
+      ['has failed', () => Promise.resolve(jsonResponse({}, 500))],
+    ])(
+      'GroupMembers offers no candidates from the previous organization unit while the new list %s',
+      async (_state, listNext) => {
+        const context = createManagementContext();
+        context.fetcher.mockImplementation((url: string, init: RequestInit) =>
+          new URL(url).searchParams.get('filter') === 'ouId eq "ou-2"'
+            ? listNext()
+            : respondWith(() => ({
+                ...page,
+                agents: [{attributes: {name: 'Deploy bot'}, id: 'ag-1'}],
+                members: [],
+                users: [{display: 'Aiko Tanaka', id: 'u-1'}],
+              }))(url, init),
+        );
+        let renderProps: BaseGroupMembersRenderProps | undefined;
+        const {wrapper} = mountWith(GroupMembers, {editable: true, groupId: 'g1', ouId: 'ou-1'}, context, {
+          default: (props: BaseGroupMembersRenderProps) => {
+            renderProps = props;
+
+            return h('span');
+          },
+        });
+
+        await vi.waitFor(() => expect(renderProps?.candidates?.user).toHaveLength(1));
+        expect(renderProps?.candidates?.agent).toHaveLength(1);
+
+        await wrapper.setProps({ouId: 'ou-2'});
+
+        await vi.waitFor(() =>
+          expect(requests(context).filter((request: string) => request.includes('ou-2'))).toHaveLength(2),
+        );
+        await nextTick();
+        expect(renderProps?.candidates).toEqual({agent: [], user: []});
+      },
+    );
+
     it('RoleAssignments loads assignments and candidates, and assigns and unassigns', async () => {
       const context = createManagementContext();
       const keys = subscribedKeys(context);

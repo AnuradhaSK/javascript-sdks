@@ -687,7 +687,7 @@ const STORIES: ComponentDef[] = [
   {
     code: (args: Args) =>
       isLive(args)
-        ? {imports: ['GroupMembers'], jsx: jsx('GroupMembers', pick(args, 'groupId', 'editable', 'title'))}
+        ? {imports: ['GroupMembers'], jsx: jsx('GroupMembers', pick(args, 'groupId', 'ouId', 'editable', 'title'))}
         : {
             imports: ['BaseGroupMembers'],
             jsx: jsx('BaseGroupMembers', pick(args, 'title', 'isLoading', 'error'), {
@@ -702,12 +702,18 @@ const STORIES: ComponentDef[] = [
     controls: [
       SOURCE_CONTROL,
       idControl('groupId'),
+      {
+        control: 'text',
+        description: 'Live only: the organization unit the member picker lists from.',
+        name: 'ouId',
+        type: 'string',
+      },
       TITLE,
       {control: 'bool', description: 'Adds the member picker and remove buttons.', name: 'editable', type: 'boolean'},
       LOADING,
       ERROR,
     ],
-    defaults: {editable: true, error: '', groupId: '', isLoading: false, source: 'base', title: ''},
+    defaults: {editable: true, error: '', groupId: '', isLoading: false, ouId: '', source: 'base', title: ''},
     group: 'Admin: groups',
     id: 'groupmembers',
     live: true,
@@ -720,6 +726,7 @@ const STORIES: ComponentDef[] = [
         <Narrow width={640}>
           <GroupMembers
             groupId={str(args, 'groupId')}
+            ouId={str(args, 'ouId') || undefined}
             editable={bool(args, 'editable')}
             title={str(args, 'title') || undefined}
           />

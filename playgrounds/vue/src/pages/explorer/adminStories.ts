@@ -829,8 +829,11 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       isLive(args)
         ? {
             imports: ['GroupMembers'],
-            template: tpl('GroupMembers', omit(args, 'source', 'isLoading', 'isMutating', 'error', 'groupId'), {
-              extra: [`group-id="${str(args, 'groupId') || SAMPLE_GROUPS[0].id}"`],
+            template: tpl('GroupMembers', omit(args, 'source', 'isLoading', 'isMutating', 'error', 'groupId', 'ouId'), {
+              extra: [
+                `group-id="${str(args, 'groupId') || SAMPLE_GROUPS[0].id}"`,
+                ...(str(args, 'ouId') ? [`ou-id="${str(args, 'ouId')}"`] : []),
+              ],
             }),
           }
         : {
@@ -845,7 +848,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                   ]
                 : []),
             ],
-            template: tpl('BaseGroupMembers', omit(args, 'source', 'editable', 'groupId'), {
+            template: tpl('BaseGroupMembers', omit(args, 'source', 'editable', 'groupId', 'ouId'), {
               extra: [
                 ':members="members"',
                 ...(bool(args, 'editable')
@@ -859,6 +862,12 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       ...titleControls,
       {control: 'bool', description: 'Shows the add form and remove buttons.', name: 'editable', type: 'boolean'},
       idControl('groupId', 'group'),
+      {
+        control: 'text',
+        description: 'Live only: the organization unit the add form lists from.',
+        name: 'ouId',
+        type: 'string',
+      },
       {control: 'bool', description: 'Base only: an add or remove is in flight.', name: 'isMutating', type: 'boolean'},
       ...baseStateControls,
     ],
@@ -869,6 +878,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       groupId: '',
       isLoading: false,
       isMutating: false,
+      ouId: '',
       source: 'base',
       title: '',
     },
@@ -886,7 +896,13 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               pick: firstOf<Group>('groups'),
               query: () => useApiQuery(() => getGroups({...useManagementRequestConfig('groups'), limit: 1})),
               render: (groupId: string): VNode =>
-                h(GroupMembers, {...heading(args), editable: bool(args, 'editable'), groupId, key: groupId}),
+                h(GroupMembers, {
+                  ...heading(args),
+                  editable: bool(args, 'editable'),
+                  groupId,
+                  key: groupId,
+                  ouId: str(args, 'ouId') || undefined,
+                }),
             })
           : h(BaseGroupMembers, {
               ...heading(args),

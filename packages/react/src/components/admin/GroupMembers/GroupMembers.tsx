@@ -22,6 +22,7 @@ import {
   getUsers,
   removeGroupMembers,
   resolveManagedIdentityName,
+  toEqualityFilter,
   toManagementErrorMessage,
 } from '@thunderid/browser';
 import {FC, ReactElement, useMemo} from 'react';
@@ -35,6 +36,14 @@ import {IdentityCandidate} from '../shared/IdentityPicker';
 interface GroupMembersVariables {
   groupId: string;
   members: Pick<GroupMember, 'id' | 'type'>[];
+}
+
+/**
+ * A candidate page with the filter it was listed with.
+ */
+interface FilteredPage<T> {
+  filter: string | undefined;
+  page: T;
 }
 
 /**
@@ -63,6 +72,10 @@ export type GroupMembersProps = Omit<
    */
   editable?: boolean;
   groupId: string;
+  /**
+   * Organization unit the users and agents offered for adding are listed from.
+   */
+  ouId?: string;
 };
 
 /**
@@ -77,6 +90,7 @@ const GroupMembers: FC<GroupMembersProps> = ({
   administrationMode,
   editable = false,
   groupId,
+  ouId,
   preferences,
   ...rest
 }: GroupMembersProps): ReactElement => {
@@ -84,19 +98,20 @@ const GroupMembers: FC<GroupMembersProps> = ({
   const groupsEndpoint: ManagementEndpoint = useManagementEndpoint('groups');
   const usersEndpoint: ManagementEndpoint = useManagementEndpoint('users');
   const agentsEndpoint: ManagementEndpoint = useManagementEndpoint('agents');
+  const filter: string | undefined = toEqualityFilter('ouId', ouId);
   const members: ResourceQueryResult<GroupMemberListResponse> = useResourceQuery(
     [GroupQueryKeys.GROUP_MEMBERS, groupId, {limit: 100}],
     (fetcher) => getGroupMembers({...groupsEndpoint, fetcher, groupId, limit: 100}),
     {enabled: Boolean(groupId)},
   );
-  const users: ResourceQueryResult<ManagedUserListResponse> = useResourceQuery(
-    [UserQueryKeys.USERS, {limit: 100}],
-    (fetcher) => getUsers({...usersEndpoint, fetcher, limit: 100}),
+  const users: ResourceQueryResult<FilteredPage<ManagedUserListResponse>> = useResourceQuery(
+    [UserQueryKeys.USERS, {filter, limit: 100}],
+    async (fetcher) => ({filter, page: await getUsers({...usersEndpoint, fetcher, filter, limit: 100})}),
     {enabled: editable},
   );
-  const agents: ResourceQueryResult<AgentListResponse> = useResourceQuery(
-    [AgentQueryKeys.AGENTS, {limit: 100}],
-    (fetcher) => getAgents({...agentsEndpoint, fetcher, limit: 100}),
+  const agents: ResourceQueryResult<FilteredPage<AgentListResponse>> = useResourceQuery(
+    [AgentQueryKeys.AGENTS, {filter, limit: 100}],
+    async (fetcher) => ({filter, page: await getAgents({...agentsEndpoint, fetcher, filter, limit: 100})}),
     {enabled: editable},
   );
   const add: ResourceMutationResult<Group, GroupMembersVariables> = useResourceMutation(
@@ -110,16 +125,22 @@ const GroupMembers: FC<GroupMembersProps> = ({
     getMembershipInvalidatedKeys,
   );
 
-  const candidates: Partial<Record<'user' | 'agent', IdentityCandidate[]>> = useMemo(
-    () => ({
-      agent: (agents.data?.agents ?? []).map((agent: BasicAgent) => ({id: agent.id, label: getAgentName(agent)})),
-      user: (users.data?.users ?? []).map((user: ManagedUser) => ({
+  const candidates: Partial<Record<'user' | 'agent', IdentityCandidate[]>> = useMemo(() => {
+    // A page listed for an earlier ouId stays in a query until the next one succeeds, so it is not offered.
+    const current = <T,>(data: FilteredPage<T> | undefined): T | undefined =>
+      data && data.filter === filter ? data.page : undefined;
+
+    return {
+      agent: (current(agents.data)?.agents ?? []).map((agent: BasicAgent) => ({
+        id: agent.id,
+        label: getAgentName(agent),
+      })),
+      user: (current(users.data)?.users ?? []).map((user: ManagedUser) => ({
         id: user.id,
         label: resolveManagedIdentityName(user),
       })),
-    }),
-    [agents.data, users.data],
-  );
+    };
+  }, [agents.data, filter, users.data]);
 
   return (
     <BaseGroupMembers

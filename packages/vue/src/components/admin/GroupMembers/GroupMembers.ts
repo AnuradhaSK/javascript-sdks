@@ -13,6 +13,7 @@ import {
   getUsers,
   removeGroupMembers,
   resolveManagedIdentityName,
+  toEqualityFilter,
   toManagementErrorMessage,
 } from '@thunderid/browser';
 import type {
@@ -41,6 +42,7 @@ type GroupMembersProps = Readonly<{
   description: string | undefined;
   editable: boolean;
   groupId: string;
+  ouId: string | undefined;
   preferences: Preferences | undefined;
   title: string | undefined;
 }>;
@@ -48,6 +50,14 @@ type GroupMembersProps = Readonly<{
 interface GroupMembersVariables {
   groupId: string;
   members: Pick<GroupMember, 'id' | 'type'>[];
+}
+
+/**
+ * A candidate page with the filter it was listed with.
+ */
+interface FilteredPage<T> {
+  filter: string | undefined;
+  page: T;
 }
 
 /**
@@ -75,6 +85,10 @@ const GroupMembers: Component = defineComponent({
     editable: {default: false, type: Boolean},
     /** Identifier of the group. */
     groupId: {required: true, type: String},
+    /**
+     * Organization unit the users and agents offered for adding are listed from.
+     */
+    ouId: {default: undefined, type: String},
     /** Component-level preferences, for example `i18n.bundles` overrides. */
     preferences: {default: undefined, type: Object as PropType<Preferences>},
     /** Heading of the section. Pass an empty string to hide it. */
@@ -98,14 +112,23 @@ const GroupMembers: Component = defineComponent({
       (fetcher) => getGroupMembers({...groupsEndpoint, fetcher, groupId: props.groupId, limit: 100}),
       {enabled: () => Boolean(props.groupId)},
     );
-    const users: ResourceQueryResult<ManagedUserListResponse> = useResourceQuery(
-      () => [UserQueryKeys.USERS, {limit: 100}],
-      (fetcher) => getUsers({...usersEndpoint, fetcher, limit: 100}),
+    const filter = (): string | undefined => toEqualityFilter('ouId', props.ouId);
+    const users: ResourceQueryResult<FilteredPage<ManagedUserListResponse>> = useResourceQuery(
+      () => [UserQueryKeys.USERS, {filter: filter(), limit: 100}],
+      async (fetcher) => {
+        const listed: string | undefined = filter();
+
+        return {filter: listed, page: await getUsers({...usersEndpoint, fetcher, filter: listed, limit: 100})};
+      },
       {enabled: editable},
     );
-    const agents: ResourceQueryResult<AgentListResponse> = useResourceQuery(
-      () => [AgentQueryKeys.AGENTS, {limit: 100}],
-      (fetcher) => getAgents({...agentsEndpoint, fetcher, limit: 100}),
+    const agents: ResourceQueryResult<FilteredPage<AgentListResponse>> = useResourceQuery(
+      () => [AgentQueryKeys.AGENTS, {filter: filter(), limit: 100}],
+      async (fetcher) => {
+        const listed: string | undefined = filter();
+
+        return {filter: listed, page: await getAgents({...agentsEndpoint, fetcher, filter: listed, limit: 100})};
+      },
       {enabled: editable},
     );
     const add: ResourceMutationResult<Group, GroupMembersVariables> = useResourceMutation(
@@ -125,13 +148,17 @@ const GroupMembers: Component = defineComponent({
       invalidatedByMembership,
     );
 
+    // A page listed for an earlier ouId stays in a query until the next one succeeds, so it is not offered.
+    const current = <T>(data: FilteredPage<T> | undefined): T | undefined =>
+      data && data.filter === filter() ? data.page : undefined;
+
     return (): VNode => {
       const candidates: Partial<Record<'user' | 'agent', IdentityCandidate[]>> = {
-        agent: (agents.data.value?.agents ?? []).map((agent: BasicAgent) => ({
+        agent: (current(agents.data.value)?.agents ?? []).map((agent: BasicAgent) => ({
           id: agent.id,
           label: getAgentName(agent),
         })),
-        user: (users.data.value?.users ?? []).map((user: ManagedUser) => ({
+        user: (current(users.data.value)?.users ?? []).map((user: ManagedUser) => ({
           id: user.id,
           label: resolveManagedIdentityName(user),
         })),
